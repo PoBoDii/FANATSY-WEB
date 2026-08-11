@@ -142,7 +142,7 @@ export default async function PreciosPage({
             {num(risers.length)} suben · {num(fallers.length)} bajan · variación respecto a ayer
           </>
         }
-        action={<AutoRefresh seconds={120} />}
+        action={<AutoRefresh seconds={300} />}
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

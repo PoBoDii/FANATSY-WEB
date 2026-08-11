@@ -27,6 +27,11 @@ export type Player = {
   marketValue: number;
   points: number;
   averagePoints: number;
+  /**
+   * Puntos de la temporada anterior. Es el único indicio de rendimiento
+   * mientras la liga no ha empezado y todos van a cero.
+   */
+  lastSeasonPoints?: number;
   /** Sólo presente dentro de una alineación. */
   inLineup?: boolean;
   /** Puja/precio de venta si viene del mercado. */
@@ -163,6 +168,7 @@ export function toPlayer(raw: unknown): Player {
     marketValue: num(pick(p, ["marketValue", "value", "price"], 0)),
     points: num(pick(p, ["points", "totalPoints"], 0)),
     averagePoints: num(pick(p, ["averagePoints", "avgPoints", "average"], 0)),
+    lastSeasonPoints: num(pick(p, ["lastSeasonPoints"], 0)) || undefined,
     buyoutClause: num(pick(rel, ["buyoutClause", "clause"], 0)) || undefined,
     buyoutUnlockAt: pick<string | null>(
       rel,

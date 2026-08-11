@@ -241,7 +241,7 @@ export default async function EquipoClubPage({
                     href={item.url!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="border-line flex items-center gap-3 rounded-lg border-2 bg-white px-3 py-2.5 text-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    className="border-line bg-panel flex items-center gap-3 rounded-lg border-2 px-3 py-2.5 text-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                     style={{ borderLeftColor: team.color, borderLeftWidth: 5 }}
                   >
                     <div className="border-line bg-panel-2 h-[44px] w-[44px] shrink-0 overflow-hidden rounded-lg border">
@@ -335,7 +335,7 @@ function Pill({
     <span
       className={`rounded-full px-2.5 py-1 ${
         highlight
-          ? "bg-white text-emerald-800"
+          ? "bg-white text-up"
           : danger
             ? "bg-rose-600 text-white"
             : "bg-black/30 text-white"
@@ -356,7 +356,7 @@ function TabBar({
   counts: { jugadores: number; noticias: number };
 }) {
   return (
-    <div className="border-line flex overflow-x-auto border-b bg-white">
+    <div className="border-line bg-panel flex overflow-x-auto border-b">
       {TABS.map((t) => {
         const on = active === t.key;
         const count = t.key === "jugadores" ? counts.jugadores : t.key === "noticias" ? counts.noticias : null;
@@ -558,7 +558,7 @@ function Lineup({
                       aria-label={main.name}
                     />
                   )}
-                  <div className="border-line relative overflow-hidden rounded-lg border-2 bg-white">
+                  <div className="border-line bg-panel relative overflow-hidden rounded-lg border-2">
                     <PlayerPhoto src={ffPhoto(main.ffId || slot.ffId)} name={main.name} size={54} />
                   </div>
                   {tone && (
@@ -612,7 +612,7 @@ function InjuryCard({
 }) {
   const tone = injury
     ? injuryTone(injury)
-    : { bg: "bg-rose-50", border: "border-rose-300", text: "text-down" };
+    : { bg: "bg-down-soft", border: "border-down/40", text: "text-down" };
 
   const body = (
     <>

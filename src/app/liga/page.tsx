@@ -138,7 +138,7 @@ export default async function LigaPage({
           <Link
             key={m.teamId}
             href={hrefOf(m)}
-            className="rise group border-line relative overflow-hidden rounded-3xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
+            className="rise group border-line relative overflow-hidden rounded-3xl border bg-panel p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
             style={{ animationDelay: `${i * 80}ms` }}
           >
             {/* Halo del color del manager: da vida sin teñir la tarjeta entera,
@@ -199,7 +199,7 @@ export default async function LigaPage({
       </div>
 
       {/* Tabla completa */}
-      <div className="border-line mx-3 mb-6 overflow-x-auto rounded-2xl border bg-white shadow-sm sm:mx-4 lg:mx-6">
+      <div className="border-line mx-3 mb-6 overflow-x-auto rounded-2xl border bg-panel shadow-sm sm:mx-4 lg:mx-6">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-line bg-panel-2/60 border-b">

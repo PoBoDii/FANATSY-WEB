@@ -14,7 +14,7 @@ export function SwingBand({ swing, mine = false }: { swing: ValueSwing; mine?: b
 
   return (
     <div className="grid grid-cols-3 gap-2 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4 lg:px-6">
-      <div className="rise border-line rounded-2xl border bg-gradient-to-br from-emerald-50 to-white px-3 py-3 shadow-sm sm:px-5 sm:py-4">
+      <div className="rise border-line rounded-2xl border bg-gradient-to-br from-up-soft to-panel px-3 py-3 shadow-sm sm:px-5 sm:py-4">
         <div className="label text-up">{mine ? "Me sube hoy" : "Le sube hoy"}</div>
         <div className="tnum text-up mt-2 text-[1.15rem] leading-none font-semibold whitespace-nowrap sm:text-[1.75rem]">
           {swing.up > 0 ? signed(swing.up) : "—"}
@@ -25,7 +25,7 @@ export function SwingBand({ swing, mine = false }: { swing: ValueSwing; mine?: b
       </div>
 
       <div
-        className="rise border-line rounded-2xl border bg-gradient-to-br from-rose-50 to-white px-3 py-3 shadow-sm sm:px-5 sm:py-4"
+        className="rise border-line rounded-2xl border bg-gradient-to-br from-down-soft to-panel px-3 py-3 shadow-sm sm:px-5 sm:py-4"
         style={{ animationDelay: "60ms" }}
       >
         <div className="label text-down">{mine ? "Me baja hoy" : "Le baja hoy"}</div>
@@ -38,7 +38,7 @@ export function SwingBand({ swing, mine = false }: { swing: ValueSwing; mine?: b
       </div>
 
       <div
-        className="rise border-line rounded-2xl border bg-white px-3 py-3 shadow-sm sm:px-5 sm:py-4"
+        className="rise border-line rounded-2xl border bg-panel px-3 py-3 shadow-sm sm:px-5 sm:py-4"
         style={{ animationDelay: "120ms" }}
       >
         <div className="label">Total del día</div>

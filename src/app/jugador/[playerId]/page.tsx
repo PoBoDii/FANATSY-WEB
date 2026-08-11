@@ -148,7 +148,7 @@ function Header({
         }}
       />
       <div className="relative flex flex-wrap items-center gap-5 px-6 py-7 lg:px-10">
-        <div className="border-line relative overflow-hidden rounded-xl border-2 bg-white shadow-md">
+        <div className="border-line relative overflow-hidden rounded-xl border-2 bg-panel shadow-md">
           <PlayerPhoto
             src={player.image}
             fallback={ffPhoto(odds?.ffId ?? null)}
@@ -200,7 +200,7 @@ function Header({
                 className={`rounded-md border px-2 py-1 text-[0.72rem] font-bold ${
                   owner.isMe
                     ? "border-acid bg-acid/15 text-acid"
-                    : "border-sky-300 bg-sky-50 text-sky-800"
+                    : "border-info/50 bg-info-soft text-info"
                 }`}
               >
                 {owner.isMe ? "ES TUYO" : `De ${owner.manager}`}
@@ -238,7 +238,7 @@ function Ownership({
 }) {
   if (!owner) {
     return (
-      <div className="border-line border-b bg-emerald-50/50 px-6 py-4 lg:px-10">
+      <div className="border-line border-b bg-up-soft/50 px-6 py-4 lg:px-10">
         <div className="label text-acid">Libre</div>
         <p className="mt-1 text-sm font-medium">
           No lo tiene nadie de tu liga. Si sale al mercado, se puede fichar sin pagar cláusula.
@@ -255,7 +255,7 @@ function Ownership({
   return (
     <div
       className={`border-line grid gap-px border-b sm:grid-cols-2 lg:grid-cols-4 ${
-        open ? "bg-rose-50/60" : "bg-panel-2/40"
+        open ? "bg-down-soft/60" : "bg-panel-2/40"
       }`}
     >
       <Cell label="Lo tiene">
@@ -339,10 +339,10 @@ function SeasonStats({ odds }: { odds: FfPlayer | null }) {
   if (!s) return null;
 
   const items = [
-    { label: "Goles", value: s.goals, color: "text-emerald-700" },
-    { label: "Asistencias", value: s.assists, color: "text-sky-700" },
-    { label: "Amarillas", value: s.yellow, color: "text-amber-600" },
-    { label: "Rojas", value: s.red, color: "text-rose-600" },
+    { label: "Goles", value: s.goals, color: "text-up" },
+    { label: "Asistencias", value: s.assists, color: "text-info" },
+    { label: "Amarillas", value: s.yellow, color: "text-warn" },
+    { label: "Rojas", value: s.red, color: "text-down" },
     { label: "Partidos", value: s.matches, color: "text-ink" },
     { label: "Minutos", value: s.minutes, color: "text-ink" },
   ];
@@ -354,7 +354,7 @@ function SeasonStats({ odds }: { odds: FfPlayer | null }) {
         {items.map((item) => (
           <div
             key={item.label}
-            className="border-line min-w-[92px] flex-1 rounded-lg border bg-white px-3 py-2.5"
+            className="border-line min-w-[92px] flex-1 rounded-lg border bg-panel px-3 py-2.5"
           >
             <div className="text-faint text-[0.62rem] font-semibold uppercase">{item.label}</div>
             <div className={`tnum mt-1 text-[1.2rem] leading-none font-semibold ${item.color}`}>
@@ -418,10 +418,10 @@ function PriceTrend({ odds }: { odds: FfPlayer | null }) {
             key={day.days}
             className={`min-w-[136px] flex-1 rounded-xl border px-4 py-3 ${
               day.diff === 0
-                ? "border-line bg-white"
+                ? "border-line bg-panel"
                 : day.diff > 0
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-rose-200 bg-rose-50"
+                  ? "border-up/40 bg-up-soft"
+                  : "border-down/40 bg-down-soft"
             }`}
           >
             <div className="label">{day.label}</div>
@@ -448,10 +448,10 @@ function PriceTrend({ odds }: { odds: FfPlayer | null }) {
               key={days}
               className={`min-w-[104px] flex-1 rounded-lg border px-3 py-2.5 ${
                 diff === 0
-                  ? "border-line bg-white"
+                  ? "border-line bg-panel"
                   : up
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-rose-200 bg-rose-50"
+                    ? "border-up/40 bg-up-soft"
+                    : "border-down/40 bg-down-soft"
               }`}
             >
               <div className="text-faint text-[0.62rem] font-semibold uppercase">{label}</div>

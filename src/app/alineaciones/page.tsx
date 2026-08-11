@@ -41,7 +41,7 @@ export default async function AlineacionesPage({
               <Link
                 key={match.id}
                 href={`/alineaciones/${match.id}?j=${round}`}
-                className="border-line hover:border-acid/50 rise overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:shadow-md"
+                className="border-line hover:border-acid/50 rise overflow-hidden rounded-xl border bg-panel shadow-sm transition-all hover:shadow-md"
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 {/* Franja partida: mitad del color del local, mitad del

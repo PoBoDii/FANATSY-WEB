@@ -6,16 +6,18 @@ import { useEffect, useState } from "react";
 import type { LeagueRef } from "@/lib/session";
 import { LeaguePicker } from "./LeaguePicker";
 import { ClubStrip } from "./ClubStrip";
+import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/", label: "Mi plantilla", num: "01" },
-  { href: "/liga", label: "La liga", num: "02" },
-  { href: "/mercado", label: "Mercado", num: "03" },
-  { href: "/precios", label: "Precios", num: "04" },
-  { href: "/alineaciones", label: "Alineaciones", num: "05" },
-  { href: "/equipos", label: "Equipos", num: "06" },
-  { href: "/actividad", label: "Actividad", num: "07" },
-  { href: "/debug", label: "Diagnóstico", num: "08" },
+  { href: "/fichajes", label: "Fichajes", num: "02" },
+  { href: "/liga", label: "La liga", num: "03" },
+  { href: "/mercado", label: "Mercado", num: "04" },
+  { href: "/precios", label: "Precios", num: "05" },
+  { href: "/alineaciones", label: "Alineaciones", num: "06" },
+  { href: "/equipos", label: "Equipos", num: "07" },
+  { href: "/actividad", label: "Actividad", num: "08" },
+  { href: "/debug", label: "Diagnóstico", num: "09" },
 ];
 
 /**
@@ -100,6 +102,7 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
           <span className="text-faint ml-auto truncate text-[0.78rem] font-semibold">
             {LINKS.find((l) => isActive(l.href))?.label}
           </span>
+          <ThemeToggle />
         </div>
 
         {/* Los veinte clubes, siempre a mano */}
@@ -142,8 +145,11 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
         <div className="flex h-full flex-col px-3 py-7">
           <div className="px-3">{brand}</div>
           <div className="mt-10 flex-1">{links}</div>
-          <div className="px-3">
-            <LeaguePicker leagues={leagues} activeId={activeId} />
+          <div className="flex items-end gap-2 px-3">
+            <div className="min-w-0 flex-1">
+              <LeaguePicker leagues={leagues} activeId={activeId} />
+            </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>

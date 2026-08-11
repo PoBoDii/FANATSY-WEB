@@ -64,10 +64,10 @@ export function StatTile({
   // Cada tono trae su propio fondo y su franja lateral: el dato importante se
   // reconoce por color antes de leerlo.
   const styles = {
-    neutral: { text: "text-ink", bar: "bg-ink/25", bg: "bg-white" },
-    acid: { text: "text-acid", bar: "bg-acid", bg: "bg-gradient-to-br from-emerald-50 to-white" },
-    up: { text: "text-up", bar: "bg-up", bg: "bg-gradient-to-br from-emerald-50 to-white" },
-    down: { text: "text-down", bar: "bg-down", bg: "bg-gradient-to-br from-rose-50 to-white" },
+    neutral: { text: "text-ink", bar: "bg-ink/25", bg: "bg-panel" },
+    acid: { text: "text-acid", bar: "bg-acid", bg: "bg-gradient-to-br from-up-soft to-panel" },
+    up: { text: "text-up", bar: "bg-up", bg: "bg-gradient-to-br from-up-soft to-panel" },
+    down: { text: "text-down", bar: "bg-down", bg: "bg-gradient-to-br from-down-soft to-panel" },
   }[tone];
 
   return (
@@ -180,10 +180,10 @@ export function StatusTag({ status }: { status: PlayerStatus }) {
 
   const bg =
     status === "doubtful"
-      ? "bg-amber-50 border-amber-200"
+      ? "bg-warn-soft border-warn/40"
       : status === "out"
         ? "bg-panel-2 border-line"
-        : "bg-rose-50 border-rose-200";
+        : "bg-down-soft border-down/40";
 
   return (
     <span
@@ -210,7 +210,7 @@ export function AlertBadge({ alerts }: { alerts?: PlayerAlert[] | null }) {
 
   const title = `${alert.label}${alert.tags.length ? ` · ${alert.tags.join(", ")}` : ""}`;
   const className = `inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border shadow-sm ${
-    injury ? "border-down/40 bg-down text-white" : "border-line bg-white text-sky-600"
+    injury ? "border-down/40 bg-down text-white" : "border-line bg-panel text-info"
   }`;
 
   if (!alert.url) {
@@ -634,7 +634,7 @@ export function PlayerRow({
 
   return (
     <div
-      className={`border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-white py-3 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5 ${
+      className={`border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-panel py-3 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5 ${
         compact ? "lg:flex-nowrap" : "sm:flex-nowrap"
       }`}
       style={{ animationDelay: `${delay}ms` }}

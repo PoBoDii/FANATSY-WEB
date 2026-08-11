@@ -97,7 +97,7 @@ export default async function DebugPage({
         />
         <button
           type="submit"
-          className="bg-acid display hover:bg-acid/85 px-5 py-2 text-sm text-black transition-colors"
+          className="bg-acid display hover:bg-acid/85 rounded-lg px-5 py-2 text-sm text-white transition-colors"
         >
           Lanzar
         </button>

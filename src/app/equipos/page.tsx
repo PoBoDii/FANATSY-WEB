@@ -33,7 +33,7 @@ export default async function EquiposPage() {
             <Link
               key={team.slug}
               href={`/equipos/${team.slug}`}
-              className="rise relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl border-2 border-transparent bg-white p-3.5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:opacity-60 sm:gap-3 sm:p-5"
+              className="rise relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl border-2 border-transparent bg-panel p-3.5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:opacity-60 sm:gap-3 sm:p-5"
               style={{ animationDelay: `${i * 25}ms`, borderColor: team.color }}
             >
               <span

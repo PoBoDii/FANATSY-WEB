@@ -23,10 +23,12 @@ const COMPETITION = process.env.FANTASY_COMPETITION_ID ?? "1";
 
 /**
  * Frescura de lo que cambia a todas horas (mercado, plantillas, pujas).
- * Quince segundos: lo justo para que moverse por la web no vuelva a pedirlo
- * todo, y muy por debajo del refresco automático de 60 s de las vistas.
+ *
+ * Estaba en quince segundos y obligaba a ir al servidor de LaLiga en casi
+ * todos los renders, que en el móvil se nota muchísimo. Un minuto da la misma
+ * sensación de vivo y quita la mayoría de las peticiones.
  */
-const LIVE_SECONDS = 15;
+const LIVE_SECONDS = 60;
 
 export class FantasyApiError extends Error {
   constructor(

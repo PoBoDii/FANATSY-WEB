@@ -7,23 +7,31 @@
    ============================================================ */
 
 @theme {
-  /* Superficies, de la más al fondo a la más cercana */
-  --color-void: #f4f6f8;
-  --color-panel: #ffffff;
-  --color-panel-2: #eef1f5;
-  --color-line: #dde3ea;
+  /* Los valores de aquí son sólo los que Tailwind necesita para generar las
+     clases; los de verdad se fijan abajo en `:root` según el tema. */
+  --color-void: var(--void);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
 
-  /* Texto: tres niveles, los tres legibles */
-  --color-ink: #0a1017;
-  --color-muted: #4d5a68;
-  --color-faint: #7b8794;
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
 
   /* Verde césped: el color de marca. */
-  --color-acid: #0d7a44;
+  --color-acid: var(--acid);
 
-  --color-up: #15803d;
-  --color-down: #dc2626;
-  --color-warn: #d97706;
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-warn: var(--warn);
+
+  /* Tintes suaves y color de apoyo, para no depender de la paleta fija de
+     Tailwind: así el tema oscuro los redefine en un único sitio. */
+  --color-up-soft: var(--up-soft);
+  --color-down-soft: var(--down-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
 
   --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
   --font-body: var(--font-instrument), system-ui, sans-serif;
@@ -32,8 +40,59 @@
   --radius-panel: 18px;
 }
 
-:root {
+/* ------------------------------------------------------------------ temas
+   El oscuro es el de casa: gris carbón, no negro puro, para que el color de
+   las probabilidades y las subidas siga leyéndose sin deslumbrar. El claro
+   queda a un toque desde el menú.
+   ------------------------------------------------------------------------ */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --void: #131519;
+  --panel: #1b1e24;
+  --panel-2: #252932;
+  --line: #333945;
+
+  --ink: #eef2f7;
+  --muted: #a6b0bd;
+  --faint: #7d8896;
+
+  --acid: #19a35c;
+  --up: #2bc46a;
+  --down: #f2555a;
+  --warn: #f0a029;
+
+  --up-soft: #14301f;
+  --down-soft: #351a1d;
+  --warn-soft: #33280f;
+  --info: #7cc7f5;
+  --info-soft: #172a3a;
+}
+
+:root[data-theme="light"] {
   color-scheme: light;
+
+  --void: #f4f6f8;
+  --panel: #ffffff;
+  --panel-2: #eef1f5;
+  --line: #dde3ea;
+
+  --ink: #0a1017;
+  --muted: #4d5a68;
+  --faint: #7b8794;
+
+  --acid: #0d7a44;
+  --up: #15803d;
+  --down: #dc2626;
+  --warn: #d97706;
+
+  --up-soft: #ecfdf3;
+  --down-soft: #fef2f2;
+  --warn-soft: #fffbeb;
+  --info: #0369a1;
+  --info-soft: #f0f9ff;
 }
 
 html {

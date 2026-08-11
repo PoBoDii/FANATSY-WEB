@@ -28,6 +28,12 @@ export type FfPlayer = {
   slug: string | null;
   /** 0-100, probabilidad de salir de titular. null si no la publican. */
   probability: number | null;
+  /**
+   * Si futbolfantasy lo pone en el once probable de su club. Es más fiable que
+   * el porcentaje a secas: dos jugadores al 50% no son lo mismo si a uno lo
+   * dibujan en el campo y al otro no.
+   */
+  projectedStarter: boolean;
   value: number;
   previousValue: number | null;
   /** Diferencia con el día anterior, en euros. */

@@ -55,6 +55,15 @@ export function findTeam(slug: string): TeamRef | undefined {
 
 export type Difficulty = "m-asequible" | "asequible" | "igualado" | "dificil" | "m-dificil";
 
+/** De 1 (rival flojo) a 5 (rival temible). Para poder promediar calendarios. */
+export const DIFFICULTY_LEVEL: Record<Difficulty, number> = {
+  "m-asequible": 1,
+  asequible: 2,
+  igualado: 3,
+  dificil: 4,
+  "m-dificil": 5,
+};
+
 const DIFFICULTY: Record<Difficulty, { label: string; short: string; bg: string; ink: string }> = {
   "m-asequible": { label: "Muy asequible", short: "MUY FÁCIL", bg: "#38bdf8", ink: "#052e46" },
   asequible: { label: "Asequible", short: "FÁCIL", bg: "#4ade80", ink: "#0b3d20" },
@@ -191,13 +200,21 @@ export async function getFixtures(slug: string): Promise<Fixtures> {
  * Se agrupa por club antes de pedir nada: una plantilla de 24 jugadores toca
  * como mucho 20 clubes, y normalmente muchos menos.
  */
-export async function fixturesByClub<T>(
+export async function fixturesByClub<T extends { clubName?: string }>(
   players: T[],
   oddsOf: (player: T) => { teamId: string | null } | null,
 ): Promise<(player: T) => Fixture[] | null> {
+  /**
+   * El club se busca primero por el id de futbolfantasy y, si ese jugador no
+   * tiene ficha allí, por el nombre que da LaLiga. Sin este respaldo, a quien
+   * futbolfantasy no lista se le quedaba el calendario en blanco.
+   */
+  const clubOf = (player: T) =>
+    TEAMS.find((t) => t.ffId === oddsOf(player)?.teamId) ?? findTeamByName(player.clubName ?? "");
+
   const slugs = new Set<string>();
   for (const player of players) {
-    const team = TEAMS.find((t) => t.ffId === oddsOf(player)?.teamId);
+    const team = clubOf(player);
     if (team) slugs.add(team.slug);
   }
 
@@ -207,7 +224,7 @@ export async function fixturesByClub<T>(
 
   const bySlug = new Map(entries);
   return (player) => {
-    const team = TEAMS.find((t) => t.ffId === oddsOf(player)?.teamId);
+    const team = clubOf(player);
     return team ? (bySlug.get(team.slug) ?? null) : null;
   };
 }

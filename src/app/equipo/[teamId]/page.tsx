@@ -104,7 +104,7 @@ export default async function EquipoPage({
             {inLeague ? ` · ${inLeague.position}º de la liga · ${num(inLeague.points)} pts` : ""}
           </>
         }
-        action={<AutoRefresh seconds={60} />}
+        action={<AutoRefresh seconds={180} />}
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

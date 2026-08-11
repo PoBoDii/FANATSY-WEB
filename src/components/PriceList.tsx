@@ -48,7 +48,7 @@ function Chips({
 }) {
   const on =
     tone === "sky"
-      ? "border-sky-500 bg-sky-500/15 text-sky-700"
+      ? "border-info/50 bg-sky-500/15 text-info"
       : "border-acid bg-acid/15 text-acid";
   return (
     <div className="flex flex-wrap gap-1">
@@ -323,7 +323,7 @@ function PriceRow({
               className={`shrink-0 rounded-sm border px-1.5 py-[2px] text-[0.68rem] leading-none font-semibold ${
                 entry.ownerIsMe
                   ? "border-acid bg-acid/20 text-acid"
-                  : "border-sky-400/50 bg-sky-400/15 text-sky-300"
+                  : "border-info/50/50 bg-sky-400/15 text-info"
               }`}
             >
               {entry.ownerIsMe ? "TUYO" : entry.ownerName}
@@ -375,7 +375,7 @@ function PriceRow({
 
   return (
     <div
-      className="border-line rise hover:border-acid/40 relative mx-auto flex max-w-4xl items-center gap-2.5 overflow-hidden rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition-all hover:shadow-md sm:gap-3.5 sm:px-4 sm:py-3"
+      className="border-line rise hover:border-acid/40 relative mx-auto flex max-w-4xl items-center gap-2.5 overflow-hidden rounded-2xl border bg-panel px-3 py-2.5 shadow-sm transition-all hover:shadow-md sm:gap-3.5 sm:px-4 sm:py-3"
       style={{ animationDelay: `${delay}ms` }}
     >
       {entry.playerId && (

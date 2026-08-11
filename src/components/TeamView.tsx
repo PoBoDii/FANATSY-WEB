@@ -18,7 +18,10 @@ import { money, num } from "@/lib/format";
 import Link from "next/link";
 import { PendingLink } from "./PendingLink";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
+import { bestEleven, rate } from "@/lib/once-ideal";
 import { AutoRefresh } from "./AutoRefresh";
+import { NextRival } from "./Fixtures";
+import type { Fixture } from "@/lib/equipos";
 import {
   SortBar,
   SquadHeader,
@@ -27,7 +30,16 @@ import {
   readSortParams,
   sortSquad,
 } from "./SquadList";
-import { Empty, ErrorBox, PageHeader, PlayerRow, StatTile, type LineupRole } from "./ui";
+import {
+  Empty,
+  ErrorBox,
+  OddsChip,
+  PageHeader,
+  PlayerAvatar,
+  PlayerRow,
+  StatTile,
+  type LineupRole,
+} from "./ui";
 
 const ORDER: Position[] = ["PT", "DF", "MC", "DL", "EN", "?"];
 
@@ -58,7 +70,7 @@ export async function TeamView({
   leagueId: string;
   teamId: string;
   eyebrow: string;
-  view?: "once" | "lista";
+  view?: "once" | "lista" | "ideal";
   sortParams?: { orden?: string; dir?: string; pos?: string; abiertas?: string };
   /** Qué estadística se enseña en el campo. */
   pitchStat?: PitchStat;
@@ -110,6 +122,13 @@ export async function TeamView({
   const fixturesOf = await fixturesByClub(squad, oddsOf);
   const swing = squadSwing(squad, oddsOf);
 
+  // El once que más puntos debería dar con lo que tengo en plantilla.
+  const rated = squad
+    .filter((p) => p.position !== "EN")
+    .map((p) => rate(p, oddsOf(p), fixturesOf(p)));
+  const ideal = bestEleven(rated);
+  const idealXp = new Map(rated.map((r) => [r.player.id, r.xp]));
+
   const { sort, dir, positions, openOnly } = readSortParams(sortParams, "posicion");
   const listed = sortSquad(filterSquad(squad, positions, openOnly), sort, dir, oddsOf);
 
@@ -125,7 +144,7 @@ export async function TeamView({
             {inLeague ? ` · ${inLeague.position}º de la liga` : ""}
           </>
         }
-        action={<AutoRefresh seconds={60} />}
+        action={<AutoRefresh seconds={180} />}
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
@@ -150,7 +169,16 @@ export async function TeamView({
 
       <Tabs view={view} />
 
-      {view === "lista" ? (
+      {view === "ideal" ? (
+        <IdealView
+          ideal={ideal}
+          rated={rated}
+          starters={starterIds}
+          leagueId={leagueId}
+          oddsOf={oddsOf}
+          fixturesOf={fixturesOf}
+        />
+      ) : view === "lista" ? (
         <>
           <SquadCounter count={squad.length} />
           <SortBar
@@ -286,7 +314,7 @@ function PitchStatPicker({ active }: { active: PitchStat }) {
           scroll={false}
           className={`shrink-0 rounded-full px-2.5 py-1 text-[0.68rem] font-medium transition-colors ${
             active === option.key
-              ? "bg-white text-[#1c5c3a] shadow-sm"
+              ? "bg-panel text-[#1c5c3a] shadow-sm"
               : "bg-black/25 text-white/80 hover:bg-black/35"
           }`}
         >
@@ -298,8 +326,8 @@ function PitchStatPicker({ active }: { active: PitchStat }) {
 }
 
 /** Once titular contra lista completa. Va por URL para poder compartirla. */
-function Tabs({ view }: { view: "once" | "lista" }) {
-  const tab = (mine: "once" | "lista", label: string, href: string) => (
+function Tabs({ view }: { view: "once" | "lista" | "ideal" }) {
+  const tab = (mine: "once" | "lista" | "ideal", label: string, href: string) => (
     <PendingLink
       href={href}
       scroll={false}
@@ -316,8 +344,188 @@ function Tabs({ view }: { view: "once" | "lista" }) {
   return (
     <div className="border-line flex border-b">
       {tab("once", "Once titular", "/")}
+      {tab("ideal", "Once ideal", "/?vista=ideal")}
       {tab("lista", "Todos mis jugadores", "/?vista=lista")}
     </div>
+  );
+}
+
+/**
+ * El once ideal: el campo con la mejor combinación posible y, debajo, por qué
+ * esa formación y no otra.
+ */
+function IdealView({
+  ideal,
+  rated,
+  starters,
+  leagueId,
+  oddsOf,
+  fixturesOf,
+}: {
+  ideal: ReturnType<typeof bestEleven>;
+  rated: ReturnType<typeof rate>[];
+  starters: Set<string>;
+  leagueId: string;
+  oddsOf: (player: Player) => ReturnType<typeof rate>["odds"];
+  fixturesOf: (player: Player) => Fixture[] | null;
+}) {
+  if (!ideal) {
+    return (
+      <Empty
+        title="Todavía no se puede montar un once"
+        hint="Hace falta al menos un portero y jugadores suficientes en cada línea."
+      />
+    );
+  }
+
+  const xpOf = new Map(ideal.players.map((r) => [r.player.id, r.xp]));
+  const changes = ideal.players.filter((r) => !starters.has(r.player.id));
+
+  const chosen = new Set(ideal.players.map((r) => r.player.id));
+  const rest = rated.filter((r) => !chosen.has(r.player.id));
+  const bench = rest.filter((r) => !r.unavailable).sort((a, b) => b.xp - a.xp);
+  const out = rest.filter((r) => r.unavailable);
+
+  return (
+    <>
+      <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
+        <StatTile label="Formación" value={ideal.formation} tone="acid" />
+        <StatTile
+          label="Puntos esperados"
+          value={ideal.xp.toFixed(1)}
+          sub="del once entero"
+          delay={60}
+        />
+        <StatTile
+          label="Cambios"
+          value={num(changes.length)}
+          sub={changes.length === 0 ? "ya lo tienes puesto" : "respecto a tu once"}
+          tone={changes.length > 0 ? "down" : "up"}
+          delay={120}
+        />
+        <StatTile
+          label="Titulares seguros"
+          value={num(ideal.players.filter((r) => r.plays >= 0.8).length)}
+          sub="de 11"
+          delay={180}
+        />
+      </div>
+
+      <Pitch
+        players={ideal.players.map((r) => r.player)}
+        formation={ideal.formation}
+        leagueId={leagueId}
+        oddsOf={oddsOf}
+        fixturesOf={fixturesOf}
+        xpOf={(p) => xpOf.get(p.id) ?? null}
+        alreadyIn={starters}
+        title="Once ideal"
+        maxWidth="mx-auto max-w-3xl"
+        stat="ideal"
+      />
+
+      {/* Los que se quedan fuera, con el porqué */}
+      {bench.length > 0 && (
+        <div className="px-4 pb-2 sm:px-6 lg:px-10">
+          <h3 className="label mb-2.5">En el banquillo · {bench.length}</h3>
+          <div className="flex flex-wrap gap-2">
+            {bench.map((r) => (
+              <div
+                key={r.player.id}
+                className="border-line bg-panel relative w-[104px] rounded-xl border p-2 text-center"
+              >
+                <Link
+                  href={`/jugador/${r.player.id}`}
+                  className="absolute inset-0"
+                  aria-label={r.player.name}
+                />
+                <div className="mx-auto w-fit">
+                  <PlayerAvatar player={r.player} size={44} className="h-11 w-11" />
+                </div>
+                <div className="mt-1.5 truncate text-[0.68rem] leading-tight font-bold">
+                  {r.player.name}
+                </div>
+                <div className="mt-1 flex justify-center">
+                  <OddsChip odds={r.odds} />
+                </div>
+                <div className="mt-1 flex justify-center">
+                  <NextRival fixtures={r.fixtures} size="sm" />
+                </div>
+                <div className="text-faint mt-1 text-[0.58rem] leading-tight">
+                  {r.xp.toFixed(1)} pts{r.note ? ` · ${r.note.split(" · ")[0]}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="px-4 pb-6 sm:px-6 lg:px-10">
+        {changes.length > 0 && (
+          <div className="border-line bg-warn-soft mb-4 rounded-2xl border p-4">
+            <h3 className="display text-base">
+              {changes.length === 1 ? "Un cambio" : `${changes.length} cambios`} respecto a tu once
+            </h3>
+            <ul className="mt-2 space-y-1">
+              {changes.map((r) => (
+                <li key={r.player.id} className="text-[0.82rem]">
+                  <span className="font-semibold">{r.player.name}</span>
+                  <span className="text-muted">
+                    {" "}
+                    — {r.xp.toFixed(1)} pts esperados
+                    {r.note ? ` · ${r.note}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {out.length > 0 && (
+          <div className="border-line bg-down-soft mb-4 rounded-2xl border p-4">
+            <h3 className="display text-base">No pueden jugar · {out.length}</h3>
+            <p className="text-muted mt-1 text-[0.78rem]">
+              Nunca entran en el once, por muy bien que puntúen de normal.
+            </p>
+            <ul className="mt-2 space-y-1">
+              {out.map((r) => (
+                <li key={r.player.id} className="text-[0.82rem]">
+                  <span className="font-semibold">{r.player.name}</span>
+                  <span className="text-muted"> — {r.note || "no disponible"}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <h3 className="label mb-2">Qué da cada formación</h3>
+        <div className="flex flex-wrap gap-2">
+          {ideal.options.map((o) => (
+            <span
+              key={o.formation}
+              className={`tnum rounded-xl border px-3 py-1.5 text-[0.78rem] ${
+                o.formation === ideal.formation
+                  ? "border-acid bg-acid/15 text-acid font-bold"
+                  : o.possible
+                    ? "border-line text-muted"
+                    : "border-line text-faint opacity-50"
+              }`}
+            >
+              {o.formation}{" "}
+              <span className="opacity-70">{o.possible ? o.xp.toFixed(1) : "no llegas"}</span>
+            </span>
+          ))}
+        </div>
+
+        <p className="text-faint mt-4 text-[0.76rem]">
+          Los puntos esperados salen de la probabilidad de ser titular multiplicada por lo que
+          suele dar cada puesto: portería a cero y despejes atrás, la mezcla en el centro, y goles
+          y asistencias arriba. La portería a cero se estima con la dificultad del próximo rival.
+          Con la liga sin empezar se tira de la temporada pasada y de la jerarquía, así que irá
+          afinándose jornada a jornada.
+        </p>
+      </div>
+    </>
   );
 }
 

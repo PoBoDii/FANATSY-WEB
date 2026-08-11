@@ -171,12 +171,12 @@ export async function getInjuries(): Promise<InjuryIndex> {
 export function injuryTone(injury: Injury): { bg: string; border: string; text: string } {
   const outlook = (injury.outlook ?? "").toLowerCase();
   if (outlook.startsWith("disponible")) {
-    return { bg: "bg-emerald-50", border: "border-emerald-300", text: "text-up" };
+    return { bg: "bg-up-soft", border: "border-emerald-300", text: "text-up" };
   }
   if (outlook.startsWith("duda")) {
-    return { bg: "bg-amber-50", border: "border-amber-300", text: "text-warn" };
+    return { bg: "bg-warn-soft", border: "border-warn/40", text: "text-warn" };
   }
-  return { bg: "bg-rose-50", border: "border-rose-300", text: "text-down" };
+  return { bg: "bg-down-soft", border: "border-down/40", text: "text-down" };
 }
 
 /** Busca por nombre completo o corto, en ese orden. */

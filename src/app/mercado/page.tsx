@@ -151,7 +151,7 @@ export default async function MercadoPage({
             {hidden > 0 ? ` · ${hidden} ocultos (los venden otros managers)` : ""}
           </>
         }
-        action={<AutoRefresh seconds={60} />}
+        action={<AutoRefresh seconds={120} />}
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
@@ -241,7 +241,7 @@ function MarketRow({
 
   return (
     <div
-      className="border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-white py-2.5 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md sm:flex-nowrap lg:gap-5 lg:pr-6 lg:pl-6"
+      className="border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-panel py-2.5 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md sm:flex-nowrap lg:gap-5 lg:pr-6 lg:pl-6"
       style={{ animationDelay: `${delay}ms` }}
     >
       <Link href={`/jugador/${player.id}`} className="absolute inset-0" aria-label={player.name} />

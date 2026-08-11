@@ -155,6 +155,7 @@ function parsePrices(html: string): { rows: FfPlayer[]; teams: Map<string, strin
       ffId: raw.id ?? null,
       slug: null,
       probability: null,
+      projectedStarter: false,
       value,
       previousValue: int(raw, "valor1"),
       diff: int(raw, "diferencia1"),
@@ -204,6 +205,8 @@ type TeamEntry = {
   slug: string;
   displayName: string;
   probability: number | null;
+  /** Dibujado en el once probable del club. */
+  projectedStarter: boolean;
   stats: PlayerStats;
 };
 
@@ -278,6 +281,9 @@ function parseAlerts(html: string): Map<string, PlayerAlert[]> {
  * Sin acotarlo, el Atlético salía con Cristian Romero —que no es suyo— porque
  * aparecía en un rumor.
  */
+/** El enlace a la ficha de un jugador dentro de un bloque del club. */
+const PLAYER_HREF = /\/jugadores\/([a-z0-9-]+)"/;
+
 const SQUAD_SECTION = /<section[^>]*class="mod alineacion_wrapper[^"]*"[\s\S]*?(?=<section|$)/g;
 
 function squadHtml(html: string): string {
@@ -297,6 +303,14 @@ function parseTeamPage(html: string): TeamEntry[] {
   // otro.
   const squad = squadHtml(html);
 
+  // Quién sale dibujado en el once probable. El marcador `data-onceFF` va en
+  // el envoltorio de la ficha, antes del enlace al jugador.
+  const projected = new Set<string>();
+  for (const mark of squad.matchAll(/data-onceFF="titular"/g)) {
+    const slug = PLAYER_HREF.exec(squad.slice(mark.index, mark.index + 2500));
+    if (slug) projected.add(slug[1]);
+  }
+
   for (const match of squad.matchAll(ANCHOR)) {
     const slug = match[1];
     const from = match.index + match[0].length;
@@ -307,6 +321,7 @@ function parseTeamPage(html: string): TeamEntry[] {
       slug,
       displayName: "",
       probability: null,
+      projectedStarter: false,
       stats: { ...EMPTY_STATS },
     };
 
@@ -331,6 +346,7 @@ function parseTeamPage(html: string): TeamEntry[] {
     s.minutes ??= attr(tag, "data-totalMinutosJugados");
     s.hierarchy ??= attr(tag, "data-jerarquia");
 
+    entry.projectedStarter = projected.has(slug);
     bySlug.set(slug, entry);
   }
 
@@ -409,6 +425,7 @@ function joinClub(
     if (row) {
       claimed.add(row);
       row.slug = entry.slug;
+      row.projectedStarter = entry.projectedStarter;
       // El nombre del campo suele ser el corto ("Baena"); se guarda como alias
       // para poder cruzarlo, pero sin perder el completo del mercado.
       row.displayName = display || null;
@@ -433,6 +450,7 @@ function joinClub(
       ffId: null,
       slug: entry.slug,
       probability: entry.probability,
+      projectedStarter: entry.projectedStarter,
       value: 0,
       previousValue: null,
       diff: null,

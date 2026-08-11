@@ -23,7 +23,7 @@ export function MatchForecast({
   ];
 
   return (
-    <section className="border-line border-b bg-white px-6 py-5 lg:px-10">
+    <section className="border-line border-b bg-panel px-6 py-5 lg:px-10">
       <div className="mb-3 flex flex-wrap items-baseline gap-3">
         <h2 className="flex items-center gap-2.5 text-[0.95rem] font-bold">
           <span className="bg-ink h-5 w-[4px] rounded-full" />
@@ -91,7 +91,7 @@ export function MatchForecast({
 
 function Box({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-line min-w-[150px] flex-1 rounded-lg border bg-white px-3 py-2">
+    <div className="border-line min-w-[150px] flex-1 rounded-lg border bg-panel px-3 py-2">
       <div className="label text-[0.55rem]">{label}</div>
       <div className="mt-1">{children}</div>
     </div>

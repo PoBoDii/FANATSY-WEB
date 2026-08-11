@@ -18,7 +18,7 @@ export function ClubStrip() {
             key={team.slug}
             href={`/equipos/${team.slug}`}
             title={team.name}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 bg-white transition-transform active:scale-95"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 bg-panel transition-transform active:scale-95"
             style={{ borderColor: `${team.color}55` }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}

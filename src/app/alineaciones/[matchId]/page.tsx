@@ -213,7 +213,7 @@ export default async function PartidoPage({
           </>
         }
         action={
-          <div className="border-line rounded-xl border bg-white px-4 py-2.5 text-center shadow-sm">
+          <div className="border-line bg-panel rounded-xl border px-4 py-2.5 text-center shadow-sm">
             <div className="label">Se juega</div>
             <div className="tnum text-ink mt-1 text-[1.15rem] leading-none font-semibold">
               {match.kickoff}
@@ -244,7 +244,7 @@ export default async function PartidoPage({
       />
 
       {borrowed && (home.length > 0 || away.length > 0) && (
-        <p className="border-line text-muted border-b bg-amber-50 px-6 py-2.5 text-[0.78rem] lg:px-10">
+        <p className="border-line text-muted border-b bg-warn-soft px-6 py-2.5 text-[0.78rem] lg:px-10">
           futbolfantasy todavía no publica el once de este partido. Se muestra el que proyectan
           para el siguiente encuentro de cada equipo.
         </p>
@@ -320,7 +320,7 @@ function TeamPitch({
   if (loose.length) lines.push(loose);
 
   return (
-    <section className="border-line flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm">
+    <section className="border-line bg-panel flex h-full flex-col overflow-hidden rounded-xl border shadow-sm">
       <header
         className="flex h-[62px] shrink-0 items-center gap-2.5 border-b-4 px-3 sm:h-[68px] sm:gap-3 sm:px-4"
         style={{ borderColor: club?.color ?? "var(--color-line)" }}

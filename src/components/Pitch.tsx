@@ -13,7 +13,9 @@ export type PitchStat =
   | "goles"
   | "jornada"
   | "tarjetas"
-  | "jerarquia";
+  | "jerarquia"
+  // Sólo la usa el once ideal; no aparece en el selector.
+  | "ideal";
 
 export const PITCH_STATS: { key: PitchStat; label: string }[] = [
   { key: "ahora", label: "Probabilidad y precio" },
@@ -36,6 +38,10 @@ export function Pitch({
   leagueId,
   oddsOf,
   fixturesOf,
+  xpOf,
+  alreadyIn,
+  title,
+  maxWidth,
   stat = "ahora",
   selector,
 }: {
@@ -45,6 +51,14 @@ export function Pitch({
   oddsOf?: (player: Player) => FfPlayer | null;
   /** Próximos partidos del club de cada jugador. */
   fixturesOf?: (player: Player) => Fixture[] | null;
+  /** Puntos esperados, para el once ideal. */
+  xpOf?: (player: Player) => number | null;
+  /** Quiénes están ya en mi alineación de esta jornada. */
+  alreadyIn?: Set<string>;
+  /** Rótulo de la esquina; por defecto, "Once titular". */
+  title?: string;
+  /** Ancho máximo del césped, para que no se estire de lado a lado. */
+  maxWidth?: string;
   stat?: PitchStat;
   selector?: React.ReactNode;
 }) {
@@ -66,7 +80,7 @@ export function Pitch({
     ].join("-");
 
   return (
-    <div className="p-2.5 sm:p-4 lg:p-5">
+    <div className={`p-2.5 sm:p-4 lg:p-5 ${maxWidth ?? ""}`}>
       <div className="relative overflow-hidden rounded-xl">
         {/* Césped: franjas de siega y líneas de cal */}
         <div
@@ -96,7 +110,7 @@ export function Pitch({
         <div className="relative px-1.5 py-4 sm:px-3 sm:py-6 lg:px-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1.5 sm:mb-4 sm:gap-3">
             <span className="rounded-full bg-black/25 px-2.5 py-1 text-[0.62rem] font-semibold tracking-wide text-white/90 uppercase sm:px-3 sm:text-[0.7rem]">
-              Once titular · {derived}
+              {title ?? "Once titular"} · {derived}
             </span>
             {selector}
           </div>
@@ -111,6 +125,8 @@ export function Pitch({
                     leagueId={leagueId}
                     odds={oddsOf?.(player) ?? null}
                     fixtures={fixturesOf?.(player) ?? null}
+                    xp={xpOf?.(player) ?? null}
+                    alreadyIn={alreadyIn?.has(player.id)}
                     stat={stat}
                     delay={i * 80 + j * 40}
                   />
@@ -130,10 +146,18 @@ function statLine(
   player: Player,
   odds: FfPlayer | null,
   fixtures: Fixture[] | null,
+  xp: number | null,
 ) {
   const s = odds?.stats;
 
   switch (stat) {
+    case "ideal":
+      return (
+        <span className="tnum text-[0.72rem] leading-none font-bold">
+          {xp === null ? "—" : xp.toFixed(1)}
+          <span className="text-faint ml-0.5 text-[0.58rem] font-normal">pts</span>
+        </span>
+      );
     case "proximo":
       return fixtures?.some(isLeague) ? (
         <NextRival fixtures={fixtures} size="sm" />
@@ -143,8 +167,8 @@ function statLine(
     case "goles":
       return (
         <>
-          <Chip label="G" value={s?.goals} tone="text-emerald-700" />
-          <Chip label="A" value={s?.assists} tone="text-sky-700" />
+          <Chip label="G" value={s?.goals} tone="text-up" />
+          <Chip label="A" value={s?.assists} tone="text-info" />
         </>
       );
     case "jornada":
@@ -210,6 +234,8 @@ function PitchToken({
   leagueId,
   odds,
   fixtures,
+  xp,
+  alreadyIn,
   stat,
   delay,
 }: {
@@ -217,6 +243,8 @@ function PitchToken({
   leagueId: string | null;
   odds: FfPlayer | null;
   fixtures: Fixture[] | null;
+  xp?: number | null;
+  alreadyIn?: boolean;
   stat: PitchStat;
   delay: number;
 }) {
@@ -250,6 +278,14 @@ function PitchToken({
           />
         </span>
 
+        {/* Ya alineado o no. Va arriba, junto al escudo, para no pisar el
+            nombre ni la probabilidad. */}
+        {alreadyIn === false && (
+          <span className="bg-warn absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full px-1.5 py-[1px] text-[0.5rem] font-bold text-black shadow">
+            ENTRA
+          </span>
+        )}
+
         <span className="absolute -top-2 -right-2 z-20 flex flex-col items-end gap-1">
           <StatusIcon status={player.status} size={22} />
           <AlertBadge alerts={odds?.alerts} />
@@ -266,8 +302,13 @@ function PitchToken({
           {player.name}
         </div>
         <div className="mt-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2">
-          {statLine(stat, player, odds, fixtures)}
+          {statLine(stat, player, odds, fixtures, xp ?? null)}
         </div>
+        {stat === "ideal" && (
+          <div className="mt-1 flex justify-center">
+            <NextRival fixtures={fixtures} size="sm" />
+          </div>
+        )}
       </div>
     </>
   );

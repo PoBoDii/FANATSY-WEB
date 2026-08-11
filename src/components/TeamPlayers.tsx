@@ -295,7 +295,7 @@ function Row({
           className={`hidden shrink-0 rounded-md border px-2 py-1 text-[0.68rem] font-semibold sm:block ${
             player.ownerIsMe
               ? "border-acid bg-acid/15 text-acid"
-              : "border-sky-300 bg-sky-50 text-sky-700"
+              : "border-info/50 bg-info-soft text-info"
           }`}
         >
           {player.ownerIsMe ? "TUYO" : player.ownerName}

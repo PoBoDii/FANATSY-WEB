@@ -46,7 +46,9 @@ export default async function MiPlantillaPage({
       leagueId={session.active.id}
       teamId={session.active.myTeamId}
       eyebrow={session.active.name}
-      view={params.vista === "lista" ? "lista" : "once"}
+      view={
+        params.vista === "lista" ? "lista" : params.vista === "ideal" ? "ideal" : "once"
+      }
       sortParams={params}
       pitchStat={(PITCH_STATS.find((s) => s.key === params.stat)?.key ?? "ahora") as PitchStat}
     />

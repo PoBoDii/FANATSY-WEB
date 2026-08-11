@@ -77,7 +77,7 @@ function FixtureCard({ fixture, played }: { fixture: Fixture; played: boolean })
     <FixtureLink
       rival={rival}
       className={`relative w-[178px] shrink-0 overflow-hidden rounded-xl border-2 transition-all hover:-translate-y-0.5 hover:shadow-md ${
-        league ? "border-ink/15 bg-white shadow-sm" : "border-line bg-panel-2/50 opacity-75"
+        league ? "border-ink/15 bg-panel shadow-sm" : "border-line bg-panel-2/50 opacity-75"
       }`}
     >
       {/* Franja superior: jornada a la izquierda, dificultad ocupando el resto */}
@@ -163,7 +163,7 @@ export function FixtureRow({
       rival={rival}
       className={`flex items-center overflow-hidden rounded-lg border-2 transition-all hover:-translate-y-0.5 hover:shadow-md ${
         compact ? "min-h-[58px] gap-2.5" : "min-h-[62px] gap-4"
-      } ${league ? "border-line bg-white" : "border-line bg-panel-2/60 opacity-70"}`}
+      } ${league ? "border-line bg-panel" : "border-line bg-panel-2/60 opacity-70"}`}
     >
       {/* Franja de dificultad, en vertical y a todo lo alto */}
       <span
