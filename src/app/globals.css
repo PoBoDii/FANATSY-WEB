@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* ============================================================
+   FANTASY BOARD — sistema visual
+   Claro, sobrio y con color donde significa algo. Verde césped
+   como color de marca; el resto, gris neutro y aire.
+   ============================================================ */
+
+@theme {
+  /* Superficies, de la más al fondo a la más cercana */
+  --color-void: #f4f6f8;
+  --color-panel: #ffffff;
+  --color-panel-2: #eef1f5;
+  --color-line: #dde3ea;
+
+  /* Texto: tres niveles, los tres legibles */
+  --color-ink: #0a1017;
+  --color-muted: #4d5a68;
+  --color-faint: #7b8794;
+
+  /* Verde césped: el color de marca. */
+  --color-acid: #0d7a44;
+
+  --color-up: #15803d;
+  --color-down: #dc2626;
+  --color-warn: #d97706;
+
+  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
+  --font-body: var(--font-instrument), system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+
+  --radius-panel: 12px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: var(--color-void);
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv01";
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-acid) 25%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c8d1da;
+  border: 3px solid var(--color-void);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+}
+
+/* Títulos: condensados, pero sin gritar. */
+@utility display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 90;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+
+@utility label {
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.66rem;
+  color: var(--color-muted);
+}
+
+@utility tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+@utility panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+/* Las listas van sobre blanco, no sobre el gris de fondo. */
+main {
+  background: var(--color-panel);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
