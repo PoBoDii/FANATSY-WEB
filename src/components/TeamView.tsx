@@ -188,6 +188,7 @@ export async function TeamView({
               formation={formation}
               leagueId={leagueId}
               oddsOf={oddsOf}
+              fixturesOf={fixturesOf}
               stat={pitchStat}
               selector={<PitchStatPicker active={pitchStat} />}
             />
@@ -210,6 +211,7 @@ export async function TeamView({
                     player={p}
                     leagueId={leagueId}
                     odds={oddsOf(p)}
+                    fixtures={fixturesOf(p)}
                     compact
                     delay={i * 30}
                   />
@@ -253,6 +255,7 @@ export async function TeamView({
                         leagueId={leagueId}
                         odds={oddsOf(p)}
                         role={roleOf(p)}
+                        fixtures={fixturesOf(p)}
                         compact
                         delay={i * 25}
                       />

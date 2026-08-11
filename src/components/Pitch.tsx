@@ -3,12 +3,21 @@ import type { Player } from "@/lib/normalize";
 import { ffBadge, type FfPlayer, oddsTone } from "@/lib/odds";
 import { money, num } from "@/lib/format";
 import { AlertBadge, ClubLink, PlayerAvatar, PricePill, StatusIcon } from "./ui";
+import { NextRival, isLeague } from "./Fixtures";
+import type { Fixture } from "@/lib/equipos";
 
 /** Qué se enseña bajo cada jugador del once. */
-export type PitchStat = "ahora" | "goles" | "jornada" | "tarjetas" | "jerarquia";
+export type PitchStat =
+  | "ahora"
+  | "proximo"
+  | "goles"
+  | "jornada"
+  | "tarjetas"
+  | "jerarquia";
 
 export const PITCH_STATS: { key: PitchStat; label: string }[] = [
   { key: "ahora", label: "Probabilidad y precio" },
+  { key: "proximo", label: "Próximo partido" },
   { key: "goles", label: "Goles y asistencias" },
   { key: "jornada", label: "Última jornada" },
   { key: "tarjetas", label: "Tarjetas" },
@@ -26,6 +35,7 @@ export function Pitch({
   formation,
   leagueId,
   oddsOf,
+  fixturesOf,
   stat = "ahora",
   selector,
 }: {
@@ -33,6 +43,8 @@ export function Pitch({
   formation?: string | null;
   leagueId: string | null;
   oddsOf?: (player: Player) => FfPlayer | null;
+  /** Próximos partidos del club de cada jugador. */
+  fixturesOf?: (player: Player) => Fixture[] | null;
   stat?: PitchStat;
   selector?: React.ReactNode;
 }) {
@@ -98,6 +110,7 @@ export function Pitch({
                     player={player}
                     leagueId={leagueId}
                     odds={oddsOf?.(player) ?? null}
+                    fixtures={fixturesOf?.(player) ?? null}
                     stat={stat}
                     delay={i * 80 + j * 40}
                   />
@@ -112,10 +125,21 @@ export function Pitch({
 }
 
 /** Lo que va en la línea inferior de la ficha, según el selector. */
-function statLine(stat: PitchStat, player: Player, odds: FfPlayer | null) {
+function statLine(
+  stat: PitchStat,
+  player: Player,
+  odds: FfPlayer | null,
+  fixtures: Fixture[] | null,
+) {
   const s = odds?.stats;
 
   switch (stat) {
+    case "proximo":
+      return fixtures?.some(isLeague) ? (
+        <NextRival fixtures={fixtures} size="sm" />
+      ) : (
+        <span className="text-faint text-[0.62rem]">sin partido</span>
+      );
     case "goles":
       return (
         <>
@@ -185,12 +209,14 @@ function PitchToken({
   player,
   leagueId,
   odds,
+  fixtures,
   stat,
   delay,
 }: {
   player: Player;
   leagueId: string | null;
   odds: FfPlayer | null;
+  fixtures: Fixture[] | null;
   stat: PitchStat;
   delay: number;
 }) {
@@ -239,8 +265,8 @@ function PitchToken({
         >
           {player.name}
         </div>
-        <div className="mt-1 flex items-center justify-center gap-1 sm:gap-2">
-          {statLine(stat, player, odds)}
+        <div className="mt-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2">
+          {statLine(stat, player, odds, fixtures)}
         </div>
       </div>
     </>

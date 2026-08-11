@@ -3,7 +3,7 @@ import type { Player, PlayerStatus, Position } from "@/lib/normalize";
 import { type FfPlayer, type PlayerAlert, oddsTone, priceTone } from "@/lib/odds";
 import { dateTime, money, num, signed } from "@/lib/format";
 import { Countdown } from "./Countdown";
-import { FixtureStrip } from "./Fixtures";
+import { FixtureStrip, NextRival } from "./Fixtures";
 import { clubHref, type Fixture } from "@/lib/equipos";
 
 /* -------------------------------------------------------------- cabecera */
@@ -536,6 +536,13 @@ export function PlayerRow({
           <RoleTag role={role} />
           {compact && <StatusTag status={player.status} />}
         </div>
+        {/* Contra quién juega: en la columna estrecha no cabe la tira de cinco,
+            pero el siguiente rival sí, que es el que decide la alineación. */}
+        {compact && fixtures && (
+          <div className="mt-1.5">
+            <NextRival fixtures={fixtures} size="sm" />
+          </div>
+        )}
       </div>
 
       {!compact && (

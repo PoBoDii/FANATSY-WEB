@@ -229,6 +229,66 @@ function SplitDate({ value }: { value: string }) {
 }
 
 /**
+ * El siguiente partido de liga, en una pastilla: escudo del rival, casa o
+ * fuera y la dificultad de fondo. Es lo que se mira antes de decidir si un
+ * jugador entra al once esta jornada.
+ */
+export function NextRival({
+  fixtures,
+  size = "md",
+}: {
+  fixtures: Fixture[] | null | undefined;
+  size?: "sm" | "md";
+}) {
+  const next = fixtures?.find(isLeague);
+  if (!next) return null;
+
+  const rival = next.atHome ? next.away : next.home;
+  const tone = difficultyTone(next.difficulty);
+  const href = clubHref(rival.name);
+  const small = size === "sm";
+
+  const body = (
+    <>
+      {rival.badge && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={rival.badge}
+          alt=""
+          width={small ? 13 : 16}
+          height={small ? 13 : 16}
+          className="shrink-0 object-contain"
+        />
+      )}
+      <span className={`truncate font-bold ${small ? "text-[0.56rem]" : "text-[0.64rem]"}`}>
+        {rival.name}
+      </span>
+      <span className={small ? "text-[0.5rem]" : "text-[0.56rem]"}>
+        {next.atHome ? "🏠" : "✈️"}
+      </span>
+    </>
+  );
+
+  const className = `inline-flex max-w-full items-center gap-1 rounded-md ${
+    small ? "px-1 py-[1px]" : "px-1.5 py-[2px]"
+  }`;
+  const style = { background: tone.bg, color: tone.ink };
+  const title = `${next.phase} · ${next.atHome ? "en casa contra" : "fuera contra"} ${rival.name} · ${tone.label}`;
+
+  // `relative z-10`: casi siempre vive dentro de una fila o una ficha que ya es
+  // un enlace al jugador.
+  return href ? (
+    <Link href={href} className={`${className} relative z-10`} style={style} title={title}>
+      {body}
+    </Link>
+  ) : (
+    <span className={className} style={style} title={title}>
+      {body}
+    </span>
+  );
+}
+
+/**
  * Tira de los próximos partidos de liga: un cuadrito por partido con el color
  * de su dificultad, el escudo del rival y si es en casa o fuera. Sirve para
  * decidir un fichaje de un vistazo, sin abrir nada.
