@@ -11,6 +11,7 @@ import { DifficultyBadge, FixtureRow, isLeague } from "@/components/Fixtures";
 import { managerColor } from "@/lib/managers";
 import { getIdResolver } from "@/lib/cruce";
 import { BackLink } from "@/components/BackLink";
+import { PendingLink } from "@/components/PendingLink";
 import { findInjury, getInjuries, injuryTone, type Injury } from "@/lib/lesionados";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
 import { AlertBadge, Empty } from "@/components/ui";
@@ -360,7 +361,7 @@ function TabBar({
         const on = active === t.key;
         const count = t.key === "jugadores" ? counts.jugadores : t.key === "noticias" ? counts.noticias : null;
         return (
-          <Link
+          <PendingLink
             key={t.key}
             href={`/equipos/${slug}?tab=${t.key}`}
             scroll={false}
@@ -372,7 +373,7 @@ function TabBar({
             {count !== null && count > 0 && (
               <span className="text-faint ml-1.5 text-[0.72rem]">{count}</span>
             )}
-          </Link>
+          </PendingLink>
         );
       })}
     </div>
@@ -437,8 +438,8 @@ function Lineup({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:gap-5 lg:justify-center">
-      <div className="relative overflow-hidden rounded-2xl shadow-md">
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:gap-5 lg:justify-center">
+      <div className="relative order-1 overflow-hidden rounded-2xl shadow-md lg:col-start-1 lg:row-start-1">
         <div
           aria-hidden
           className="absolute inset-0"
@@ -505,12 +506,19 @@ function Lineup({
                         </span>
                       )}
                     </div>
-                    <div className="mt-3.5 w-full rounded-md bg-white px-1 py-1 text-center shadow">
-                      <div className="truncate text-[0.7rem] leading-tight font-bold">
+                    <div className="mt-3 w-full px-0.5 text-center">
+                      <div
+                        className="text-[0.68rem] leading-tight font-bold text-white"
+                        style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
+                      >
                         {main.name}
                       </div>
                       {slot.players.slice(1, 2).map((alt) => (
-                        <div key={alt.slug} className="text-faint truncate text-[0.6rem]">
+                        <div
+                          key={alt.slug}
+                          className="truncate text-[0.58rem] text-white/70"
+                          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+                        >
                           {alt.name}
                         </div>
                       ))}
@@ -531,19 +539,10 @@ function Lineup({
         </div>
       </div>
 
-      {/* El hueco de la derecha, para el calendario que viene */}
-      <div>
-        <SectionTitle color={team.color}>Próximos partidos</SectionTitle>
-        <div className="space-y-2">
-          {fixtures.next.slice(0, 8).map((fixture) => (
-            <FixtureRow key={fixture.id} fixture={fixture} compact />
-          ))}
-        </div>
-      </div>
-      </div>
-
+      {/* Alternativas: en el móvil van justo bajo el campo, que es lo que se
+          mira después del once. En pantalla grande siguen debajo. */}
       {bench.length > 0 && (
-        <div className="mt-5">
+        <div className="order-2 lg:col-start-1 lg:row-start-2">
           <SectionTitle color={team.color}>Alternativas · {bench.length}</SectionTitle>
           <div className="flex flex-wrap gap-2">
             {bench.map((slot) => {
@@ -570,13 +569,26 @@ function Lineup({
                       {slot.probability}%
                     </span>
                   )}
-                  <div className="mt-1 truncate text-[0.62rem] font-semibold">{main.name}</div>
+                  <div className="mt-1 text-[0.62rem] leading-tight font-semibold">
+                    {main.name}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {/* El calendario, a la derecha en grande y el último en el móvil */}
+      <div className="order-3 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <SectionTitle color={team.color}>Próximos partidos</SectionTitle>
+        <div className="space-y-2">
+          {fixtures.next.slice(0, 8).map((fixture) => (
+            <FixtureRow key={fixture.id} fixture={fixture} compact />
+          ))}
+        </div>
+      </div>
+      </div>
     </section>
   );
 }

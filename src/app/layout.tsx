@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Instrument_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
+import { ClubStrip } from "@/components/ClubStrip";
 import { getSession } from "@/lib/session";
 
 const archivo = Archivo({
@@ -25,7 +26,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fantasy Board",
+  title: "PoBoDi Fantasy",
   description: "Panel personal de LaLiga Fantasy",
 };
 

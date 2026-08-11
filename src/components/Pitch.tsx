@@ -230,8 +230,13 @@ function PitchToken({
         </span>
       </div>
 
-      <div className="border-line mt-2 w-full rounded-lg border bg-white/95 px-0.5 py-1 shadow-sm backdrop-blur-sm sm:px-1">
-        <div className="truncate text-center text-[0.62rem] leading-tight font-semibold sm:text-[0.72rem]">
+      <div className="mt-2 w-full px-0.5 sm:px-1">
+        {/* Sin recuadro: el nombre se lee sobre el césped con su sombra, y así
+            cabe entero en vez de cortarse dentro de una burbuja estrecha. */}
+        <div
+          className="text-center text-[0.66rem] leading-tight font-bold text-white sm:text-[0.76rem]"
+          style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
+        >
           {player.name}
         </div>
         <div className="mt-1 flex items-center justify-center gap-1 sm:gap-2">

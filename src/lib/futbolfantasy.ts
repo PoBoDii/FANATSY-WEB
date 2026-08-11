@@ -290,11 +290,18 @@ function squadHtml(html: string): string {
 function parseTeamPage(html: string): TeamEntry[] {
   const bySlug = new Map<string, TeamEntry>();
 
-  for (const match of squadHtml(html).matchAll(ANCHOR)) {
+  // Muy importante: recortar PRIMERO y trabajar siempre sobre el recorte. Las
+  // posiciones que devuelve `matchAll` son del texto que se le pasa, y mezclar
+  // esos índices con el HTML completo asignaba a cada jugador la probabilidad
+  // de otro: Sivera salía con el 50% de un compañero y su 95% se lo llevaba
+  // otro.
+  const squad = squadHtml(html);
+
+  for (const match of squad.matchAll(ANCHOR)) {
     const slug = match[1];
     const from = match.index + match[0].length;
-    const close = html.indexOf("</a>", from);
-    const inner = html.slice(from, close === -1 ? from : close);
+    const close = squad.indexOf("</a>", from);
+    const inner = squad.slice(from, close === -1 ? from : close);
 
     const entry = bySlug.get(slug) ?? {
       slug,

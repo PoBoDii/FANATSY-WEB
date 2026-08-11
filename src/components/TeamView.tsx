@@ -16,6 +16,7 @@ import { squadSwing } from "@/lib/valores";
 import { SwingBand } from "./SwingBand";
 import { money, num } from "@/lib/format";
 import Link from "next/link";
+import { PendingLink } from "./PendingLink";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
 import { AutoRefresh } from "./AutoRefresh";
 import {
@@ -296,7 +297,7 @@ function PitchStatPicker({ active }: { active: PitchStat }) {
 /** Once titular contra lista completa. Va por URL para poder compartirla. */
 function Tabs({ view }: { view: "once" | "lista" }) {
   const tab = (mine: "once" | "lista", label: string, href: string) => (
-    <Link
+    <PendingLink
       href={href}
       scroll={false}
       className={`flex-1 border-b-2 px-4 py-3 text-center transition-colors ${
@@ -306,7 +307,7 @@ function Tabs({ view }: { view: "once" | "lista" }) {
       }`}
     >
       <span className="display text-base">{label}</span>
-    </Link>
+    </PendingLink>
   );
 
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PendingLink } from "@/components/PendingLink";
 import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { enrichOdds, getFf } from "@/lib/futbolfantasy";
@@ -189,7 +190,7 @@ function RivalTabs({
   open: number;
 }) {
   const tab = (mine: boolean, label: string, count: number, href: string, tone: string) => (
-    <Link
+    <PendingLink
       href={href}
       scroll={false}
       className={`flex-1 border-b-2 px-4 py-3 text-center transition-colors ${
@@ -200,7 +201,7 @@ function RivalTabs({
     >
       <span className="display text-base">{label}</span>
       <span className="tnum ml-2 text-sm">{num(count)}</span>
-    </Link>
+    </PendingLink>
   );
 
   return (

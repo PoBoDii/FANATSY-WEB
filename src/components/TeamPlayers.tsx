@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { PlayerAlert } from "@/lib/odds";
 import { oddsTone } from "@/lib/odds";
-import type { PlayerStatus } from "@/lib/normalize";
+import type { PlayerStatus, Position } from "@/lib/normalize";
 import { money, num } from "@/lib/format";
-import { AlertBadge, PriceDelta, StatusIcon } from "./ui";
+import { AlertBadge, PositionTag, PriceDelta, StatusIcon } from "./ui";
+import { PendingLink } from "./PendingLink";
 import { PlayerPhoto } from "./PlayerPhoto";
 import { Countdown } from "./Countdown";
 
@@ -66,6 +67,15 @@ const POS_SHORT: Record<string, string> = {
   Delantero: "DL",
 };
 
+/** Nombre largo de futbolfantasy → etiqueta de posición del resto de la web. */
+const POS_TAG: Record<string, Position> = {
+  Portero: "PT",
+  Defensa: "DF",
+  Mediocampista: "MC",
+  Delantero: "DL",
+  Entrenador: "EN",
+};
+
 /**
  * Plantilla completa de un club, con los mismos filtros y ordenaciones que el
  * resto de listas. Va por URL para que se pueda compartir el enlace.
@@ -83,26 +93,36 @@ export function TeamPlayers({
   const dir = query.dir === "asc" ? "asc" : "desc";
   const selected = new Set((query.pos ?? "").split(",").filter(Boolean));
 
+  // A igualdad de lo que se esté ordenando manda el orden natural del once:
+  // portería, defensa, centro y ataque. Antes quedaban mezclados y costaba ver
+  // de qué línea era cada uno.
+  const byPosition = (a: TeamPlayerRow, b: TeamPlayerRow) =>
+    POSITION_ORDER.indexOf(a.position ?? "") - POSITION_ORDER.indexOf(b.position ?? "");
+
   const compare = (a: TeamPlayerRow, b: TeamPlayerRow) => {
     switch (sort) {
       case "valor":
-        return b.value - a.value;
+        return b.value - a.value || byPosition(a, b);
       case "cambio":
-        return (b.diff ?? 0) - (a.diff ?? 0);
+        return (b.diff ?? 0) - (a.diff ?? 0) || byPosition(a, b);
       case "clausula":
-        return (b.buyoutClause ?? 0) - (a.buyoutClause ?? 0);
+        return (b.buyoutClause ?? 0) - (a.buyoutClause ?? 0) || byPosition(a, b);
       case "puntos":
-        return (b.points ?? -1) - (a.points ?? -1);
+        return (b.points ?? -1) - (a.points ?? -1) || byPosition(a, b);
       case "dueno":
         // Primero los míos, luego los de otros, luego los libres.
-        return rankOwner(b) - rankOwner(a) || (b.probability ?? -1) - (a.probability ?? -1);
+        return (
+          rankOwner(b) - rankOwner(a) ||
+          (b.probability ?? -1) - (a.probability ?? -1) ||
+          byPosition(a, b)
+        );
       case "posicion":
         return (
           POSITION_ORDER.indexOf(a.position ?? "") - POSITION_ORDER.indexOf(b.position ?? "") ||
           (b.probability ?? -1) - (a.probability ?? -1)
         );
       default:
-        return (b.probability ?? -1) - (a.probability ?? -1);
+        return (b.probability ?? -1) - (a.probability ?? -1) || byPosition(a, b);
     }
   };
 
@@ -142,7 +162,7 @@ export function TeamPlayers({
           {SORTS.map((option) => {
             const active = sort === option.key;
             return (
-              <Link
+              <PendingLink
                 key={option.key}
                 href={href({ orden: option.key, dir: active && dir === "desc" ? "asc" : "desc" })}
                 scroll={false}
@@ -154,7 +174,7 @@ export function TeamPlayers({
                     {dir === "desc" ? "máx" : "mín"}
                   </span>
                 )}
-              </Link>
+              </PendingLink>
             );
           })}
         </div>
@@ -167,14 +187,14 @@ export function TeamPlayers({
             if (on) next.delete(position);
             else next.add(position);
             return (
-              <Link
+              <PendingLink
                 key={position}
                 href={href({ pos: [...next].join(",") })}
                 scroll={false}
                 className={chip(on)}
               >
                 {POS_SHORT[position] ?? position}
-              </Link>
+              </PendingLink>
             );
           })}
         </div>
@@ -249,15 +269,24 @@ function Row({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
+          {player.position && <PositionTag position={POS_TAG[player.position] ?? "?"} />}
           <span className="truncate text-[0.98rem] font-bold">{player.displayName}</span>
           {player.status !== "ok" && <StatusIcon status={player.status} size={16} />}
           <AlertBadge alerts={player.alerts} />
         </div>
         <div className="text-muted mt-1 flex flex-wrap items-center gap-x-2 text-[0.7rem]">
-          {player.position && <span className="font-semibold">{player.position}</span>}
-          {player.goals != null && <span>· {player.goals} G</span>}
-          {player.assists != null && <span>· {player.assists} A</span>}
-          {player.hierarchy != null && <span>· jerarquía {player.hierarchy}</span>}
+          {[
+            player.goals != null ? `${player.goals} G` : null,
+            player.assists != null ? `${player.assists} A` : null,
+            player.hierarchy != null ? `jerarquía ${player.hierarchy}` : null,
+          ]
+            .filter(Boolean)
+            .map((bit, i) => (
+              <span key={bit}>
+                {i > 0 && "· "}
+                {bit}
+              </span>
+            ))}
         </div>
       </div>
 

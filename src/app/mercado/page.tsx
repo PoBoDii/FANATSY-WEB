@@ -25,14 +25,26 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Sort = "nombre" | "precio" | "puntos" | "prob" | "dif" | "media" | "pujas" | "hueco";
+type Sort =
+  | "posicion"
+  | "nombre"
+  | "precio"
+  | "puntos"
+  | "prob"
+  | "dif"
+  | "media"
+  | "pujas"
+  | "hueco";
+
+/** Orden natural del once, para agrupar por línea. */
+const POSITION_RANK: Record<string, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 4, "?": 5 };
 
 /**
  * Columnas del mercado. Los anchos son los mismos que los de la fila, para
  * que cada título caiga sobre su dato.
  */
 const COLUMNS: SortColumn<Sort>[] = [
-  { key: "nombre", label: "Jugador", width: "w-[190px]", align: "left", natural: "asc" },
+  { key: "posicion", label: "Posición", width: "w-[190px]", align: "left", natural: "asc" },
   { key: "prob", label: "Juega", width: "w-[86px]", align: "left", natural: "desc" },
   { key: "pujas", label: "Pujas", width: "flex-1", align: "left", natural: "desc", hide: "hidden md:flex" },
   { key: "hueco", label: "", width: "w-[124px]", hide: "hidden lg:flex", spacer: true },
@@ -96,9 +108,14 @@ export default async function MercadoPage({
   // en las listas de plantilla.
   const compare = (a: MarketItem, b: MarketItem) => {
     switch (sort) {
+      case "posicion":
+        // Al revés que el resto: la lista se invierte después, así que se
+        // define de atrás hacia adelante para que "asc" salga PT→DL.
+        return (
+          POSITION_RANK[b.player.position] - POSITION_RANK[a.player.position] ||
+          a.price - b.price
+        );
       case "nombre":
-        // Al revés que el resto: la lista se invierte después, y en el nombre
-        // lo natural es la A→Z.
         return b.player.name.localeCompare(a.player.name, "es");
       case "puntos":
         return b.player.points - a.player.points || byDiff(a, b);
@@ -312,7 +329,12 @@ function MarketRow({
         {/* Variación del día: el dato que más se mira, en grande */}
         <div className="border-line ml-auto shrink-0 text-right sm:ml-0 sm:w-[150px] sm:border-l sm:pl-3">
           <div className="flex justify-end">
-            <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
+            <span className="sm:hidden">
+              <PriceDelta diff={diff} size="sm" />
+            </span>
+            <span className="hidden sm:inline">
+              <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
+            </span>
           </div>
           <div className="tnum text-faint mt-1 text-[0.68rem]">
             valor {money(player.marketValue)}

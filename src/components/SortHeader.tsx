@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PendingLink } from "./PendingLink";
 
 /**
  * Cabecera de tabla para las listas que no son un `<table>`.
@@ -36,7 +36,11 @@ export function SortHeader<K extends string>({
   /** Ancho del hueco inicial, el de la foto. */
   leading?: string;
 }) {
-  const sortable = columns.filter((c) => !c.spacer && c.label);
+  // Ofrecer "Media" cuando esa columna está oculta en el móvil no sirve de
+  // nada: se ordena por algo que no se ve.
+  const sortable = columns.filter(
+    (c) => !c.spacer && c.label && !(c.hide ?? "").startsWith("hidden"),
+  );
 
   return (
     <>
@@ -49,17 +53,17 @@ export function SortHeader<K extends string>({
         const active = sort === col.key;
         const nextDir = active ? (dir === "desc" ? "asc" : "desc") : (col.natural ?? "desc");
         return (
-          <Link
+          <PendingLink
             key={col.key}
             href={hrefOf(col.key, nextDir)}
             scroll={false}
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold transition-colors ${
+            className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold transition-colors ${
               active ? "border-acid bg-acid text-white" : "border-line text-muted"
             }`}
           >
             {col.label}
             {active && <span className="ml-1 text-[0.6rem]">{dir === "desc" ? "▼" : "▲"}</span>}
-          </Link>
+          </PendingLink>
         );
       })}
     </div>
@@ -83,7 +87,7 @@ export function SortHeader<K extends string>({
           col.align === "right" ? "justify-end" : col.align === "center" ? "justify-center" : "";
 
         return (
-          <Link
+          <PendingLink
             key={col.key}
             href={hrefOf(col.key, nextDir)}
             scroll={false}
@@ -96,7 +100,7 @@ export function SortHeader<K extends string>({
             <span className={`text-[0.6rem] leading-none ${active ? "" : "opacity-30"}`}>
               {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
             </span>
-          </Link>
+          </PendingLink>
         );
       })}
     </div>

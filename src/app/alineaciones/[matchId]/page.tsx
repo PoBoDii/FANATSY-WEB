@@ -469,12 +469,23 @@ function SlotToken({
         )}
       </div>
 
-      <div className="mt-2.5 w-full rounded-md bg-white/95 px-1 py-1 text-center shadow-sm">
-        <div className="truncate text-[0.68rem] leading-tight font-semibold">{main.name}</div>
+      <div className="mt-2.5 w-full px-0.5 text-center">
+        {/* Sin recuadro blanco: el nombre cabe entero y se lee igual gracias a
+            la sombra. Dentro de la burbuja se cortaba casi siempre. */}
+        <div
+          className="text-[0.66rem] leading-tight font-bold text-white"
+          style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
+        >
+          {main.name}
+        </div>
 
         {/* Quien le puede quitar el puesto, como en futbolfantasy */}
         {alternatives.slice(0, 2).map((alt) => (
-          <div key={alt.slug} className="text-faint truncate text-[0.6rem] leading-tight">
+          <div
+            key={alt.slug}
+            className="truncate text-[0.58rem] leading-tight text-white/70"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+          >
             {alt.name}
           </div>
         ))}

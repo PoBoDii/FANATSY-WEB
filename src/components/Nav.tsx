@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LeagueRef } from "@/lib/session";
 import { LeaguePicker } from "./LeaguePicker";
+import { ClubStrip } from "./ClubStrip";
 
 const LINKS = [
   { href: "/", label: "Mi plantilla", num: "01" },
@@ -44,12 +45,12 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
 
   const brand = (
     <Link href="/" className="group flex shrink-0 items-center gap-2">
-      <span className="bg-acid flex h-9 w-9 items-center justify-center rounded-xl text-base text-white shadow-sm">
+      <span className="bg-acid flex h-8 w-8 items-center justify-center rounded-xl text-sm text-white shadow-sm lg:h-9 lg:w-9 lg:text-base">
         ⚽
       </span>
       <div>
-        <div className="display text-xl leading-none lg:text-2xl">Fantasy</div>
-        <div className="display text-acid text-xl leading-none lg:text-2xl">Board</div>
+        <div className="display text-lg leading-none lg:text-2xl">PoBoDi</div>
+        <div className="display text-acid text-lg leading-none lg:text-2xl">Fantasy</div>
       </div>
     </Link>
   );
@@ -80,12 +81,12 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
     <>
       {/* Barra del móvil */}
       <header className="border-line bg-panel sticky top-0 z-50 border-b lg:hidden">
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex items-center gap-2.5 px-3 py-2">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Abrir menú"
-            className="border-line text-ink hover:bg-panel-2 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border"
+            className="border-line text-ink hover:bg-panel-2 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border"
           >
             <span className="flex flex-col gap-[3px]">
               <span className="bg-ink block h-[2px] w-4 rounded-full" />
@@ -100,6 +101,9 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
             {LINKS.find((l) => isActive(l.href))?.label}
           </span>
         </div>
+
+        {/* Los veinte clubes, siempre a mano */}
+        <ClubStrip />
       </header>
 
       {/* Cajón del móvil */}

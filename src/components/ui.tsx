@@ -30,12 +30,12 @@ export function PageHeader({
             "radial-gradient(900px 320px at 8% -30%, rgba(13,122,68,0.22), transparent 70%), radial-gradient(700px 280px at 85% -10%, rgba(56,189,248,0.16), transparent 65%)",
         }}
       />
-      <div className="relative flex flex-wrap items-end justify-between gap-4 px-4 pt-5 pb-4 sm:px-6 sm:pt-8 sm:pb-6 lg:px-10 lg:pt-11">
+      <div className="relative flex flex-wrap items-end justify-between gap-3 px-3.5 pt-3.5 pb-3 sm:gap-4 sm:px-6 sm:pt-8 sm:pb-6 lg:px-10 lg:pt-11">
         <div className="rise">
-          <span className="bg-acid inline-block rounded-full px-3 py-1 text-[0.68rem] font-bold tracking-wide text-white uppercase">
+          <span className="bg-acid inline-block rounded-full px-2.5 py-[3px] text-[0.6rem] font-bold tracking-wide text-white uppercase sm:px-3 sm:py-1 sm:text-[0.68rem]">
             {eyebrow}
           </span>
-          <h1 className="display text-ink mt-2.5 text-[clamp(1.75rem,7vw,3.8rem)] break-words">
+          <h1 className="display text-ink mt-2 text-[clamp(1.6rem,6.5vw,3.8rem)] break-words">
             {title}
           </h1>
           {meta && <div className="text-muted mt-2 text-[0.82rem] sm:text-sm">{meta}</div>}
@@ -522,7 +522,9 @@ export function PlayerRow({
       <div className={`min-w-0 ${compact ? "flex-[2]" : "flex-1 sm:w-[190px] sm:flex-none sm:shrink-0"}`}>
         <div className="flex items-center gap-2">
           <PositionTag position={player.position} />
-          <span className="truncate text-[1.02rem] leading-tight font-bold">{player.name}</span>
+          <span className="truncate text-[0.92rem] leading-tight font-bold sm:text-[1.02rem]">
+            {player.name}
+          </span>
           <AlertBadge alerts={odds?.alerts} />
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -576,7 +578,7 @@ export function PlayerRow({
 
               <div className="text-center">
                 <div className="label text-[0.55rem] leading-none">Puntos</div>
-                <div className="tnum text-ink mt-1.5 text-[1.3rem] leading-none font-bold">
+                <div className="tnum text-ink mt-1.5 text-[1.05rem] leading-none font-bold lg:text-[1.3rem]">
                   {num(player.points)}
                 </div>
                 <div className="tnum text-faint mt-1.5 text-[0.66rem] leading-none">
@@ -586,7 +588,7 @@ export function PlayerRow({
 
               <div className="text-center">
                 <div className="label text-[0.55rem] leading-none">Valor</div>
-                <div className="tnum text-ink mt-1.5 text-[1.3rem] leading-none font-bold">
+                <div className="tnum text-ink mt-1.5 text-[1.05rem] leading-none font-bold lg:text-[1.3rem]">
                   {money(player.marketValue)}
                 </div>
                 <div className="mt-1.5 flex justify-center">
@@ -747,7 +749,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
   return (
     <div
-      className={`${compact ? "w-[116px] lg:w-[132px]" : "w-[124px] sm:w-[152px]"} shrink-0 rounded-xl border px-2.5 py-2 shadow-sm ${
+      className={`${compact ? "w-[104px] lg:w-[132px]" : "w-[112px] sm:w-[152px]"} shrink-0 rounded-xl border px-2 py-1.5 shadow-sm sm:px-2.5 sm:py-2 ${
         open
           ? "border-up bg-up/15"
           : urgent
@@ -767,7 +769,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
       </div>
 
       <div
-        className={`tnum mt-1.5 text-[1.25rem] leading-none font-semibold ${
+        className={`tnum mt-1.5 text-[1.05rem] leading-none font-semibold sm:text-[1.25rem] ${
           open ? "text-up" : urgent ? "text-down" : "text-ink"
         }`}
       >
@@ -776,7 +778,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
       {/* Lo que cuesta por encima de su valor: el sobreprecio real de robarlo. */}
       <div
-        className="tnum text-warn mt-1.5 text-[0.85rem] leading-none font-semibold whitespace-nowrap"
+        className="tnum text-warn mt-1.5 text-[0.72rem] leading-none font-semibold whitespace-nowrap sm:text-[0.85rem]"
         title="Diferencia entre la cláusula y el valor actual del jugador"
       >
         {signed(player.buyoutClause - player.marketValue)}
@@ -787,7 +789,8 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
         {unlockAt && !open ? (
           <Countdown until={unlockAt} />
         ) : (
-          <span className="tnum text-up text-[0.7rem] font-semibold">
+          // En el móvil la etiqueta verde "Abierta" ya lo dice todo.
+          <span className="tnum text-up hidden text-[0.7rem] font-semibold sm:inline">
             cualquiera puede pagarla
           </span>
         )}
