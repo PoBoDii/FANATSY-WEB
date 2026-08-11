@@ -8,6 +8,7 @@ import { ffBadge, oddsTone, type FfPlayer } from "@/lib/odds";
 import { toList, toMarketItem, type MarketItem } from "@/lib/normalize";
 import { money, num, signed, timeLeft } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { SortHeader, type SortColumn } from "@/components/SortHeader";
 import {
   AlertBadge,
   ClubLink,
@@ -24,30 +25,21 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Sort = "nombre" | "precio" | "puntos" | "prob" | "dif" | "media" | "pujas";
+type Sort = "nombre" | "precio" | "puntos" | "prob" | "dif" | "media" | "pujas" | "hueco";
 
 /**
- * Cabecera de columna: cada una ordena por lo suyo y guarda el ancho de su
- * celda en la fila, para que el título quede encima del dato.
- *
- * `natural` es la dirección en la que se entra al pulsarla: en el nombre se
- * espera la A→Z y en todo lo demás, de mayor a menor.
+ * Columnas del mercado. Los anchos son los mismos que los de la fila, para
+ * que cada título caiga sobre su dato.
  */
-const COLUMNS: {
-  key: Sort;
-  label: string;
-  width: string;
-  align: "left" | "right" | "center";
-  natural: "asc" | "desc";
-  hide?: string;
-}[] = [
+const COLUMNS: SortColumn<Sort>[] = [
   { key: "nombre", label: "Jugador", width: "w-[190px]", align: "left", natural: "asc" },
   { key: "prob", label: "Juega", width: "w-[86px]", align: "left", natural: "desc" },
-  { key: "pujas", label: "Pujas", width: "flex-1", align: "left", natural: "desc", hide: "hidden md:block" },
-  { key: "puntos", label: "Puntos", width: "w-[74px]", align: "right", natural: "desc", hide: "hidden sm:block" },
-  { key: "media", label: "Media", width: "w-[70px]", align: "right", natural: "desc", hide: "hidden sm:block" },
+  { key: "pujas", label: "Pujas", width: "flex-1", align: "left", natural: "desc", hide: "hidden md:flex" },
+  { key: "hueco", label: "", width: "w-[124px]", hide: "hidden lg:flex", spacer: true },
+  { key: "puntos", label: "Puntos", width: "w-[74px]", align: "right", natural: "desc", hide: "hidden sm:flex" },
+  { key: "media", label: "Media", width: "w-[70px]", align: "right", natural: "desc", hide: "hidden sm:flex" },
   { key: "dif", label: "Hoy", width: "w-[150px]", align: "right", natural: "desc" },
-  { key: "precio", label: "Precio", width: "w-[126px]", align: "right", natural: "desc" },
+  { key: "precio", label: "Precio", width: "w-[126px] pr-2.5", align: "right", natural: "desc" },
 ];
 
 export default async function MercadoPage({
@@ -162,7 +154,13 @@ export default async function MercadoPage({
         />
       </div>
 
-      <SortHeader sort={sort} dir={dir} />
+      <SortHeader
+        columns={COLUMNS}
+        sort={sort}
+        dir={dir}
+        leading="w-[52px]"
+        hrefOf={(key, next) => `/mercado?orden=${key}&dir=${next}`}
+      />
 
       {sorted.length === 0 ? (
         <Empty
@@ -170,7 +168,7 @@ export default async function MercadoPage({
           hint="No hay jugadores pujables ahora mismo. Se renueva cada día."
         />
       ) : (
-        <div>
+        <div className="space-y-2 p-3 lg:p-4">
           {sorted.map((item, i) => (
             <MarketRow
               key={item.id || item.player.id}
@@ -184,60 +182,19 @@ export default async function MercadoPage({
       )}
 
       {coaches.length > 0 && (
-        <section className="mt-8">
-          <div className="border-line bg-panel/40 flex items-baseline gap-3 border-y px-5 py-3 lg:px-6">
+        <section className="mt-4">
+          <div className="border-line bg-panel-2/60 flex items-baseline gap-3 border-y px-5 py-3 lg:px-6">
             <h2 className="display text-lg">Entrenadores</h2>
             <span className="tnum text-faint text-xs">{coaches.length}</span>
           </div>
-          {coaches.map((item, i) => (
-            <MarketRow key={item.id || item.player.id} item={item} odds={null} delay={i * 22} />
-          ))}
+          <div className="space-y-2 p-3 lg:p-4">
+            {coaches.map((item, i) => (
+              <MarketRow key={item.id || item.player.id} item={item} odds={null} delay={i * 22} />
+            ))}
+          </div>
         </section>
       )}
     </>
-  );
-}
-
-/**
- * Cabecera de tabla: se pulsa el título de la columna y ordena por ella,
- * alternando de mayor a menor. La flecha dice por cuál se está ordenando y en
- * qué sentido, que es lo que una fila de pastillas no contaba.
- */
-function SortHeader({ sort, dir }: { sort: Sort; dir: "asc" | "desc" }) {
-  return (
-    <div className="border-line bg-panel-2/70 sticky top-0 z-20 flex items-center gap-3 border-y py-2 pr-4 pl-4 lg:gap-5 lg:pr-6 lg:pl-6">
-      {/* Hueco de la foto, para que los títulos caigan sobre su columna */}
-      <span className="w-[52px] shrink-0" aria-hidden />
-
-      {COLUMNS.map((col) => {
-        const active = sort === col.key;
-        // Pulsar la activa da la vuelta; pulsar otra entra por su orden natural.
-        const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
-        const grow = col.width === "flex-1" ? "min-w-0 flex-1" : `${col.width} shrink-0`;
-        const justify =
-          col.align === "right" ? "justify-end" : col.align === "center" ? "justify-center" : "";
-
-        return (
-          <Link
-            key={col.key}
-            href={`/mercado?orden=${col.key}&dir=${nextDir}`}
-            scroll={false}
-            className={`${grow} ${col.hide ?? ""} flex items-center gap-1 ${justify} transition-colors ${
-              active ? "text-acid" : "text-faint hover:text-ink"
-            }`}
-            title={`Ordenar por ${col.label}`}
-          >
-            <span className="text-[0.62rem] font-bold tracking-wide uppercase">{col.label}</span>
-            <span className={`text-[0.6rem] leading-none ${active ? "" : "opacity-30"}`}>
-              {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
-            </span>
-          </Link>
-        );
-      })}
-
-      {/* Hueco de "mi puja", que no ordena */}
-      <span className="hidden w-[124px] shrink-0 lg:block" aria-hidden />
-    </div>
   );
 }
 
@@ -267,13 +224,13 @@ function MarketRow({
 
   return (
     <div
-      className="border-line rise hover:bg-panel-2 relative flex items-center gap-3 border-b py-2.5 pr-4 pl-4 transition-colors lg:gap-5 lg:pr-6 lg:pl-6"
+      className="border-line rise hover:border-acid/40 relative flex items-center gap-3 rounded-2xl border bg-white py-2.5 pr-4 pl-4 shadow-sm transition-all hover:shadow-md lg:gap-5 lg:pr-6 lg:pl-6"
       style={{ animationDelay: `${delay}ms` }}
     >
       <Link href={`/jugador/${player.id}`} className="absolute inset-0" aria-label={player.name} />
       <span
         aria-hidden
-        className="absolute inset-y-0 left-0 w-[4px]"
+        className="absolute top-2 bottom-2 left-0 w-[4px] rounded-r-full"
         style={{ background: tone?.color ?? "transparent" }}
       />
 

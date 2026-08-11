@@ -6,11 +6,13 @@ import { fixturesByClub } from "@/lib/equipos";
 import { playersOfTeam, teamHeader, toList, toManager } from "@/lib/normalize";
 import { squadSwing } from "@/lib/valores";
 import { SwingBand } from "@/components/SwingBand";
+import { BackLink } from "@/components/BackLink";
 import { money, num } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
 import {
   SortBar,
+  SquadHeader,
   SquadRows,
   clauseIsOpen,
   filterSquad,
@@ -54,7 +56,7 @@ export default async function EquipoPage({
   if (league.myTeamId === teamId) {
     return (
       <>
-        <BackLink />
+        <Back />
         <TeamView leagueId={league.id} teamId={teamId} eyebrow="Tu equipo" />
       </>
     );
@@ -91,7 +93,7 @@ export default async function EquipoPage({
 
   return (
     <>
-      <BackLink />
+      <Back />
       <PageHeader
         eyebrow="Rival"
         title={inLeague?.name ?? header.managerName ?? "Equipo"}
@@ -135,6 +137,17 @@ export default async function EquipoPage({
         pos={query.pos}
         openOnly={openOnly}
         extra={onlyOpen ? { vista: "clausulas" } : undefined}
+      />
+
+      <SquadHeader
+        base={`/equipo/${teamId}`}
+        sort={sort}
+        dir={dir}
+        keep={{
+          vista: onlyOpen ? "clausulas" : undefined,
+          pos: query.pos,
+          abiertas: openOnly ? "1" : undefined,
+        }}
       />
 
       {sorted.length === 0 ? (
@@ -198,12 +211,10 @@ function RivalTabs({
   );
 }
 
-function BackLink() {
+function Back() {
   return (
     <div className="border-line border-b px-6 pt-6 lg:px-10">
-      <Link href="/liga" className="label hover:text-acid transition-colors">
-        ← Clasificación
-      </Link>
+      <BackLink href="/liga" label="Clasificación" />
     </div>
   );
 }

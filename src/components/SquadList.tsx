@@ -3,6 +3,7 @@ import type { Player, Position } from "@/lib/normalize";
 import type { FfPlayer } from "@/lib/odds";
 import type { Fixture } from "@/lib/equipos";
 import { PlayerRow } from "./ui";
+import { SortHeader, type SortColumn } from "./SortHeader";
 
 export type SquadSort =
   | "posicion"
@@ -12,7 +13,11 @@ export type SquadSort =
   | "cambio"
   | "prob"
   | "puntos"
-  | "media";
+  | "media"
+  // Sólo cabecera: guardan el sitio de una celda y no ordenan por nada.
+  | "estado"
+  | "calendario"
+  | "hueco";
 
 export type SortDir = "asc" | "desc";
 
@@ -28,6 +33,22 @@ export const SQUAD_SORTS: { key: SquadSort; label: string }[] = [
 ];
 
 export const POSITION_FILTERS: Position[] = ["PT", "DF", "MC", "DL"];
+
+/**
+ * Columnas de las listas de plantilla. Los anchos van pegados a los de
+ * `PlayerRow`: si cambian allí, hay que cambiarlos aquí o los títulos dejan de
+ * caer sobre su dato.
+ */
+const COLUMNS: SortColumn<SquadSort>[] = [
+  { key: "posicion", label: "Jugador", width: "w-[190px]", align: "left", natural: "desc" },
+  { key: "estado", label: "Estado", width: "w-[118px]", hide: "hidden xl:flex", spacer: true },
+  { key: "calendario", label: "Calendario", width: "w-[206px]", hide: "hidden xl:flex", spacer: true },
+  { key: "prob", label: "Juega", width: "w-[74px]", align: "center", hide: "hidden sm:flex" },
+  { key: "hueco", label: "", width: "flex-1", spacer: true },
+  { key: "puntos", label: "Puntos", width: "w-[84px]", align: "right" },
+  { key: "precio", label: "Valor", width: "w-[136px]", align: "right" },
+  { key: "clausula", label: "Cláusula", width: "w-[152px]", align: "right", natural: "asc" },
+];
 
 /** Orden natural de un once: portería, defensa, medio, delantera. */
 const POSITION_RANK: Record<Position, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 4, "?": 5 };
@@ -131,31 +152,7 @@ export function SortBar({
   const keep = { ...extra, pos, abiertas: openOnly ? "1" : undefined };
 
   return (
-    <div className="border-line space-y-2.5 border-b px-5 py-3.5 lg:px-6">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="label mr-1">Ordenar por</span>
-        {SQUAD_SORTS.map((option) => {
-          const active = sort === option.key;
-          // Pulsar el criterio activo invierte el sentido.
-          const nextDir: SortDir = active && dir === "desc" ? "asc" : "desc";
-          return (
-            <Link
-              key={option.key}
-              href={buildHref(base, { ...keep, orden: option.key, dir: nextDir })}
-              scroll={false}
-              className={chip(active)}
-            >
-              {option.label}
-              {active && (
-                <span className="bg-acid/20 rounded-full px-1.5 py-[1px] text-[0.62rem]">
-                  {dirLabel(sort, dir)}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-
+    <div className="border-line border-b px-5 py-3 lg:px-6">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="label mr-1">Filtrar</span>
         {POSITION_FILTERS.map((position) => {
@@ -191,8 +188,63 @@ export function SortBar({
         >
           Cláusula abierta
         </Link>
+
+        {/* Criterios que no tienen columna propia arriba */}
+        <span className="border-line mx-1 hidden h-5 border-l sm:block" />
+        {EXTRA_SORTS.map((option) => {
+          const active = sort === option.key;
+          const nextDir: SortDir = active && dir === "desc" ? "asc" : "desc";
+          return (
+            <Link
+              key={option.key}
+              href={buildHref(base, { ...keep, orden: option.key, dir: nextDir })}
+              scroll={false}
+              className={chip(active)}
+            >
+              {option.label}
+              {active && (
+                <span className="bg-acid/20 rounded-full px-1.5 py-[1px] text-[0.62rem]">
+                  {dirLabel(sort, dir)}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+/** Los que no encajan en ninguna columna de la cabecera. */
+const EXTRA_SORTS: { key: SquadSort; label: string }[] = [
+  { key: "cambio", label: "Cambio de valor" },
+  { key: "margen", label: "Dif. valor-cláusula" },
+  { key: "media", label: "Media" },
+];
+
+/**
+ * Cabecera de columnas de una lista de plantilla, igual que la del mercado.
+ */
+export function SquadHeader({
+  base,
+  sort,
+  dir,
+  keep,
+}: {
+  base: string;
+  sort: SquadSort;
+  dir: SortDir;
+  /** Parámetros que hay que conservar (posición, pestaña, filtros…). */
+  keep?: Record<string, string | undefined>;
+}) {
+  return (
+    <SortHeader
+      columns={COLUMNS}
+      sort={sort}
+      dir={dir}
+      leading="w-[52px]"
+      hrefOf={(key, next) => buildHref(base, { ...keep, orden: key, dir: next })}
+    />
   );
 }
 
@@ -220,7 +272,7 @@ export function SquadRows({
   fixturesOf?: (player: Player) => Fixture[] | null;
 }) {
   return (
-    <div>
+    <div className="space-y-2 p-3 lg:p-4">
       {players.map((player, i) => (
         <PlayerRow
           key={player.id}

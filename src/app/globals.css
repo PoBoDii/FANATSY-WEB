@@ -29,7 +29,7 @@
   --font-body: var(--font-instrument), system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), ui-monospace, monospace;
 
-  --radius-panel: 12px;
+  --radius-panel: 18px;
 }
 
 :root {

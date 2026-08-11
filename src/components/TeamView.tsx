@@ -18,7 +18,14 @@ import { money, num } from "@/lib/format";
 import Link from "next/link";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
 import { AutoRefresh } from "./AutoRefresh";
-import { SortBar, SquadRows, filterSquad, readSortParams, sortSquad } from "./SquadList";
+import {
+  SortBar,
+  SquadHeader,
+  SquadRows,
+  filterSquad,
+  readSortParams,
+  sortSquad,
+} from "./SquadList";
 import { Empty, ErrorBox, PageHeader, PlayerRow, StatTile, type LineupRole } from "./ui";
 
 const ORDER: Position[] = ["PT", "DF", "MC", "DL", "EN", "?"];
@@ -153,6 +160,12 @@ export async function TeamView({
             openOnly={openOnly}
             extra={{ vista: "lista" }}
           />
+          <SquadHeader
+            base="/"
+            sort={sort}
+            dir={dir}
+            keep={{ vista: "lista", pos: sortParams.pos, abiertas: openOnly ? "1" : undefined }}
+          />
           {listed.length === 0 ? (
             <Empty title="Sin jugadores" hint="Ninguno encaja con este filtro." />
           ) : (
@@ -186,19 +199,21 @@ export async function TeamView({
 
           {bench.length > 0 && (
             <div className="border-line border-t">
-              <div className="bg-ink px-5 py-2 text-[0.74rem] font-bold tracking-wide text-white uppercase lg:px-6">
+              <div className="bg-ink mx-3 mt-3 rounded-xl px-4 py-2 text-[0.74rem] font-bold tracking-wide text-white uppercase shadow-sm">
                 {benchFromLineup.length > 0 ? "Banquillo" : "Sin alinear"} · {bench.length}
               </div>
-              {bench.map((p, i) => (
-                <PlayerRow
-                  key={p.id}
-                  player={p}
-                  leagueId={leagueId}
-                  odds={oddsOf(p)}
-                  compact
-                  delay={i * 30}
-                />
-              ))}
+              <div className="space-y-2 p-3">
+                {bench.map((p, i) => (
+                  <PlayerRow
+                    key={p.id}
+                    player={p}
+                    leagueId={leagueId}
+                    odds={oddsOf(p)}
+                    compact
+                    delay={i * 30}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -217,8 +232,10 @@ export async function TeamView({
               return (
                 <div key={pos}>
                   <div
-                    className="sticky top-0 z-10 flex items-baseline justify-between px-5 py-2 text-white lg:px-6"
-                    style={{ background: POSITION_COLOR[pos] }}
+                    className="sticky top-0 z-10 mx-3 mt-3 flex items-baseline justify-between rounded-xl px-4 py-2 text-white shadow-sm"
+                    style={{
+                      background: `linear-gradient(100deg, ${POSITION_COLOR[pos]}, ${POSITION_COLOR[pos]}cc)`,
+                    }}
                   >
                     <span className="text-[0.74rem] font-bold tracking-wide uppercase">
                       {POSITION_LABEL[pos]} · {group.length}
@@ -227,17 +244,19 @@ export async function TeamView({
                       {money(group.reduce((s, p) => s + p.marketValue, 0))}
                     </span>
                   </div>
-                  {group.map((p, i) => (
-                    <PlayerRow
-                      key={p.id}
-                      player={p}
-                      leagueId={leagueId}
-                      odds={oddsOf(p)}
-                      role={roleOf(p)}
-                      compact
-                      delay={i * 25}
-                    />
-                  ))}
+                  <div className="space-y-2 p-3">
+                    {group.map((p, i) => (
+                      <PlayerRow
+                        key={p.id}
+                        player={p}
+                        leagueId={leagueId}
+                        odds={oddsOf(p)}
+                        role={roleOf(p)}
+                        compact
+                        delay={i * 25}
+                      />
+                    ))}
+                  </div>
                 </div>
               );
             })

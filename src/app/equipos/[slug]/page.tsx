@@ -10,6 +10,7 @@ import { playersOfTeam, toList, toManager, type Player } from "@/lib/normalize";
 import { DifficultyBadge, FixtureRow, isLeague } from "@/components/Fixtures";
 import { managerColor } from "@/lib/managers";
 import { getIdResolver } from "@/lib/cruce";
+import { BackLink } from "@/components/BackLink";
 import { findInjury, getInjuries, injuryTone, type Injury } from "@/lib/lesionados";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
 import { AlertBadge, Empty } from "@/components/ui";
@@ -280,12 +281,11 @@ function TeamHeader({
         style={{ background: "linear-gradient(120deg, rgba(0,0,0,0.35), rgba(0,0,0,0.05))" }}
       />
       <div className="relative px-6 pt-5 pb-6 lg:px-10">
-        <Link
+        <BackLink
           href="/equipos"
-          className="text-[0.68rem] font-bold tracking-wide text-white/80 uppercase hover:text-white"
-        >
-          ← Equipos
-        </Link>
+          label="Equipos"
+          className="text-white/80 hover:!text-white"
+        />
 
         <div className="mt-4 flex flex-wrap items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}

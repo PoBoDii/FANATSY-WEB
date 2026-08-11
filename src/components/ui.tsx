@@ -27,7 +27,7 @@ export function PageHeader({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "linear-gradient(135deg, rgba(13,122,68,0.16) 0%, rgba(13,122,68,0.05) 45%, transparent 74%)",
+            "radial-gradient(900px 320px at 8% -30%, rgba(13,122,68,0.22), transparent 70%), radial-gradient(700px 280px at 85% -10%, rgba(56,189,248,0.16), transparent 65%)",
         }}
       />
       <div className="relative flex flex-wrap items-end justify-between gap-6 px-6 pt-8 pb-6 lg:px-10 lg:pt-11">
@@ -63,9 +63,9 @@ export function StatTile({
   // reconoce por color antes de leerlo.
   const styles = {
     neutral: { text: "text-ink", bar: "bg-ink/25", bg: "bg-white" },
-    acid: { text: "text-acid", bar: "bg-acid", bg: "bg-emerald-50" },
-    up: { text: "text-up", bar: "bg-up", bg: "bg-emerald-50" },
-    down: { text: "text-down", bar: "bg-down", bg: "bg-rose-50" },
+    acid: { text: "text-acid", bar: "bg-acid", bg: "bg-gradient-to-br from-emerald-50 to-white" },
+    up: { text: "text-up", bar: "bg-up", bg: "bg-gradient-to-br from-emerald-50 to-white" },
+    down: { text: "text-down", bar: "bg-down", bg: "bg-gradient-to-br from-rose-50 to-white" },
   }[tone];
 
   return (
@@ -73,7 +73,10 @@ export function StatTile({
       className={`border-line rise relative overflow-hidden border-r border-b px-5 py-4 last:border-r-0 ${styles.bg}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${styles.bar}`} />
+      <span
+        aria-hidden
+        className={`absolute top-3 bottom-3 left-0 w-[4px] rounded-r-full ${styles.bar}`}
+      />
       <div className="label">{label}</div>
       <div className={`tnum mt-2 text-[1.55rem] leading-none font-semibold ${styles.text}`}>
         {value}
@@ -97,7 +100,7 @@ const POS_COLOR: Record<Position, string> = {
 export function PositionTag({ position }: { position: Position }) {
   return (
     <span
-      className={`tnum inline-flex h-5 w-9 shrink-0 items-center justify-center rounded border text-[0.62rem] font-semibold ${POS_COLOR[position]}`}
+      className={`tnum inline-flex h-[22px] w-9 shrink-0 items-center justify-center rounded-lg border text-[0.62rem] font-semibold shadow-sm ${POS_COLOR[position]}`}
     >
       {position}
     </span>
@@ -258,16 +261,19 @@ export function ClubLink({
   badge,
   size = 17,
   className = "",
+  showName = true,
 }: {
   name: string | null | undefined;
   badge?: string | null;
   size?: number;
   className?: string;
+  /** En el campo sólo cabe el escudo; el nombre va en el `title`. */
+  showName?: boolean;
 }) {
   const inner = (
     <>
       <ClubBadge src={badge ?? null} size={size} />
-      {name && name !== "—" ? name : "—"}
+      {showName && (name && name !== "—" ? name : "—")}
     </>
   );
 
@@ -487,7 +493,7 @@ export function PlayerRow({
       {/* Barra de probabilidad, a la izquierda del todo */}
       <span
         aria-hidden
-        className="absolute inset-y-0 left-0 w-[4px]"
+        className="absolute top-2 bottom-2 left-0 w-[4px] rounded-r-full"
         style={{ background: tone?.color ?? "transparent" }}
       />
 
@@ -525,19 +531,15 @@ export function PlayerRow({
           </div>
 
           {/* Calendario: los cinco próximos de liga con su dificultad */}
-          {fixtures && fixtures.length > 0 && (
-            <div className="hidden shrink-0 xl:block">
-              <div className="label mb-1 text-[0.55rem]">Calendario</div>
-              <FixtureStrip fixtures={fixtures} />
-            </div>
-          )}
+          <div className="hidden w-[206px] shrink-0 xl:block">
+            {fixtures && fixtures.length > 0 && <FixtureStrip fixtures={fixtures} />}
+          </div>
         </>
       )}
 
       {!compact && (
         <div className="hidden w-[74px] shrink-0 text-center sm:block">
-          <div className="label text-[0.55rem]">Juega</div>
-          <div className="mt-1.5 flex justify-center">
+          <div className="flex justify-center">
             <OddsChip odds={odds} />
           </div>
         </div>
@@ -584,18 +586,16 @@ export function PlayerRow({
         ) : (
           <>
             <div className="ml-auto w-[84px] shrink-0 text-right">
-              <div className="label text-[0.55rem] leading-none">Puntos</div>
-              <div className="tnum text-ink mt-1.5 text-[1.25rem] leading-none font-bold">
+              <div className="tnum text-ink text-[1.25rem] leading-none font-bold">
                 {num(player.points)}
               </div>
-              <div className="tnum text-faint mt-1 text-[0.66rem]">
+              <div className="tnum text-faint mt-1.5 text-[0.66rem]">
                 {num(player.averagePoints, 1)} media
               </div>
             </div>
 
             <div className="w-[136px] shrink-0 text-right">
-              <div className="label text-[0.55rem] leading-none">Valor</div>
-              <div className="tnum text-ink mt-1.5 text-[1.25rem] leading-none font-bold">
+              <div className="tnum text-ink text-[1.25rem] leading-none font-bold">
                 {money(player.marketValue)}
               </div>
               <div className="mt-1.5 flex justify-end">
@@ -610,7 +610,7 @@ export function PlayerRow({
 
   return (
     <div
-      className="border-line rise hover:bg-panel-2 relative flex items-center gap-3 border-b py-3 pr-3 pl-4 transition-colors lg:gap-4 lg:pl-5"
+      className="border-line rise hover:border-acid/40 relative flex items-center gap-3 rounded-2xl border bg-white py-3 pr-3 pl-4 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5"
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Enlace extendido: cubre la fila entera sin envolver su contenido, así
@@ -730,7 +730,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
   return (
     <div
-      className={`${compact ? "w-[132px]" : "w-[152px]"} shrink-0 rounded-md border px-2.5 py-1.5 ${
+      className={`${compact ? "w-[132px]" : "w-[152px]"} shrink-0 rounded-xl border px-2.5 py-2 shadow-sm ${
         open
           ? "border-up bg-up/15"
           : urgent
@@ -743,7 +743,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
           Cláusula
         </span>
         {open && (
-          <span className="label bg-up rounded-sm px-1 py-[1px] text-[0.5rem] leading-none text-white">
+          <span className="label bg-up rounded-full px-1.5 py-[2px] text-[0.5rem] leading-none text-white">
             Abierta
           </span>
         )}

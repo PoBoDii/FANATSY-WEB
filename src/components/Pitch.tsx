@@ -220,6 +220,7 @@ function PitchToken({
             name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
             badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
             size={18}
+            showName={false}
           />
         </span>
 

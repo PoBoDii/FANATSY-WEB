@@ -17,6 +17,7 @@ import { MatchForecast } from "@/components/MatchForecast";
 import { ffPhoto, oddsTone } from "@/lib/odds";
 import { playersOfTeam, toList, toManager } from "@/lib/normalize";
 import { managerColor } from "@/lib/managers";
+import { BackLink } from "@/components/BackLink";
 import { getIdResolver, type IdResolver } from "@/lib/cruce";
 import { Empty, ErrorBox, PageHeader } from "@/components/ui";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
@@ -112,8 +113,17 @@ export default async function PartidoPage({
   // Qué puesto ocupa en el orden de la jornada, por hora de comienzo.
   const order = matches.findIndex((m) => m.id === match.id) + 1;
 
-  // Quién tiene a quién en mi liga, indexado por nombre normalizado.
+  /**
+   * Quién tiene a quién en mi liga, por nombre normalizado.
+   *
+   * El nombre completo manda; el corto ("Llorente") sólo vale si es único en
+   * toda la liga. Antes se metían los dos sin más y el último ganaba, así que
+   * un jugador podía salir atribuido a otro manager: por eso el contador decía
+   * que tenías tres en un partido teniendo dos.
+   */
   const owners = new Map<string, Owner>();
+  const shortNames = new Map<string, Owner | null>();
+
   toList(teamsRaw).forEach((raw, i) => {
     const manager = toManager(raw, i, league?.myTeamId ?? null);
     const color = managerColor(i, manager.isMe);
@@ -125,9 +135,22 @@ export default async function PartidoPage({
         playerId: player.id,
       };
       owners.set(normalizeName(player.fullName || player.name), owner);
-      owners.set(normalizeName(player.name), owner);
+
+      const short = normalizeName(player.name);
+      // null = ambiguo, lo tiene más de uno con ese nombre corto.
+      if (shortNames.has(short)) {
+        const seen = shortNames.get(short);
+        if (seen && seen.playerId !== owner.playerId) shortNames.set(short, null);
+      } else {
+        shortNames.set(short, owner);
+      }
     }
   });
+
+  for (const [short, owner] of shortNames) {
+    if (owner && !owners.has(short)) owners.set(short, owner);
+  }
+
   const ownerOf = (slug: string) => owners.get(slug) ?? null;
 
   /**
@@ -149,9 +172,25 @@ export default async function PartidoPage({
     );
   };
 
-  const mine = [...home, ...away]
-    .flatMap((slot) => slot.players)
-    .filter((p) => ownerOf(lineupKey(p))?.isMe).length;
+  /**
+   * Cuántos jugadores del partido son de cada uno. Sólo cuentan los favoritos
+   * de cada hueco (no las alternativas, que son quienes *podrían* jugar) y se
+   * cuenta cada jugador una vez.
+   */
+  const counted = new Set<string>();
+  let mine = 0;
+  let rivals = 0;
+  for (const slot of [...home, ...away]) {
+    const main = slot.players[0];
+    if (!main) continue;
+    const key = lineupKey(main);
+    if (counted.has(key)) continue;
+    counted.add(key);
+    const owner = ownerOf(key);
+    if (!owner) continue;
+    if (owner.isMe) mine++;
+    else rivals++;
+  }
 
   return (
     <>
@@ -160,9 +199,17 @@ export default async function PartidoPage({
         eyebrow={`Jornada ${round}`}
         title={`${match.home.name} — ${match.away.name}`}
         meta={
-          mine > 0
-            ? `Tienes ${mine} ${mine === 1 ? "jugador" : "jugadores"} en este partido`
-            : "No tienes a nadie en este partido"
+          <>
+            {mine > 0
+              ? `Tienes ${mine} ${mine === 1 ? "jugador" : "jugadores"} en el once`
+              : "No tienes a nadie en el once"}
+            {rivals > 0 && (
+              <span className="text-faint">
+                {" · "}
+                {rivals === 1 ? "un jugador es" : `${rivals} jugadores son`} de tus rivales
+              </span>
+            )}
+          </>
         }
         action={
           <div className="border-line rounded-xl border bg-white px-4 py-2.5 text-center shadow-sm">
@@ -234,9 +281,7 @@ export default async function PartidoPage({
 function Back({ round }: { round: number }) {
   return (
     <div className="border-line border-b px-6 pt-6 lg:px-10">
-      <Link href={`/alineaciones?j=${round}`} className="label hover:text-acid transition-colors">
-        ← Jornada {round}
-      </Link>
+      <BackLink href={`/alineaciones?j=${round}`} label={`Jornada ${round}`} />
     </div>
   );
 }

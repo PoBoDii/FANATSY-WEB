@@ -10,7 +10,34 @@ import { Empty, ErrorBox, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function LigaPage() {
+type Sort = "puesto" | "manager" | "clausulas" | "valorhoy" | "jornada" | "valor" | "puntos";
+
+/** Columnas de la tabla. Ordena igual que el mercado: se pulsa el título. */
+const COLUMNS: {
+  key: Sort;
+  label: string;
+  align: "left" | "right";
+  natural: "asc" | "desc";
+}[] = [
+  { key: "puesto", label: "#", align: "left", natural: "asc" },
+  { key: "manager", label: "Manager", align: "left", natural: "asc" },
+  { key: "clausulas", label: "Cláusulas abiertas", align: "right", natural: "desc" },
+  { key: "valorhoy", label: "Valor hoy", align: "right", natural: "desc" },
+  { key: "jornada", label: "Jornada", align: "right", natural: "desc" },
+  { key: "valor", label: "Valor", align: "right", natural: "desc" },
+  { key: "puntos", label: "Puntos", align: "right", natural: "desc" },
+];
+
+export default async function LigaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ orden?: string; dir?: string }>;
+}) {
+  const { orden, dir: rawDir } = await searchParams;
+  const column = COLUMNS.find((c) => c.key === orden);
+  const sort: Sort = column?.key ?? "puesto";
+  const dir: "asc" | "desc" =
+    rawDir === "asc" || rawDir === "desc" ? rawDir : (column?.natural ?? "asc");
   const session = await getSession();
   if (!session.active) {
     return (
@@ -48,6 +75,30 @@ export default async function LigaPage() {
     })
     .sort((a, b) => a.position - b.position);
 
+  // El podio siempre va por clasificación; lo que se reordena es la tabla.
+  type Row = (typeof managers)[number];
+  const compare = (a: Row, b: Row): number => {
+    switch (sort) {
+      case "manager":
+        return a.name.localeCompare(b.name, "es");
+      case "clausulas":
+        return b.openClauses - a.openClauses || a.position - b.position;
+      case "valorhoy":
+        return b.swing.net - a.swing.net;
+      case "jornada":
+        return (b.weekPoints ?? -1) - (a.weekPoints ?? -1);
+      case "valor":
+        return b.teamValue - a.teamValue;
+      case "puntos":
+        return b.points - a.points || a.position - b.position;
+      default:
+        return a.position - b.position;
+    }
+  };
+
+  const ordered = [...managers].sort(compare);
+  const rows = dir === "asc" ? ordered : [...ordered].reverse();
+
   if (managers.length === 0) {
     return (
       <>
@@ -64,6 +115,8 @@ export default async function LigaPage() {
   // y no a la ficha de rival.
   const hrefOf = (m: { isMe: boolean; teamId: string }) => (m.isMe ? "/" : `/equipo/${m.teamId}`);
 
+  const sortHref = (key: Sort, next: "asc" | "desc") => `/liga?orden=${key}&dir=${next}`;
+
   return (
     <>
       <PageHeader
@@ -78,37 +131,65 @@ export default async function LigaPage() {
       />
 
       {/* Podio */}
-      <div className="border-line grid grid-cols-1 border-b sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 px-4 py-6 sm:grid-cols-3 lg:px-6">
         {managers.slice(0, 3).map((m, i) => (
           <Link
             key={m.teamId}
             href={hrefOf(m)}
-            className="rise group relative overflow-hidden border-b border-white/20 px-5 py-6 text-white transition-transform last:border-b-0 hover:-translate-y-0.5 sm:border-r sm:border-b-0 sm:last:border-r-0"
-            style={{
-              animationDelay: `${i * 80}ms`,
-              // Degradado del color del manager: la clasificación deja de ser
-              // una tabla gris y cada equipo se reconoce por su color.
-              background: `linear-gradient(140deg, ${m.color} 0%, ${m.color}cc 55%, ${m.color}99 100%)`,
-            }}
+            className="rise group border-line relative overflow-hidden rounded-3xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
+            style={{ animationDelay: `${i * 80}ms` }}
           >
-            <div className="flex items-baseline gap-3">
-              <span className="display text-5xl leading-none opacity-90">{m.position}</span>
+            {/* Halo del color del manager: da vida sin teñir la tarjeta entera,
+                que era lo que la dejaba plana. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -top-16 -right-12 h-40 w-40 rounded-full opacity-[0.14] blur-2xl transition-opacity group-hover:opacity-25"
+              style={{ background: m.color }}
+            />
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-1.5"
+              style={{ background: `linear-gradient(90deg, ${m.color}, ${m.color}55)` }}
+            />
+
+            <div className="relative flex items-center gap-3.5">
+              <span
+                className="display flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl text-white shadow-md"
+                style={{ background: `linear-gradient(140deg, ${m.color}, ${m.color}bb)` }}
+              >
+                {m.position}
+              </span>
               <div className="min-w-0">
                 <div className="truncate text-[1.05rem] font-bold group-hover:underline">
                   {m.name}
                 </div>
-                {m.isMe && (
-                  <span className="mt-1 inline-block rounded bg-white/25 px-1.5 py-[1px] text-[0.6rem] font-bold tracking-wide uppercase">
+                {m.isMe ? (
+                  <span
+                    className="mt-1 inline-block rounded-full px-2 py-[2px] text-[0.6rem] font-bold tracking-wide text-white uppercase"
+                    style={{ background: m.color }}
+                  >
                     tú
                   </span>
+                ) : (
+                  <span className="text-faint text-[0.72rem]">{m.openClauses} sin blindar</span>
                 )}
               </div>
             </div>
-            <div className="mt-4 flex items-baseline justify-between">
-              <span className="tnum text-3xl font-bold">{num(m.points)}</span>
-              <span className="tnum text-xs opacity-80">{money(m.teamValue)}</span>
+
+            <div className="relative mt-5 flex items-end justify-between">
+              <div>
+                <div className="label text-[0.55rem]">Puntos</div>
+                <span className="tnum text-ink text-3xl leading-none font-bold">
+                  {num(m.points)}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="label text-[0.55rem]">Valor</div>
+                <span className="tnum text-muted text-sm font-semibold">{money(m.teamValue)}</span>
+              </div>
             </div>
-            <div className="mt-3">
+
+            <div className="relative mt-3.5">
               <NetChip net={m.swing.net} />
             </div>
           </Link>
@@ -116,37 +197,54 @@ export default async function LigaPage() {
       </div>
 
       {/* Tabla completa */}
-      <div className="overflow-x-auto">
+      <div className="border-line mx-4 mb-6 overflow-x-auto rounded-2xl border bg-white shadow-sm lg:mx-6">
         <table className="w-full min-w-[680px] text-sm">
           <thead>
-            <tr className="border-line border-b">
-              <th className="label px-5 py-3 text-left lg:px-6">#</th>
-              <th className="label px-3 py-3 text-left">Manager</th>
-              <th className="label px-3 py-3 text-right">Cláusulas abiertas</th>
-              <th className="label px-3 py-3 text-right">Valor hoy</th>
-              <th className="label px-3 py-3 text-right">Jornada</th>
-              <th className="label px-3 py-3 text-right">Valor</th>
-              <th className="label px-5 py-3 text-right lg:px-6">Puntos</th>
+            <tr className="border-line bg-panel-2/60 border-b">
+              {COLUMNS.map((col, i) => {
+                const active = sort === col.key;
+                const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
+                const edge = i === 0 ? "pl-5 lg:pl-6" : i === COLUMNS.length - 1 ? "pr-5 lg:pr-6" : "";
+                return (
+                  <th key={col.key} className={`px-3 py-2.5 ${edge}`}>
+                    <Link
+                      href={sortHref(col.key, nextDir)}
+                      scroll={false}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors ${
+                        col.align === "right" ? "justify-end" : ""
+                      } ${active ? "bg-acid/10 text-acid" : "text-faint hover:text-ink"}`}
+                      title={`Ordenar por ${col.label}`}
+                    >
+                      <span className="text-[0.62rem] font-bold tracking-wide uppercase">
+                        {col.label}
+                      </span>
+                      <span className={`text-[0.6rem] leading-none ${active ? "" : "opacity-30"}`}>
+                        {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
+                      </span>
+                    </Link>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {managers.map((m, i) => (
+            {rows.map((m, i) => (
               <tr
                 key={m.teamId}
-                className={`border-line rise hover:bg-panel-2 border-b transition-colors ${
+                className={`border-line rise hover:bg-panel-2 border-b transition-colors last:border-b-0 ${
                   m.isMe ? "bg-acid/[0.04]" : ""
                 }`}
                 style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
               >
-                <td className="tnum text-faint relative px-5 py-3 lg:px-6">
+                <td className="relative px-5 py-3 lg:px-6">
                   <span
-                    aria-hidden
-                    className="absolute inset-y-0 left-0 w-[5px]"
-                    style={{ background: m.color }}
-                  />
-                  {m.position}
+                    className="display inline-flex h-8 w-8 items-center justify-center rounded-xl text-[0.95rem] text-white shadow-sm"
+                    style={{ background: `linear-gradient(140deg, ${m.color}, ${m.color}bb)` }}
+                  >
+                    {m.position}
+                  </span>
                 </td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-3 text-left">
                   <Link href={hrefOf(m)} className="hover:text-acid font-medium transition-colors">
                     {m.name}
                   </Link>
@@ -180,7 +278,7 @@ export default async function LigaPage() {
         </table>
       </div>
 
-      <p className="text-faint px-5 py-6 text-xs lg:px-6">
+      <p className="text-faint px-5 pb-8 text-xs lg:px-6">
         Pincha en cualquier manager para ver su plantilla completa. «Valor hoy» es lo que ha
         ganado o perdido su plantilla desde ayer; el desglose de subidas y bajadas está dentro.
       </p>

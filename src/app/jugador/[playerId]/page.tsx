@@ -19,6 +19,7 @@ import { LastFixtures, NextFixtures } from "@/components/Fixtures";
 import { TEAMS, getFixtures } from "@/lib/equipos";
 import { Countdown } from "@/components/Countdown";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
+import { BackLink } from "@/components/BackLink";
 import {
   AlertBadge,
   ClubLink,
@@ -80,9 +81,7 @@ export default async function JugadorPage({
   return (
     <>
       <div className="border-line border-b px-6 pt-6 lg:px-10">
-        <Link href="/" className="label hover:text-acid transition-colors">
-          ← Volver
-        </Link>
+        <BackLink href="/" label="Mi plantilla" />
       </div>
 
       <Header player={player} odds={odds} owner={owner} />
