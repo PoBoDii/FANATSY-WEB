@@ -142,6 +142,13 @@ export const fantasy = {
   playerValues: (playerId: string) =>
     call<unknown>(`/v3/player/${playerId}/market-value`, { revalidate: 300 }),
 
+  /**
+   * VERIFICADO — los ~700 jugadores de LaLiga con id, apodo, equipo, valor y
+   * foto. Es lo que permite enlazar a la ficha de CUALQUIER jugador, no sólo
+   * de los que alguien tiene fichados en mi liga.
+   */
+  players: () => call<unknown>("/v5/players", { revalidate: 600 }),
+
   /** VERIFICADO */
   calendar: () => call<unknown>("/v3/calendar", { revalidate: 3600 }),
 

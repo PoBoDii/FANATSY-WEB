@@ -218,7 +218,7 @@ function Row({ player, delay }: { player: TeamPlayerRow; delay: number }) {
           <div className="label text-[0.55rem] leading-none">Cláusula</div>
           <div
             className={`tnum mt-1 text-[0.95rem] leading-none font-semibold ${
-              open ? "text-down" : "text-ink"
+              open ? "text-up" : "text-ink"
             }`}
           >
             {money(player.buyoutClause)}
@@ -227,7 +227,7 @@ function Row({ player, delay }: { player: TeamPlayerRow; delay: number }) {
             {player.buyoutUnlockAt && !open ? (
               <Countdown until={player.buyoutUnlockAt} />
             ) : (
-              <span className="text-down text-[0.62rem] font-semibold">abierta</span>
+              <span className="text-up text-[0.62rem] font-semibold">abierta</span>
             )}
           </div>
         </div>

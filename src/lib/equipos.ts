@@ -242,5 +242,27 @@ export async function opponentDifficulty(
 /** Busca un club por su nombre tal y como lo escribe futbolfantasy. */
 export function findTeamByName(name: string): TeamRef | undefined {
   const wanted = normalizeName(name);
-  return TEAMS.find((t) => normalizeName(t.name) === wanted);
+  if (!wanted) return undefined;
+  const exact = TEAMS.find((t) => normalizeName(t.name) === wanted);
+  if (exact) return exact;
+  // Cada fuente escribe el club a su manera: "Sevilla FC", "Rayo Vallecano",
+  // "RCD Espanyol". Basta con que uno contenga al otro por palabras enteras.
+  return TEAMS.find((t) => {
+    const mine = normalizeName(t.name);
+    return (
+      wanted === mine ||
+      wanted.startsWith(`${mine} `) ||
+      wanted.endsWith(` ${mine}`) ||
+      wanted.includes(` ${mine} `) ||
+      mine.startsWith(`${wanted} `) ||
+      mine.endsWith(` ${wanted}`)
+    );
+  });
+}
+
+/** Ruta de la ficha del club, o null si no se reconoce el nombre. */
+export function clubHref(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const team = findTeamByName(name);
+  return team ? `/equipos/${team.slug}` : null;
 }

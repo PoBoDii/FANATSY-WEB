@@ -21,7 +21,7 @@ import { Countdown } from "@/components/Countdown";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
 import {
   AlertBadge,
-  ClubBadge,
+  ClubLink,
   Empty,
   ErrorBox,
   PositionTag,
@@ -93,14 +93,16 @@ export default async function JugadorPage({
       {club && (
         <section className="border-line border-b px-6 py-5 lg:px-10">
           <div className="mb-3 flex flex-wrap items-baseline gap-3">
-            <span className="label">Calendario de {club.name}</span>
-            <Link href={`/equipos/${club.slug}`} className="text-acid text-xs hover:underline">
-              ver equipo →
+            <span className="label">Próximos partidos de {club.name}</span>
+            {/* El calendario entero son 38 tarjetas y aquí sólo estorban: se
+                enseñan los siguientes y el resto se ve en la página del club. */}
+            <Link href={`/equipos/${club.slug}?tab=calendario`} className="text-acid text-xs hover:underline">
+              ver calendario completo →
             </Link>
           </div>
-          <NextFixtures fixtures={fixtures.next} />
+          <NextFixtures fixtures={fixtures.next} limit={6} />
           <div className="label mt-5 mb-3">Últimos partidos</div>
-          <LastFixtures fixtures={fixtures.last} />
+          <LastFixtures fixtures={fixtures.last} limit={4} />
         </section>
       )}
 
@@ -166,13 +168,33 @@ function Header({
           <h1 className="display mt-2 text-[clamp(1.9rem,4.5vw,3rem)]">{player.name}</h1>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="text-muted inline-flex items-center gap-2 text-sm font-medium">
-              <ClubBadge
-                src={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
-                size={20}
-              />
-              {player.clubName !== "—" ? player.clubName : (odds?.teamName ?? "—")}
-            </span>
+            <ClubLink
+              name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
+              badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
+              size={20}
+              className="text-muted text-sm font-medium"
+            />
+
+            {/* Lo que se ha movido hoy, en la cabecera: es lo primero que se
+                mira al abrir una ficha y estaba enterrado más abajo. */}
+            {odds?.diff ? (
+              <span
+                className={`tnum inline-flex items-baseline gap-1.5 rounded-lg px-3 py-1.5 text-[1.05rem] font-bold ${
+                  odds.diff > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"
+                }`}
+                title="Variación de valor respecto a ayer"
+              >
+                {odds.diff > 0 ? "▲" : "▼"} {signed(odds.diff)}
+                {odds.diffPct !== null && (
+                  <span className="text-[0.78rem] font-semibold opacity-80">
+                    {odds.diffPct > 0 ? "+" : "−"}
+                    {num(Math.abs(odds.diffPct), 1)}%
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="text-faint text-[0.78rem]">sin cambio de valor hoy</span>
+            )}
             <StatusTag status={player.status} />
             {owner && (
               <span
@@ -258,7 +280,7 @@ function Ownership({
       <Cell label={open ? "Estado" : "Se abre"}>
         {clause ? (
           open ? (
-            <span className="text-down text-[0.95rem] font-bold">ABIERTA</span>
+            <span className="text-up text-[0.95rem] font-bold">ABIERTA</span>
           ) : (
             <div className="flex flex-col items-start gap-1">
               <Countdown until={unlockAt!} />

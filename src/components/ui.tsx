@@ -4,7 +4,7 @@ import { type FfPlayer, type PlayerAlert, oddsTone, priceTone } from "@/lib/odds
 import { dateTime, money, num, signed } from "@/lib/format";
 import { Countdown } from "./Countdown";
 import { FixtureStrip } from "./Fixtures";
-import type { Fixture } from "@/lib/equipos";
+import { clubHref, type Fixture } from "@/lib/equipos";
 
 /* -------------------------------------------------------------- cabecera */
 
@@ -246,6 +246,47 @@ function NewsIcon() {
   );
 }
 
+/**
+ * Escudo y nombre de un club, enlazados a su ficha.
+ *
+ * Va con `relative z-10` porque casi siempre vive dentro de una fila que ya es
+ * un enlace extendido al jugador: sin levantarlo, el clic se lo quedaría la
+ * fila entera. Si el club no se reconoce, se pinta igual pero sin enlace.
+ */
+export function ClubLink({
+  name,
+  badge,
+  size = 17,
+  className = "",
+}: {
+  name: string | null | undefined;
+  badge?: string | null;
+  size?: number;
+  className?: string;
+}) {
+  const inner = (
+    <>
+      <ClubBadge src={badge ?? null} size={size} />
+      {name && name !== "—" ? name : "—"}
+    </>
+  );
+
+  const base = `inline-flex items-center gap-1.5 ${className}`;
+  const href = clubHref(name);
+
+  if (!href) return <span className={base}>{inner}</span>;
+
+  return (
+    <Link
+      href={href}
+      className={`${base} hover:text-acid relative z-10 transition-colors hover:underline`}
+      title={`Ver ${name}`}
+    >
+      {inner}
+    </Link>
+  );
+}
+
 /** Escudo del club; si no hay imagen, no ocupa sitio. */
 export function ClubBadge({ src, size = 15 }: { src: string | null; size?: number }) {
   if (!src) return null;
@@ -466,10 +507,11 @@ export function PlayerRow({
           <AlertBadge alerts={odds?.alerts} />
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-muted inline-flex items-center gap-1.5 text-[0.78rem] font-medium">
-            <ClubBadge src={player.clubBadge} size={17} />
-            {player.clubName}
-          </span>
+          <ClubLink
+            name={player.clubName}
+            badge={player.clubBadge}
+            className="text-muted text-[0.78rem] font-medium"
+          />
           <RoleTag role={role} />
           {compact && <StatusTag status={player.status} />}
         </div>
@@ -690,18 +732,18 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
     <div
       className={`${compact ? "w-[132px]" : "w-[152px]"} shrink-0 rounded-md border px-2.5 py-1.5 ${
         open
-          ? "border-down bg-down/15"
+          ? "border-up bg-up/15"
           : urgent
             ? "border-down/60 bg-down/10"
             : "border-line bg-panel-2/60"
       }`}
     >
       <div className="flex items-baseline justify-between">
-        <span className={`label text-[0.55rem] leading-none ${open ? "text-down" : ""}`}>
+        <span className={`label text-[0.55rem] leading-none ${open ? "text-up" : ""}`}>
           Cláusula
         </span>
         {open && (
-          <span className="label bg-down rounded-sm px-1 py-[1px] text-[0.5rem] leading-none text-black">
+          <span className="label bg-up rounded-sm px-1 py-[1px] text-[0.5rem] leading-none text-white">
             Abierta
           </span>
         )}
@@ -709,7 +751,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
       <div
         className={`tnum mt-1.5 text-[1.25rem] leading-none font-semibold ${
-          open || urgent ? "text-down" : "text-ink"
+          open ? "text-up" : urgent ? "text-down" : "text-ink"
         }`}
       >
         {money(player.buyoutClause)}
@@ -728,7 +770,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
         {unlockAt && !open ? (
           <Countdown until={unlockAt} />
         ) : (
-          <span className="tnum text-down text-[0.7rem] font-semibold">
+          <span className="tnum text-up text-[0.7rem] font-semibold">
             cualquiera puede pagarla
           </span>
         )}

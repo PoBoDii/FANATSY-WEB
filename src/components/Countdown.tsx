@@ -56,7 +56,15 @@ export function Countdown({ until }: { until: string }) {
   const urgent = !free && left < DAY;
   const soon = !free && !urgent && left < 2 * DAY;
 
-  const tone = free || urgent ? "bg-down text-black" : soon ? "bg-warn text-black" : "bg-panel-2 text-ink";
+  // Abierta ya = oportunidad, en verde. El rojo queda para las últimas horas
+  // de blindaje, que es cuando hay que estar pendiente.
+  const tone = free
+    ? "bg-up text-white"
+    : urgent
+      ? "bg-down text-white"
+      : soon
+        ? "bg-warn text-black"
+        : "bg-panel-2 text-ink";
 
   return (
     <span

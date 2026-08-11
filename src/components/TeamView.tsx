@@ -12,6 +12,8 @@ import {
 } from "@/lib/normalize";
 import { enrichOdds, getFf } from "@/lib/futbolfantasy";
 import { fixturesByClub } from "@/lib/equipos";
+import { squadSwing } from "@/lib/valores";
+import { SwingBand } from "./SwingBand";
 import { money, num } from "@/lib/format";
 import Link from "next/link";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
@@ -98,6 +100,7 @@ export async function TeamView({
 
   // Próximo partido de cada club presente en la plantilla, con su dificultad.
   const fixturesOf = await fixturesByClub(squad, oddsOf);
+  const swing = squadSwing(squad, oddsOf);
 
   const { sort, dir, positions, openOnly } = readSortParams(sortParams, "posicion");
   const listed = sortSquad(filterSquad(squad, positions, openOnly), sort, dir, oddsOf);
@@ -134,6 +137,8 @@ export async function TeamView({
           delay={180}
         />
       </div>
+
+      <SwingBand swing={swing} mine />
 
       <Tabs view={view} />
 

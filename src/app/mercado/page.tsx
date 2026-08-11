@@ -10,7 +10,7 @@ import { money, num, signed, timeLeft } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import {
   AlertBadge,
-  ClubBadge,
+  ClubLink,
   Empty,
   ErrorBox,
   OddsChip,
@@ -24,14 +24,30 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Sort = "precio" | "puntos" | "prob" | "dif" | "media";
+type Sort = "nombre" | "precio" | "puntos" | "prob" | "dif" | "media" | "pujas";
 
-const SORTS: { key: Sort; label: string }[] = [
-  { key: "precio", label: "Precio" },
-  { key: "puntos", label: "Puntos" },
-  { key: "media", label: "Media" },
-  { key: "prob", label: "Probabilidad" },
-  { key: "dif", label: "Sube más" },
+/**
+ * Cabecera de columna: cada una ordena por lo suyo y guarda el ancho de su
+ * celda en la fila, para que el título quede encima del dato.
+ *
+ * `natural` es la dirección en la que se entra al pulsarla: en el nombre se
+ * espera la A→Z y en todo lo demás, de mayor a menor.
+ */
+const COLUMNS: {
+  key: Sort;
+  label: string;
+  width: string;
+  align: "left" | "right" | "center";
+  natural: "asc" | "desc";
+  hide?: string;
+}[] = [
+  { key: "nombre", label: "Jugador", width: "w-[190px]", align: "left", natural: "asc" },
+  { key: "prob", label: "Juega", width: "w-[86px]", align: "left", natural: "desc" },
+  { key: "pujas", label: "Pujas", width: "flex-1", align: "left", natural: "desc", hide: "hidden md:block" },
+  { key: "puntos", label: "Puntos", width: "w-[74px]", align: "right", natural: "desc", hide: "hidden sm:block" },
+  { key: "media", label: "Media", width: "w-[70px]", align: "right", natural: "desc", hide: "hidden sm:block" },
+  { key: "dif", label: "Hoy", width: "w-[150px]", align: "right", natural: "desc" },
+  { key: "precio", label: "Precio", width: "w-[126px]", align: "right", natural: "desc" },
 ];
 
 export default async function MercadoPage({
@@ -40,8 +56,10 @@ export default async function MercadoPage({
   searchParams: Promise<{ orden?: string; dir?: string }>;
 }) {
   const { orden, dir: rawDir } = await searchParams;
-  const sort: Sort = (SORTS.find((s) => s.key === orden)?.key ?? "precio") as Sort;
-  const dir: "asc" | "desc" = rawDir === "asc" ? "asc" : "desc";
+  const column = COLUMNS.find((c) => c.key === orden);
+  const sort: Sort = column?.key ?? "precio";
+  const dir: "asc" | "desc" =
+    rawDir === "asc" || rawDir === "desc" ? rawDir : (column?.natural ?? "desc");
 
   const session = await getSession();
   if (!session.active)
@@ -86,12 +104,18 @@ export default async function MercadoPage({
   // en las listas de plantilla.
   const compare = (a: MarketItem, b: MarketItem) => {
     switch (sort) {
+      case "nombre":
+        // Al revés que el resto: la lista se invierte después, y en el nombre
+        // lo natural es la A→Z.
+        return b.player.name.localeCompare(a.player.name, "es");
       case "puntos":
         return b.player.points - a.player.points || byDiff(a, b);
       case "media":
         return b.player.averagePoints - a.player.averagePoints || byDiff(a, b);
       case "prob":
         return (oddsOf(b)?.probability ?? -1) - (oddsOf(a)?.probability ?? -1) || byDiff(a, b);
+      case "pujas":
+        return b.bids - a.bids || b.price - a.price;
       case "dif":
         return byDiff(a, b);
       default:
@@ -138,33 +162,7 @@ export default async function MercadoPage({
         />
       </div>
 
-      {/* Ordenación */}
-      <div className="border-line flex flex-wrap items-center gap-2 border-b px-5 py-3.5 lg:px-6">
-        <span className="label mr-1">Ordenar por</span>
-        {SORTS.map((option) => {
-          const active = sort === option.key;
-          const nextDir = active && dir === "desc" ? "asc" : "desc";
-          return (
-            <Link
-              key={option.key}
-              href={`/mercado?orden=${option.key}&dir=${nextDir}`}
-              scroll={false}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                active
-                  ? "border-acid/60 bg-acid/10 text-acid"
-                  : "border-line text-muted hover:border-faint hover:text-ink"
-              }`}
-            >
-              {option.label}
-              {active && (
-                <span className="bg-acid/15 rounded-full px-1.5 py-[1px] text-[0.62rem]">
-                  {dir === "desc" ? "máx" : "mín"}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </div>
+      <SortHeader sort={sort} dir={dir} />
 
       {sorted.length === 0 ? (
         <Empty
@@ -197,6 +195,49 @@ export default async function MercadoPage({
         </section>
       )}
     </>
+  );
+}
+
+/**
+ * Cabecera de tabla: se pulsa el título de la columna y ordena por ella,
+ * alternando de mayor a menor. La flecha dice por cuál se está ordenando y en
+ * qué sentido, que es lo que una fila de pastillas no contaba.
+ */
+function SortHeader({ sort, dir }: { sort: Sort; dir: "asc" | "desc" }) {
+  return (
+    <div className="border-line bg-panel-2/70 sticky top-0 z-20 flex items-center gap-3 border-y py-2 pr-4 pl-4 lg:gap-5 lg:pr-6 lg:pl-6">
+      {/* Hueco de la foto, para que los títulos caigan sobre su columna */}
+      <span className="w-[52px] shrink-0" aria-hidden />
+
+      {COLUMNS.map((col) => {
+        const active = sort === col.key;
+        // Pulsar la activa da la vuelta; pulsar otra entra por su orden natural.
+        const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
+        const grow = col.width === "flex-1" ? "min-w-0 flex-1" : `${col.width} shrink-0`;
+        const justify =
+          col.align === "right" ? "justify-end" : col.align === "center" ? "justify-center" : "";
+
+        return (
+          <Link
+            key={col.key}
+            href={`/mercado?orden=${col.key}&dir=${nextDir}`}
+            scroll={false}
+            className={`${grow} ${col.hide ?? ""} flex items-center gap-1 ${justify} transition-colors ${
+              active ? "text-acid" : "text-faint hover:text-ink"
+            }`}
+            title={`Ordenar por ${col.label}`}
+          >
+            <span className="text-[0.62rem] font-bold tracking-wide uppercase">{col.label}</span>
+            <span className={`text-[0.6rem] leading-none ${active ? "" : "opacity-30"}`}>
+              {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
+            </span>
+          </Link>
+        );
+      })}
+
+      {/* Hueco de "mi puja", que no ordena */}
+      <span className="hidden w-[124px] shrink-0 lg:block" aria-hidden />
+    </div>
   );
 }
 
@@ -245,36 +286,33 @@ function MarketRow({
           <span className="truncate text-[0.95rem] leading-tight font-medium">{player.name}</span>
           <AlertBadge alerts={odds?.alerts} />
         </div>
-        <div className="text-muted mt-1 flex items-center gap-1.5 text-xs">
-          <ClubBadge src={badge} size={14} />
-          <span className="truncate">{club}</span>
-        </div>
+        <ClubLink name={club} badge={badge} size={14} className="text-muted mt-1 text-xs" />
+        {fixtures && fixtures.length > 0 && (
+          <div className="mt-1.5 hidden lg:block">
+            <FixtureStrip fixtures={fixtures} limit={5} />
+          </div>
+        )}
       </div>
 
       {/* Probabilidad, con espacio propio en vez de pegada al nombre */}
       {player.position !== "EN" ? (
         <div className="w-[86px] shrink-0">
-          <div className="label text-[0.55rem] leading-none">Juega</div>
-          <div className="mt-1.5">
-            <OddsChip odds={odds} />
-          </div>
+          <OddsChip odds={odds} />
         </div>
       ) : (
         <div className="w-[86px] shrink-0" />
       )}
 
-      {/* Calendario de su club: los cinco próximos de liga */}
-      <div className="hidden shrink-0 lg:block">
-        <div className="label mb-1 text-[0.55rem]">Calendario</div>
-        <FixtureStrip fixtures={fixtures ?? []} />
-      </div>
-
       <div className="hidden min-w-0 flex-1 flex-col gap-1 md:flex">
-        <StatusTag status={player.status} />
-        <span className="text-faint text-[0.72rem]">
+        <span
+          className={`tnum text-[0.85rem] font-semibold ${
+            item.bids > 0 ? "text-ink" : "text-faint"
+          }`}
+        >
           {item.bids > 0 ? `${item.bids} ${item.bids === 1 ? "puja" : "pujas"}` : "sin pujas"}
-          {left ? ` · cierra en ${left}` : ""}
         </span>
+        <StatusTag status={player.status} />
+        {left && <span className="text-faint text-[0.68rem]">cierra en {left}</span>}
       </div>
 
       {/* Mi puja: al lado del estado, no encima del precio de venta */}
@@ -292,19 +330,21 @@ function MarketRow({
         ) : null}
       </div>
 
-      {/* Rendimiento */}
       <div className="hidden w-[74px] shrink-0 text-right sm:block">
-        <div className="label text-[0.55rem] leading-none">Puntos</div>
-        <div className="tnum text-ink mt-1 text-[1.05rem] leading-none">{num(player.points)}</div>
-        <div className="tnum text-faint mt-1 text-[0.68rem]">
-          {num(player.averagePoints, 1)} media
+        <div className="tnum text-ink text-[1.15rem] leading-none font-semibold">
+          {num(player.points)}
+        </div>
+      </div>
+
+      <div className="hidden w-[70px] shrink-0 text-right sm:block">
+        <div className="tnum text-muted text-[1rem] leading-none">
+          {num(player.averagePoints, 1)}
         </div>
       </div>
 
       {/* Variación del día: el dato que más se mira, en grande */}
       <div className="border-line w-[150px] shrink-0 border-l pl-3 text-right">
-        <div className="label text-[0.55rem] leading-none">Hoy</div>
-        <div className="mt-1 flex justify-end">
+        <div className="flex justify-end">
           <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
         </div>
         <div className="tnum text-faint mt-1 text-[0.68rem]">valor {money(player.marketValue)}</div>
@@ -312,8 +352,7 @@ function MarketRow({
 
       {/* Precio de venta */}
       <div className="border-line bg-panel-2/60 w-[126px] shrink-0 rounded-sm border px-2.5 py-1.5">
-        <div className="label text-[0.55rem] leading-none">Precio</div>
-        <div className="tnum text-ink mt-1.5 text-[1.15rem] leading-none font-semibold whitespace-nowrap">
+        <div className="tnum text-ink text-[1.15rem] leading-none font-semibold whitespace-nowrap">
           {money(item.price)}
         </div>
         <div className="tnum text-faint mt-1.5 text-[0.65rem] whitespace-nowrap">

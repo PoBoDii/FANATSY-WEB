@@ -17,13 +17,14 @@ import { MatchForecast } from "@/components/MatchForecast";
 import { ffPhoto, oddsTone } from "@/lib/odds";
 import { playersOfTeam, toList, toManager } from "@/lib/normalize";
 import { managerColor } from "@/lib/managers";
+import { getIdResolver, type IdResolver } from "@/lib/cruce";
 import { Empty, ErrorBox, PageHeader } from "@/components/ui";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
 
 export const dynamic = "force-dynamic";
 
 /** De quién es un jugador dentro de mi liga. */
-type Owner = { manager: string; isMe: boolean; color: string };
+type Owner = { manager: string; isMe: boolean; color: string; playerId: string };
 
 export default async function PartidoPage({
   params,
@@ -39,10 +40,11 @@ export default async function PartidoPage({
   const session = await getSession();
   const league = session.active;
 
-  const [matches, { data: teamsRaw }, ff] = await Promise.all([
+  const [matches, { data: teamsRaw }, ff, resolveId] = await Promise.all([
     getMatches(round),
     league ? safe(fantasy.leagueTeams(league.id)) : Promise.resolve({ data: null, error: null }),
     getFf(),
+    getIdResolver(),
   ]);
 
   const match = matches.find((m) => m.id === matchId);
@@ -116,12 +118,36 @@ export default async function PartidoPage({
     const manager = toManager(raw, i, league?.myTeamId ?? null);
     const color = managerColor(i, manager.isMe);
     for (const player of playersOfTeam(raw)) {
-      const owner = { manager: manager.name, isMe: manager.isMe, color };
+      const owner = {
+        manager: manager.name,
+        isMe: manager.isMe,
+        color,
+        playerId: player.id,
+      };
       owners.set(normalizeName(player.fullName || player.name), owner);
       owners.set(normalizeName(player.name), owner);
     }
   });
   const ownerOf = (slug: string) => owners.get(slug) ?? null;
+
+  /**
+   * Id de LaLiga de un jugador de futbolfantasy, si se puede determinar. Los
+   * que están fichados en mi liga lo traen directo; para el resto se cruza por
+   * valor de mercado y equipo.
+   */
+  const idOf = (player: { slug: string; name: string }, ffTeamId: string): string | null => {
+    const key = lineupKey(player as never);
+    const alias = normalizeName(player.name);
+    return (
+      owners.get(key)?.playerId ??
+      owners.get(alias)?.playerId ??
+      resolveId.fromRow(ff.byName(key)) ??
+      resolveId.fromRow(ff.byName(alias)) ??
+      // Último recurso: contra el listado de LaLiga directamente. Cubre a quien
+      // futbolfantasy alinea pero no lista en su mercado.
+      resolveId.fromName(alias, ffTeamId)
+    );
+  };
 
   const mine = [...home, ...away]
     .flatMap((slot) => slot.players)
@@ -183,8 +209,22 @@ export default async function PartidoPage({
         />
       ) : (
         <div className="grid gap-4 p-4 lg:grid-cols-2 lg:items-stretch lg:gap-5 lg:p-6">
-          <TeamPitch side={match.home} slots={home} ownerOf={ownerOf} local club={homeTeam} />
-          <TeamPitch side={match.away} slots={away} ownerOf={ownerOf} local={false} club={awayTeam} />
+          <TeamPitch
+            side={match.home}
+            slots={home}
+            ownerOf={ownerOf}
+            idOf={idOf}
+            local
+            club={homeTeam}
+          />
+          <TeamPitch
+            side={match.away}
+            slots={away}
+            ownerOf={ownerOf}
+            idOf={idOf}
+            local={false}
+            club={awayTeam}
+          />
         </div>
       )}
     </>
@@ -203,16 +243,21 @@ function Back({ round }: { round: number }) {
 
 const LINES: LineupSlot["position"][] = ["PT", "DF", "MC", "DL"];
 
+/** Ficha de LaLiga de un jugador del once, si se puede determinar. */
+type IdOf = (player: { slug: string; name: string }, ffTeamId: string) => string | null;
+
 function TeamPitch({
   side,
   slots,
   ownerOf,
+  idOf,
   local,
   club,
 }: {
   side: Match["home"];
   slots: LineupSlot[];
   ownerOf: (key: string) => Owner | null;
+  idOf: IdOf;
   local: boolean;
   club: TeamRef | undefined;
 }) {
@@ -279,6 +324,8 @@ function TeamPitch({
                   key={slot.ffId}
                   slot={slot}
                   ownerOf={ownerOf}
+                  idOf={idOf}
+                  ffTeamId={side.teamId}
                   delay={i * 70 + k * 35}
                 />
               ))}
@@ -293,7 +340,15 @@ function TeamPitch({
           <div className="label mb-2">Alternativas · {bench.length}</div>
           <div className="flex flex-wrap gap-2">
             {bench.map((slot) => (
-              <SlotToken key={slot.ffId} slot={slot} ownerOf={ownerOf} delay={0} compact />
+              <SlotToken
+                key={slot.ffId}
+                slot={slot}
+                ownerOf={ownerOf}
+                idOf={idOf}
+                ffTeamId={side.teamId}
+                delay={0}
+                compact
+              />
             ))}
           </div>
         </div>
@@ -305,23 +360,28 @@ function TeamPitch({
 function SlotToken({
   slot,
   ownerOf,
+  idOf,
+  ffTeamId,
   delay,
   compact = false,
 }: {
   slot: LineupSlot;
   ownerOf: (key: string) => Owner | null;
+  idOf: IdOf;
+  ffTeamId: string;
   delay: number;
   compact?: boolean;
 }) {
   const [main, ...alternatives] = slot.players;
   const tone = slot.probability !== null ? oddsTone(slot.probability) : null;
   const owner = ownerOf(lineupKey(main));
+  const playerId = idOf(main, ffTeamId);
   const photo = ffPhoto(main.ffId || slot.ffId);
   const size = compact ? 40 : 54;
 
   return (
     <div
-      className={`rise flex flex-col items-center ${compact ? "w-[58px]" : "w-[62px] lg:w-[72px]"}`}
+      className={`rise relative flex flex-col items-center ${compact ? "w-[58px]" : "w-[62px] lg:w-[72px]"}`}
       style={{ animationDelay: `${delay}ms` }}
       title={
         alternatives.length
@@ -329,7 +389,11 @@ function SlotToken({
           : undefined
       }
     >
-      <div className="relative">
+      {/* Enlace extendido a la ficha: la foto entera es el objetivo. */}
+      {playerId && (
+        <Link href={`/jugador/${playerId}`} className="absolute inset-0 z-10" aria-label={main.name} />
+      )}
+      <div className={`relative ${playerId ? "transition-transform hover:-translate-y-1" : ""}`}>
         <div
           className="overflow-hidden rounded-lg border-[3px] bg-white shadow-md"
           style={{

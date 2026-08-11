@@ -356,7 +356,7 @@ function PriceRow({
               {entry.buyoutUnlockAt ? (
                 <Countdown until={entry.buyoutUnlockAt} />
               ) : (
-                <span className="text-down font-semibold">· ABIERTA</span>
+                <span className="text-up font-semibold">· ABIERTA</span>
               )}
             </>
           ) : null}

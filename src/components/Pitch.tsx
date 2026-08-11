@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Player } from "@/lib/normalize";
 import { ffBadge, type FfPlayer, oddsTone } from "@/lib/odds";
 import { money, num } from "@/lib/format";
-import { AlertBadge, ClubBadge, PlayerAvatar, PricePill, StatusIcon } from "./ui";
+import { AlertBadge, ClubLink, PlayerAvatar, PricePill, StatusIcon } from "./ui";
 
 /** Qué se enseña bajo cada jugador del once. */
 export type PitchStat = "ahora" | "goles" | "jornada" | "tarjetas" | "jerarquia";
@@ -214,12 +214,16 @@ function PitchToken({
           </span>
         )}
 
-        {/* Escudo siempre visible, arriba a la izquierda */}
-        <span className="border-line absolute -top-2 -left-2 rounded-lg border bg-white p-[3px] shadow-md">
-          <ClubBadge src={player.clubBadge ?? ffBadge(odds?.teamId ?? null)} size={18} />
+        {/* Escudo siempre visible, arriba a la izquierda; lleva a su club */}
+        <span className="border-line absolute -top-2 -left-2 z-20 rounded-lg border bg-white p-[3px] shadow-md">
+          <ClubLink
+            name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
+            badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
+            size={18}
+          />
         </span>
 
-        <span className="absolute -top-2 -right-2 flex flex-col items-end gap-1">
+        <span className="absolute -top-2 -right-2 z-20 flex flex-col items-end gap-1">
           <StatusIcon status={player.status} size={22} />
           <AlertBadge alerts={odds?.alerts} />
         </span>
@@ -244,7 +248,7 @@ function PitchToken({
       {leagueId && (
         <Link
           href={`/jugador/${player.id}`}
-          className="absolute inset-0"
+          className="absolute inset-0 z-10"
           aria-label={player.name}
         />
       )}

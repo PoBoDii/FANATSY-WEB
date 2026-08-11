@@ -499,7 +499,12 @@ async function build(): Promise<FfIndex> {
     if (!clubName) return false;
     const club = normalizeName(clubName);
     const team = normalizeName(row.teamName ?? "");
-    return team !== "" && (club.includes(team) || team.includes(club));
+    // Sin club por comparar no hay coincidencia. Antes el "—" que envía LaLiga
+    // cuando no sabe el equipo se normalizaba a cadena vacía y entonces
+    // `team.includes(club)` daba cierto para CUALQUIER fila: el desempate por
+    // club aceptaba al primer candidato que pillara.
+    if (club === "" || team === "") return false;
+    return club.includes(team) || team.includes(club);
   };
 
   const pick = (found: FfPlayer[], clubName: string, firstName: string, single: boolean) => {
@@ -522,13 +527,41 @@ async function build(): Promise<FfIndex> {
     const full = normalizeName(fullName);
     const firstName = full.split(" ")[0] ?? "";
     const surname = lastToken(full);
-    const keys = [full, slugWords(slug), normalizeName(alias)];
+    const slugKey = slugWords(slug);
+    const keys = [full, slugKey, normalizeName(alias)];
+
+    // Apellidos por los que se le conoce, según LaLiga.
+    const surnames = new Set([surname, lastToken(normalizeName(alias))].filter(Boolean));
+
+    /**
+     * El slug de LaLiga es el nombre registral, y a veces ese nombre es el de
+     * OTRO futbolista real: Álvaro Carreras viene como `alvaro-fernandez-1`, y
+     * en futbolfantasy existe un "Álvaro Fernández" distinto (portero del
+     * Deportivo). Un acierto por slug es sospechoso si no comparte apellido ni
+     * club: no se descarta —sería peor quedarse sin nadie—, pero se aparta y
+     * sólo se usa si ningún otro camino da algo.
+     */
+    const plausible = (row: FfPlayer) => {
+      if (surnames.size === 0) return true;
+      const tokens = new Set([
+        ...row.name.split(" "),
+        ...normalizeName(row.displayName ?? "").split(" "),
+      ]);
+      return [...surnames].some((s) => tokens.has(s)) || clubMatches(row, clubName);
+    };
+
+    let doubtful: FfPlayer | null = null;
 
     for (const key of keys) {
       const found = key ? index.get(key) : undefined;
       if (!found?.length) continue;
       const hit = pick(found, clubName, firstName, !key.includes(" "));
-      if (hit) return hit;
+      if (!hit) continue;
+      if (key === slugKey && key !== full && !plausible(hit)) {
+        doubtful ??= hit;
+        continue;
+      }
+      return hit;
     }
 
     // Segundos nombres: "Diego Llorente" contra "diego javier llorente".
@@ -558,7 +591,8 @@ async function build(): Promise<FfIndex> {
       if (hit) return hit;
     }
 
-    return null;
+    // Ningún camino limpio: antes que dejarlo sin datos, el del slug.
+    return doubtful;
   };
 
   return {

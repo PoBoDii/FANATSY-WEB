@@ -4,6 +4,8 @@ import { getSession } from "@/lib/session";
 import { enrichOdds, getFf } from "@/lib/futbolfantasy";
 import { fixturesByClub } from "@/lib/equipos";
 import { playersOfTeam, teamHeader, toList, toManager } from "@/lib/normalize";
+import { squadSwing } from "@/lib/valores";
+import { SwingBand } from "@/components/SwingBand";
 import { money, num } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
@@ -80,6 +82,7 @@ export default async function EquipoPage({
 
   const oddsOf = await enrichOdds(ff, squad);
   const fixturesOf = await fixturesByClub(squad, oddsOf);
+  const swing = squadSwing(squad, oddsOf);
 
   // Pestaña de cláusulas abiertas: mismo listado, pero sólo los fichables ya.
   const onlyOpen = query.vista === "clausulas";
@@ -106,7 +109,7 @@ export default async function EquipoPage({
           label="Cláusulas abiertas"
           value={num(openClauses)}
           sub={openClauses ? "fichables ahora" : "todas blindadas"}
-          tone={openClauses > 0 ? "down" : "neutral"}
+          tone={openClauses > 0 ? "up" : "neutral"}
         />
         <StatTile
           label="Valor del equipo"
@@ -120,6 +123,8 @@ export default async function EquipoPage({
         />
         <StatTile label="Puntos" value={num(header.points)} tone="acid" delay={180} />
       </div>
+
+      <SwingBand swing={swing} />
 
       <RivalTabs teamId={teamId} onlyOpen={onlyOpen} total={squad.length} open={openClauses} />
 
