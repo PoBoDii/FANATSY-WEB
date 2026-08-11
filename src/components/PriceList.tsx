@@ -126,7 +126,7 @@ export function PriceFilters({
   const anyFilter = query || selectedTeams.size || selectedPos.size || selectedManagers.size;
 
   return (
-    <div className="border-line space-y-2.5 border-b px-5 py-3.5 lg:px-6">
+    <div className="border-line space-y-2.5 border-b px-3.5 py-3 sm:px-5 sm:py-3.5 lg:px-6">
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={query}
@@ -201,7 +201,7 @@ export function PriceTabs({
 
   return (
     <>
-      <div className="border-line bg-panel-2/60 mx-4 mt-4 flex gap-2 rounded-2xl border p-1.5 lg:mx-6">
+      <div className="border-line bg-panel-2/60 mx-2.5 mt-3 flex gap-1.5 rounded-2xl border p-1.5 sm:mx-4 sm:mt-4 sm:gap-2 lg:mx-6">
         <button
           onClick={() => setTab("up")}
           className={tabClass("up", "bg-gradient-to-br from-emerald-500 to-emerald-700 text-white")}
@@ -234,7 +234,7 @@ export function PriceList({
   const top = Math.max(1, ...entries.map((e) => Math.abs(e.diff)));
 
   return (
-    <section className="space-y-2 p-4 lg:p-6">
+    <section className="space-y-2 p-2.5 sm:p-4 lg:p-6">
       {entries.length === 0 ? (
         <p className="text-faint px-5 py-10 text-center text-sm lg:px-6">
           Nadie {direction === "up" ? "sube" : "baja"} con estos filtros.
@@ -285,7 +285,7 @@ function PriceRow({
         style={{ width }}
       />
 
-      <div className="border-line bg-panel-2 relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-xl border-2">
+      <div className="border-line bg-panel-2 relative h-[44px] w-[44px] shrink-0 overflow-hidden rounded-xl border-2 sm:h-[52px] sm:w-[52px]">
         {entry.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -303,7 +303,7 @@ function PriceRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[1rem] leading-tight font-bold">
+          <span className="truncate text-[0.88rem] leading-tight font-bold sm:text-[1rem]">
             {entry.displayName}
           </span>
           <AlertBadge alerts={entry.alerts} />
@@ -375,7 +375,7 @@ function PriceRow({
 
   return (
     <div
-      className="border-line rise hover:border-acid/40 relative mx-auto flex max-w-4xl items-center gap-3.5 overflow-hidden rounded-2xl border bg-white px-4 py-3 shadow-sm transition-all hover:shadow-md"
+      className="border-line rise hover:border-acid/40 relative mx-auto flex max-w-4xl items-center gap-2.5 overflow-hidden rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition-all hover:shadow-md sm:gap-3.5 sm:px-4 sm:py-3"
       style={{ animationDelay: `${delay}ms` }}
     >
       {entry.playerId && (

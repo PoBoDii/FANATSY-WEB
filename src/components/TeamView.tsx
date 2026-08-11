@@ -199,10 +199,10 @@ export async function TeamView({
 
           {bench.length > 0 && (
             <div className="border-line border-t">
-              <div className="bg-ink mx-3 mt-3 rounded-xl px-4 py-2 text-[0.74rem] font-bold tracking-wide text-white uppercase shadow-sm">
+              <div className="bg-ink mx-2.5 mt-2.5 rounded-xl px-3.5 py-2 text-[0.74rem] font-bold tracking-wide text-white uppercase shadow-sm sm:mx-3 sm:mt-3 sm:px-4">
                 {benchFromLineup.length > 0 ? "Banquillo" : "Sin alinear"} · {bench.length}
               </div>
-              <div className="space-y-2 p-3">
+              <div className="space-y-2 p-2.5 sm:p-3">
                 {bench.map((p, i) => (
                   <PlayerRow
                     key={p.id}
@@ -232,7 +232,7 @@ export async function TeamView({
               return (
                 <div key={pos}>
                   <div
-                    className="sticky top-0 z-10 mx-3 mt-3 flex items-baseline justify-between rounded-xl px-4 py-2 text-white shadow-sm"
+                    className="sticky top-0 z-10 mx-2.5 mt-2.5 flex items-baseline justify-between rounded-xl px-3.5 py-2 text-white shadow-sm sm:mx-3 sm:mt-3 sm:px-4"
                     style={{
                       background: `linear-gradient(100deg, ${POSITION_COLOR[pos]}, ${POSITION_COLOR[pos]}cc)`,
                     }}
@@ -244,7 +244,7 @@ export async function TeamView({
                       {money(group.reduce((s, p) => s + p.marketValue, 0))}
                     </span>
                   </div>
-                  <div className="space-y-2 p-3">
+                  <div className="space-y-2 p-2.5 sm:p-3">
                     {group.map((p, i) => (
                       <PlayerRow
                         key={p.id}
@@ -274,13 +274,13 @@ export async function TeamView({
  */
 function PitchStatPicker({ active }: { active: PitchStat }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1">
       {PITCH_STATS.map((option) => (
         <Link
           key={option.key}
           href={`/?stat=${option.key}`}
           scroll={false}
-          className={`rounded-full px-2.5 py-1 text-[0.68rem] font-medium transition-colors ${
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[0.68rem] font-medium transition-colors ${
             active === option.key
               ? "bg-white text-[#1c5c3a] shadow-sm"
               : "bg-black/25 text-white/80 hover:bg-black/35"
@@ -331,7 +331,7 @@ function SquadCounter({ count }: { count: number }) {
 
   return (
     <div
-      className={`border-line rise border-b px-5 py-3.5 lg:px-6 ${full ? "bg-down/10" : ""}`}
+      className={`border-line rise border-b px-3.5 py-3 sm:px-5 sm:py-3.5 lg:px-6 ${full ? "bg-down/10" : ""}`}
     >
       <div className="flex items-baseline justify-between">
         <span className={`label ${full ? "text-down" : ""}`}>Plantilla</span>

@@ -45,6 +45,20 @@ const SORTS: { key: Sort; label: string }[] = [
 const POSITION_ORDER = ["Portero", "Defensa", "Mediocampista", "Delantero"];
 const POSITIONS = POSITION_ORDER;
 
+/**
+ * Jugador del que no se sabe nada: ni posición, ni valor, ni probabilidad, ni
+ * estadísticas. Son canteranos y fichajes recién anunciados que futbolfantasy
+ * lista en la plantilla pero que todavía no cotizan en el juego. Ordenarlos
+ * junto al resto sólo ensucia: van aparte, al final.
+ */
+function hasNoData(p: TeamPlayerRow): boolean {
+  // Sin valor de mercado no está en el juego: no se puede fichar ni puntúa,
+  // por mucho que futbolfantasy le ponga un porcentaje de titularidad.
+  return p.value === 0 && p.points === null;
+}
+
+const isCoach = (p: TeamPlayerRow) => p.position === "Entrenador";
+
 const POS_SHORT: Record<string, string> = {
   Portero: "PT",
   Defensa: "DF",
@@ -92,7 +106,13 @@ export function TeamPlayers({
     }
   };
 
-  const filtered = players.filter(
+  // Tres grupos: la plantilla de verdad, el cuerpo técnico y los que no
+  // tienen ningún dato. Filtros y ordenación sólo tocan al primero.
+  const coaches = players.filter(isCoach);
+  const unknown = players.filter((p) => !isCoach(p) && hasNoData(p));
+  const real = players.filter((p) => !isCoach(p) && !hasNoData(p));
+
+  const filtered = real.filter(
     (p) => selected.size === 0 || (p.position && selected.has(p.position)),
   );
   const ordered = filtered.sort(compare);
@@ -163,13 +183,53 @@ export function TeamPlayers({
       {visible.map((player, i) => (
         <Row key={player.name} player={player} delay={Math.min(i * 14, 260)} />
       ))}
+
+      {coaches.length > 0 && (
+        <>
+          <GroupTitle>Cuerpo técnico · {coaches.length}</GroupTitle>
+          {coaches.map((player) => (
+            <Row key={player.name} player={player} delay={0} />
+          ))}
+        </>
+      )}
+
+      {unknown.length > 0 && (
+        <>
+          <GroupTitle>Sin información disponible · {unknown.length}</GroupTitle>
+          <p className="text-faint px-5 pt-2 pb-1 text-xs">
+            Canteranos y fichajes recién anunciados: ni futbolfantasy ni el juego publican todavía
+            su valor, su probabilidad ni sus estadísticas.
+          </p>
+          {unknown.map((player) => (
+            <Row key={player.name} player={player} delay={0} muted />
+          ))}
+        </>
+      )}
     </section>
+  );
+}
+
+/** Separador de grupo dentro de la lista. */
+function GroupTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border-line bg-panel-2/60 border-y px-5 py-2.5">
+      <span className="label">{children}</span>
+    </div>
   );
 }
 
 const rankOwner = (p: TeamPlayerRow) => (p.ownerIsMe ? 2 : p.ownerName ? 1 : 0);
 
-function Row({ player, delay }: { player: TeamPlayerRow; delay: number }) {
+function Row({
+  player,
+  delay,
+  muted = false,
+}: {
+  player: TeamPlayerRow;
+  delay: number;
+  /** Sin datos: se enseña apagado para que no compita con el resto. */
+  muted?: boolean;
+}) {
   const tone = player.probability !== null ? oddsTone(player.probability) : null;
   const open =
     player.buyoutClause &&
@@ -246,20 +306,23 @@ function Row({ player, delay }: { player: TeamPlayerRow; delay: number }) {
       </div>
 
       <span
-        className="tnum w-[46px] shrink-0 rounded-md py-1 text-center text-[0.78rem] font-bold"
+        className="tnum w-[46px] shrink-0 rounded-lg py-1 text-center text-[0.78rem] font-bold"
         style={{
           background: tone?.color ?? "var(--color-panel-2)",
           color: tone?.ink ?? "var(--color-faint)",
         }}
+        title={player.probability !== null ? "Probabilidad de ser titular" : "Sin dato"}
       >
-        {player.probability !== null ? `${player.probability}%` : "s/d"}
+        {player.probability !== null ? `${player.probability}%` : "—"}
       </span>
     </>
   );
 
   return (
     <div
-      className="border-line rise hover:bg-panel-2 relative flex items-center gap-3 border-b px-5 py-3 transition-colors"
+      className={`border-line rise hover:bg-panel-2 relative flex items-center gap-3 border-b px-5 py-3 transition-colors ${
+        muted ? "opacity-60" : ""
+      }`}
       style={{ animationDelay: `${delay}ms` }}
     >
       {player.playerId && (

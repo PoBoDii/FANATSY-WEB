@@ -54,7 +54,7 @@ export function Pitch({
     ].join("-");
 
   return (
-    <div className="p-4 lg:p-5">
+    <div className="p-2.5 sm:p-4 lg:p-5">
       <div className="relative overflow-hidden rounded-xl">
         {/* Césped: franjas de siega y líneas de cal */}
         <div
@@ -81,17 +81,17 @@ export function Pitch({
           <rect x="38" y="129" width="24" height="8" />
         </svg>
 
-        <div className="relative px-3 py-6 lg:px-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="rounded-full bg-black/25 px-3 py-1 text-[0.7rem] font-semibold tracking-wide text-white/90 uppercase">
+        <div className="relative px-1.5 py-4 sm:px-3 sm:py-6 lg:px-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1.5 sm:mb-4 sm:gap-3">
+            <span className="rounded-full bg-black/25 px-2.5 py-1 text-[0.62rem] font-semibold tracking-wide text-white/90 uppercase sm:px-3 sm:text-[0.7rem]">
               Once titular · {derived}
             </span>
             {selector}
           </div>
 
-          <div className="flex flex-col gap-5 lg:gap-8">
+          <div className="flex flex-col gap-3.5 sm:gap-5 lg:gap-8">
             {lines.map((line, i) => (
-              <div key={i} className="flex justify-center gap-2 lg:gap-5">
+              <div key={i} className="flex justify-center gap-1 sm:gap-2 lg:gap-5">
                 {line.map((player, j) => (
                   <PitchToken
                     key={player.id}
@@ -197,13 +197,13 @@ function PitchToken({
   const content = (
     <>
       <div className="relative">
-        <PlayerAvatar player={player} size={72} />
+        <PlayerAvatar player={player} size={72} className="h-[54px] w-[54px] sm:h-[72px] sm:w-[72px]" />
 
         {/* La probabilidad es el dato que se busca al mirar el once: va grande
             y encima de la foto, no como una etiqueta más. */}
         {odds?.probability != null && (
           <span
-            className="tnum absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-lg px-2.5 py-[3px] text-[0.9rem] leading-none font-bold shadow-md"
+            className="tnum absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-lg px-1.5 py-[3px] text-[0.72rem] leading-none font-bold shadow-md sm:px-2.5 sm:text-[0.9rem]"
             style={{
               background: oddsTone(odds.probability).color,
               color: oddsTone(odds.probability).ink,
@@ -215,7 +215,7 @@ function PitchToken({
         )}
 
         {/* Escudo siempre visible, arriba a la izquierda; lleva a su club */}
-        <span className="border-line absolute -top-2 -left-2 z-20 rounded-lg border bg-white p-[3px] shadow-md">
+        <span className="border-line absolute -top-1.5 -left-1.5 z-20 rounded-lg border bg-white p-[2px] shadow-md sm:-top-2 sm:-left-2 sm:p-[3px]">
           <ClubLink
             name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
             badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
@@ -230,11 +230,11 @@ function PitchToken({
         </span>
       </div>
 
-      <div className="border-line mt-2 w-full rounded-lg border bg-white/95 px-1 py-1 shadow-sm backdrop-blur-sm">
-        <div className="truncate text-center text-[0.72rem] leading-tight font-semibold">
+      <div className="border-line mt-2 w-full rounded-lg border bg-white/95 px-0.5 py-1 shadow-sm backdrop-blur-sm sm:px-1">
+        <div className="truncate text-center text-[0.62rem] leading-tight font-semibold sm:text-[0.72rem]">
           {player.name}
         </div>
-        <div className="mt-1 flex items-center justify-center gap-2">
+        <div className="mt-1 flex items-center justify-center gap-1 sm:gap-2">
           {statLine(stat, player, odds)}
         </div>
       </div>
@@ -243,7 +243,7 @@ function PitchToken({
 
   return (
     <div
-      className="rise relative flex w-[84px] flex-col items-center transition-transform hover:-translate-y-1 lg:w-[104px]"
+      className="rise relative flex w-[68px] flex-col items-center transition-transform hover:-translate-y-1 sm:w-[84px] lg:w-[104px]"
       style={{ animationDelay: `${delay}ms` }}
     >
       {leagueId && (

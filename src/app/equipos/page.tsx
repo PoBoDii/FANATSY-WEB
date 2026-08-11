@@ -24,7 +24,7 @@ export default async function EquiposPage() {
         meta="Once probable, calendario con dificultad, plantilla, lesionados y noticias de cada club."
       />
 
-      <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4 lg:p-6">
+      <div className="grid grid-cols-2 gap-2.5 p-2.5 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:p-6">
         {TEAMS.map((team, i) => {
           const next = fixtures[i];
           const rival = next ? (next.atHome ? next.away : next.home) : null;
@@ -33,7 +33,7 @@ export default async function EquiposPage() {
             <Link
               key={team.slug}
               href={`/equipos/${team.slug}`}
-              className="rise relative flex flex-col items-center gap-3 overflow-hidden rounded-xl border-2 border-transparent bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:opacity-60"
+              className="rise relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl border-2 border-transparent bg-white p-3.5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:opacity-60 sm:gap-3 sm:p-5"
               style={{ animationDelay: `${i * 25}ms`, borderColor: team.color }}
             >
               <span

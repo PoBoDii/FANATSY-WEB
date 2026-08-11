@@ -35,7 +35,7 @@ export function BackLink({
     setCanGoBack(window.history.length > 1);
   }, []);
 
-  const base = `label hover:text-acid inline-flex items-center gap-1.5 transition-colors ${className}`;
+  const base = `label hover:text-acid inline-flex cursor-pointer items-center gap-1.5 transition-colors ${className}`;
 
   if (!canGoBack) {
     return (

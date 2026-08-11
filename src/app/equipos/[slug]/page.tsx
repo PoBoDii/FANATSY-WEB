@@ -70,7 +70,13 @@ export default async function EquipoClubPage({
       const owner = owners.get(row.name) ?? null;
       return {
         name: row.name,
-        displayName: owner?.player.name ?? titleCase(row.displayName ?? row.name),
+        // El alias del campo suele ser el corto ("Baena"); si el del mercado
+        // es más completo, ese.
+        displayName:
+          owner?.player.name ??
+          titleCase(
+            (row.displayName ?? "").length > row.name.length ? row.displayName! : row.name,
+          ),
         photo: owner?.player.image ?? ffPhoto(row.ffId),
         position: row.position,
         probability: row.probability,
@@ -91,6 +97,9 @@ export default async function EquipoClubPage({
         buyoutUnlockAt: owner?.player.buyoutUnlockAt ?? null,
       };
     });
+
+  // El contador de la cabecera cuenta jugadores, no el cuerpo técnico.
+  const squadSize = squad.filter((p) => p.position !== "Entrenador").length;
 
   /**
    * Lesionados del club.
@@ -146,12 +155,12 @@ export default async function EquipoClubPage({
     <>
       <TeamHeader
         team={team}
-        squad={squad.length}
+        squad={squadSize}
         mine={squad.filter((p) => p.ownerIsMe).length}
         injured={injured.length}
       />
 
-      <TabBar slug={slug} active={tab} counts={{ jugadores: squad.length, noticias: news.length }} />
+      <TabBar slug={slug} active={tab} counts={{ jugadores: squadSize, noticias: news.length }} />
 
       {tab === "once" && (
         <Lineup
@@ -172,7 +181,7 @@ export default async function EquipoClubPage({
         ))}
 
       {tab === "calendario" && (
-        <section className="grid gap-8 px-6 py-6 lg:grid-cols-2 lg:px-10">
+        <section className="grid gap-6 px-3 py-5 sm:gap-8 sm:px-6 sm:py-6 lg:grid-cols-2 lg:px-10">
           <div>
             <SectionTitle color={team.color}>Últimos partidos · {fixtures.last.length}</SectionTitle>
             <div className="space-y-2.5">
@@ -199,7 +208,7 @@ export default async function EquipoClubPage({
       )}
 
       {tab === "noticias" && (
-        <section className="px-6 py-6 lg:px-10">
+        <section className="px-3 py-5 sm:px-6 sm:py-6 lg:px-10">
           <SectionTitle color="#dc2626">Lesionados · {injured.length}</SectionTitle>
           {injured.length === 0 ? (
             <p className="text-muted text-sm">Ningún lesionado ahora mismo.</p>
@@ -413,7 +422,7 @@ function Lineup({
     .filter((line) => line.length > 0);
 
   return (
-    <section className="mx-auto max-w-6xl p-4 lg:p-6">
+    <section className="mx-auto max-w-6xl p-2.5 sm:p-4 lg:p-6">
       {nextLeague && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="bg-ink rounded px-2 py-1 text-[0.68rem] font-bold text-white">
@@ -428,7 +437,7 @@ function Lineup({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:justify-center">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:gap-5 lg:justify-center">
       <div className="relative overflow-hidden rounded-2xl shadow-md">
         <div
           aria-hidden
@@ -451,9 +460,9 @@ function Lineup({
           <rect x="26" y="117" width="48" height="20" />
         </svg>
 
-        <div className="relative flex flex-col gap-7 px-3 py-8 lg:gap-10 lg:py-12">
+        <div className="relative flex flex-col gap-5 px-1.5 py-6 sm:gap-7 sm:px-3 sm:py-8 lg:gap-10 lg:py-12">
           {lines.map((line, i) => (
-            <div key={i} className="flex justify-center gap-2 lg:gap-4">
+            <div key={i} className="flex justify-center gap-1 sm:gap-2 lg:gap-4">
               {line.map((slot) => {
                 const main = slot.players[0];
                 const tone = slot.probability !== null ? oddsTone(slot.probability) : null;
@@ -462,7 +471,7 @@ function Lineup({
                 return (
                   <div
                     key={slot.ffId}
-                    className="relative flex w-[68px] flex-col items-center lg:w-[84px]"
+                    className="relative flex w-[58px] flex-col items-center sm:w-[68px] lg:w-[84px]"
                   >
                     {playerId && (
                       <Link
@@ -484,7 +493,7 @@ function Lineup({
                         <PlayerPhoto
                           src={ffPhoto(main.ffId || slot.ffId)}
                           name={main.name}
-                          size={62}
+                          size={50}
                         />
                       </div>
                       {tone && (

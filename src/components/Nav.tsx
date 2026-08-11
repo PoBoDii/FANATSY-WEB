@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { LeagueRef } from "@/lib/session";
 import { LeaguePicker } from "./LeaguePicker";
 
@@ -16,64 +17,132 @@ const LINKS = [
   { href: "/debug", label: "Diagnóstico", num: "08" },
 ];
 
-export function Nav({
-  leagues,
-  activeId,
-}: {
-  leagues: LeagueRef[];
-  activeId: string | null;
-}) {
+/**
+ * Menú lateral en pantalla grande y cajón desplegable en el móvil.
+ *
+ * Ocho secciones en una fila horizontal no caben en 393 px: se salían de la
+ * pantalla y había que hacer zoom. En el móvil queda una barra fija con el
+ * botón de menú y el cajón entra desde la izquierda, como en futbolfantasy.
+ */
+export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: string | null }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // Al cambiar de página el cajón se cierra solo; si no, se queda abierto
+  // encima del contenido nuevo.
+  useEffect(() => setOpen(false), [pathname]);
+
+  // Con el cajón abierto no se desplaza lo de detrás.
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  const brand = (
+    <Link href="/" className="group flex shrink-0 items-center gap-2">
+      <span className="bg-acid flex h-9 w-9 items-center justify-center rounded-xl text-base text-white shadow-sm">
+        ⚽
+      </span>
+      <div>
+        <div className="display text-xl leading-none lg:text-2xl">Fantasy</div>
+        <div className="display text-acid text-xl leading-none lg:text-2xl">Board</div>
+      </div>
+    </Link>
+  );
+
+  const links = (
+    <nav className="flex flex-col gap-0.5">
+      {LINKS.map((link) => {
+        const active = isActive(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${
+              active ? "bg-acid text-white shadow-sm" : "text-muted hover:bg-panel-2 hover:text-ink"
+            }`}
+          >
+            <span className={`tnum text-[0.6rem] ${active ? "text-white/70" : "text-faint"}`}>
+              {link.num}
+            </span>
+            <span className="text-[0.95rem] font-semibold">{link.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
   return (
-    <header className="border-line bg-panel sticky top-0 z-50 border-b lg:sticky lg:top-0 lg:h-screen lg:border-r lg:border-b-0">
-      <div className="flex items-center justify-between gap-6 px-5 py-4 lg:h-full lg:flex-col lg:items-stretch lg:justify-start lg:px-0 lg:py-7">
-        {/* Marca */}
-        <Link href="/" className="group shrink-0 lg:px-6">
-          <div className="flex items-center gap-2">
-            <span className="bg-acid flex h-8 w-8 items-center justify-center rounded-lg text-base text-white shadow-sm">
-              ⚽
+    <>
+      {/* Barra del móvil */}
+      <header className="border-line bg-panel sticky top-0 z-50 border-b lg:hidden">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Abrir menú"
+            className="border-line text-ink hover:bg-panel-2 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border"
+          >
+            <span className="flex flex-col gap-[3px]">
+              <span className="bg-ink block h-[2px] w-4 rounded-full" />
+              <span className="bg-ink block h-[2px] w-4 rounded-full" />
+              <span className="bg-ink block h-[2px] w-4 rounded-full" />
             </span>
-            <div>
-              <div className="display text-xl leading-none lg:text-2xl">Fantasy</div>
-              <div className="display text-acid text-xl leading-none lg:text-2xl">Board</div>
+          </button>
+
+          {brand}
+
+          <span className="text-faint ml-auto truncate text-[0.78rem] font-semibold">
+            {LINKS.find((l) => isActive(l.href))?.label}
+          </span>
+        </div>
+      </header>
+
+      {/* Cajón del móvil */}
+      {open && (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 bg-black/45"
+          />
+          <div className="bg-panel absolute inset-y-0 left-0 flex w-[82%] max-w-[320px] flex-col gap-6 overflow-y-auto p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              {brand}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Cerrar menú"
+                className="border-line text-muted hover:text-ink flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {links}
+
+            <div className="mt-auto">
+              <LeaguePicker leagues={leagues} activeId={activeId} />
             </div>
           </div>
-        </Link>
-
-        {/* Navegación */}
-        <nav className="flex items-center gap-1 lg:mt-10 lg:flex-1 lg:flex-col lg:items-stretch lg:gap-0">
-          {LINKS.map((link) => {
-            const active =
-              link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors lg:mx-3 lg:px-3 lg:py-2.5 ${
-                  active
-                    ? "bg-acid text-white shadow-sm"
-                    : "text-muted hover:bg-panel-2 hover:text-ink"
-                }`}
-              >
-                <span
-                  className={`tnum hidden text-[0.6rem] lg:block ${
-                    active ? "text-white/70" : "text-faint"
-                  }`}
-                >
-                  {link.num}
-                </span>
-                <span className="text-sm font-semibold lg:text-[0.95rem]">{link.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Selector de liga */}
-        <div className="hidden lg:block lg:px-6">
-          <LeaguePicker leagues={leagues} activeId={activeId} />
         </div>
-      </div>
-    </header>
+      )}
+
+      {/* Barra lateral de escritorio */}
+      <header className="border-line bg-panel sticky top-0 hidden h-screen border-r lg:block">
+        <div className="flex h-full flex-col px-3 py-7">
+          <div className="px-3">{brand}</div>
+          <div className="mt-10 flex-1">{links}</div>
+          <div className="px-3">
+            <LeaguePicker leagues={leagues} activeId={activeId} />
+          </div>
+        </div>
+      </header>
+    </>
   );
 }

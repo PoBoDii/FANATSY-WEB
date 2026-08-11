@@ -200,15 +200,16 @@ export default async function PartidoPage({
         title={`${match.home.name} — ${match.away.name}`}
         meta={
           <>
-            {mine > 0
-              ? `Tienes ${mine} ${mine === 1 ? "jugador" : "jugadores"} en el once`
-              : "No tienes a nadie en el once"}
-            {rivals > 0 && (
-              <span className="text-faint">
-                {" · "}
-                {rivals === 1 ? "un jugador es" : `${rivals} jugadores son`} de tus rivales
-              </span>
-            )}
+            <div>
+              {mine > 0
+                ? `Tienes ${mine} ${mine === 1 ? "jugador" : "jugadores"} en el once`
+                : "No tienes a nadie en el once"}
+            </div>
+            <div className="text-faint mt-1">
+              {rivals > 0
+                ? `${rivals} ${rivals === 1 ? "jugador" : "jugadores"} de tus rivales`
+                : "Ninguno de tus rivales"}
+            </div>
           </>
         }
         action={
@@ -255,7 +256,7 @@ export default async function PartidoPage({
           hint="futbolfantasy aún no ha publicado las alineaciones de este partido."
         />
       ) : (
-        <div className="grid gap-4 p-4 lg:grid-cols-2 lg:items-stretch lg:gap-5 lg:p-6">
+        <div className="grid gap-3 p-2.5 sm:p-4 lg:grid-cols-2 lg:items-stretch lg:gap-5 lg:p-6">
           <TeamPitch
             side={match.home}
             slots={home}
@@ -321,7 +322,7 @@ function TeamPitch({
   return (
     <section className="border-line flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm">
       <header
-        className="flex h-[68px] shrink-0 items-center gap-3 border-b-4 px-4"
+        className="flex h-[62px] shrink-0 items-center gap-2.5 border-b-4 px-3 sm:h-[68px] sm:gap-3 sm:px-4"
         style={{ borderColor: club?.color ?? "var(--color-line)" }}
       >
         {side.badge && (
@@ -361,9 +362,9 @@ function TeamPitch({
         {/* Altura fija e igual en los dos campos: las líneas se reparten el
             espacio, así que una formación con más líneas las junta más en vez
             de estirar el campo. */}
-        <div className="relative flex h-[440px] flex-col justify-around px-2 py-4 lg:h-[560px] lg:py-6">
+        <div className="relative flex h-[360px] flex-col justify-around px-1 py-3 sm:h-[440px] sm:px-2 sm:py-4 lg:h-[560px] lg:py-6">
           {lines.map((line, i) => (
-            <div key={i} className="flex justify-center gap-1.5 lg:gap-2.5">
+            <div key={i} className="flex justify-center gap-1 sm:gap-1.5 lg:gap-2.5">
               {line.map((slot, k) => (
                 <SlotToken
                   key={slot.ffId}
@@ -422,11 +423,11 @@ function SlotToken({
   const owner = ownerOf(lineupKey(main));
   const playerId = idOf(main, ffTeamId);
   const photo = ffPhoto(main.ffId || slot.ffId);
-  const size = compact ? 40 : 54;
+  const size = compact ? 36 : 46;
 
   return (
     <div
-      className={`rise relative flex flex-col items-center ${compact ? "w-[58px]" : "w-[62px] lg:w-[72px]"}`}
+      className={`rise relative flex flex-col items-center ${compact ? "w-[52px] sm:w-[58px]" : "w-[54px] sm:w-[62px] lg:w-[72px]"}`}
       style={{ animationDelay: `${delay}ms` }}
       title={
         alternatives.length

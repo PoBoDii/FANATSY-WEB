@@ -40,7 +40,7 @@ export const POSITION_FILTERS: Position[] = ["PT", "DF", "MC", "DL"];
  * caer sobre su dato.
  */
 const COLUMNS: SortColumn<SquadSort>[] = [
-  { key: "posicion", label: "Jugador", width: "w-[190px]", align: "left", natural: "desc" },
+  { key: "posicion", label: "Posición", width: "w-[190px]", align: "left", natural: "desc" },
   { key: "estado", label: "Estado", width: "w-[118px]", hide: "hidden xl:flex", spacer: true },
   { key: "calendario", label: "Calendario", width: "w-[206px]", hide: "hidden xl:flex", spacer: true },
   { key: "prob", label: "Juega", width: "w-[74px]", align: "center", hide: "hidden sm:flex" },
@@ -152,7 +152,7 @@ export function SortBar({
   const keep = { ...extra, pos, abiertas: openOnly ? "1" : undefined };
 
   return (
-    <div className="border-line border-b px-5 py-3 lg:px-6">
+    <div className="border-line border-b px-3.5 py-3 sm:px-5 lg:px-6">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="label mr-1">Filtrar</span>
         {POSITION_FILTERS.map((position) => {
@@ -272,7 +272,7 @@ export function SquadRows({
   fixturesOf?: (player: Player) => Fixture[] | null;
 }) {
   return (
-    <div className="space-y-2 p-3 lg:p-4">
+    <div className="space-y-2 p-2.5 sm:p-3 lg:p-4">
       {players.map((player, i) => (
         <PlayerRow
           key={player.id}

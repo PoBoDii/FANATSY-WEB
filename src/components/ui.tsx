@@ -30,13 +30,15 @@ export function PageHeader({
             "radial-gradient(900px 320px at 8% -30%, rgba(13,122,68,0.22), transparent 70%), radial-gradient(700px 280px at 85% -10%, rgba(56,189,248,0.16), transparent 65%)",
         }}
       />
-      <div className="relative flex flex-wrap items-end justify-between gap-6 px-6 pt-8 pb-6 lg:px-10 lg:pt-11">
+      <div className="relative flex flex-wrap items-end justify-between gap-4 px-4 pt-5 pb-4 sm:px-6 sm:pt-8 sm:pb-6 lg:px-10 lg:pt-11">
         <div className="rise">
           <span className="bg-acid inline-block rounded-full px-3 py-1 text-[0.68rem] font-bold tracking-wide text-white uppercase">
             {eyebrow}
           </span>
-          <h1 className="display text-ink mt-3 text-[clamp(2.2rem,5.5vw,3.8rem)]">{title}</h1>
-          {meta && <div className="text-muted mt-2.5 text-sm">{meta}</div>}
+          <h1 className="display text-ink mt-2.5 text-[clamp(1.75rem,7vw,3.8rem)] break-words">
+            {title}
+          </h1>
+          {meta && <div className="text-muted mt-2 text-[0.82rem] sm:text-sm">{meta}</div>}
         </div>
         {action}
       </div>
@@ -70,7 +72,7 @@ export function StatTile({
 
   return (
     <div
-      className={`border-line rise relative overflow-hidden border-r border-b px-5 py-4 last:border-r-0 ${styles.bg}`}
+      className={`border-line rise relative overflow-hidden border-r border-b px-3.5 py-3 last:border-r-0 sm:px-5 sm:py-4 ${styles.bg}`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <span
@@ -78,10 +80,12 @@ export function StatTile({
         className={`absolute top-3 bottom-3 left-0 w-[4px] rounded-r-full ${styles.bar}`}
       />
       <div className="label">{label}</div>
-      <div className={`tnum mt-2 text-[1.55rem] leading-none font-semibold ${styles.text}`}>
+      <div
+        className={`tnum mt-2 text-[1.2rem] leading-none font-semibold whitespace-nowrap sm:text-[1.55rem] ${styles.text}`}
+      >
         {value}
       </div>
-      {sub && <div className="text-faint mt-1.5 text-xs">{sub}</div>}
+      {sub && <div className="text-faint mt-1.5 text-[0.68rem] sm:text-xs">{sub}</div>}
     </div>
   );
 }
@@ -310,11 +314,20 @@ export function ClubBadge({ src, size = 15 }: { src: string | null; size?: numbe
   );
 }
 
-export function PlayerAvatar({ player, size = 40 }: { player: Player; size?: number }) {
+export function PlayerAvatar({
+  player,
+  size = 40,
+  className = "",
+}: {
+  player: Player;
+  size?: number;
+  /** Para dar un tamaño distinto en el móvil sin tocar el de escritorio. */
+  className?: string;
+}) {
   return (
     <div
-      className="border-line bg-panel-2 relative shrink-0 overflow-hidden rounded-lg border"
-      style={{ width: size, height: size }}
+      className={`border-line bg-panel-2 relative shrink-0 overflow-hidden rounded-xl border ${className}`}
+      style={className ? undefined : { width: size, height: size }}
     >
       {player.image ? (
         // Imágenes de CDN externo: <img> evita depender del optimizador.
@@ -498,7 +511,7 @@ export function PlayerRow({
       />
 
       <div className="relative shrink-0">
-        <PlayerAvatar player={player} size={52} />
+        <PlayerAvatar player={player} size={52} className="h-11 w-11 sm:h-[52px] sm:w-[52px]" />
         {player.status !== "ok" && (
           <span className="absolute -top-1.5 -right-1.5">
             <StatusIcon status={player.status} size={20} />
@@ -506,7 +519,7 @@ export function PlayerRow({
         )}
       </div>
 
-      <div className={`min-w-0 ${compact ? "flex-[2]" : "w-[190px] shrink-0"}`}>
+      <div className={`min-w-0 ${compact ? "flex-[2]" : "flex-1 sm:w-[190px] sm:flex-none sm:shrink-0"}`}>
         <div className="flex items-center gap-2">
           <PositionTag position={player.position} />
           <span className="truncate text-[1.02rem] leading-tight font-bold">{player.name}</span>
@@ -538,7 +551,7 @@ export function PlayerRow({
       )}
 
       {!compact && (
-        <div className="hidden w-[74px] shrink-0 text-center sm:block">
+        <div className="w-auto shrink-0 text-center sm:w-[74px]">
           <div className="flex justify-center">
             <OddsChip odds={odds} />
           </div>
@@ -552,8 +565,8 @@ export function PlayerRow({
         (compact ? (
           /* En columna estrecha nada de `ml-auto`: los tres datos se reparten
              el hueco que sobra en vez de amontonarse contra el borde. */
-          <>
-            <div className="flex flex-[3] items-center justify-evenly gap-2">
+          <div className="border-line flex w-full items-center gap-2 border-t pt-2.5 lg:contents lg:border-0 lg:pt-0">
+            <div className="flex flex-1 items-center justify-evenly gap-2 lg:flex-[3]">
               <div className="text-center">
                 <div className="label text-[0.55rem] leading-none">Juega</div>
                 <div className="mt-1.5 flex justify-center">
@@ -582,35 +595,39 @@ export function PlayerRow({
               </div>
             </div>
             <ClauseBlock player={player} compact />
-          </>
+          </div>
         ) : (
-          <>
-            <div className="ml-auto w-[84px] shrink-0 text-right">
-              <div className="tnum text-ink text-[1.25rem] leading-none font-bold">
+          <div className="border-line flex w-full items-center gap-3 border-t pt-2.5 sm:contents sm:border-0 sm:pt-0">
+            <div className="w-[62px] shrink-0 text-left sm:ml-auto sm:w-[84px] sm:text-right">
+              <span className="label text-[0.5rem] sm:hidden">Puntos</span>
+              <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
                 {num(player.points)}
               </div>
-              <div className="tnum text-faint mt-1.5 text-[0.66rem]">
+              <div className="tnum text-faint mt-1 text-[0.62rem] sm:mt-1.5 sm:text-[0.66rem]">
                 {num(player.averagePoints, 1)} media
               </div>
             </div>
 
-            <div className="w-[136px] shrink-0 text-right">
-              <div className="tnum text-ink text-[1.25rem] leading-none font-bold">
+            <div className="flex-1 text-left sm:w-[136px] sm:flex-none sm:shrink-0 sm:text-right">
+              <span className="label text-[0.5rem] sm:hidden">Valor</span>
+              <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
                 {money(player.marketValue)}
               </div>
-              <div className="mt-1.5 flex justify-end">
+              <div className="mt-1 flex justify-start sm:mt-1.5 sm:justify-end">
                 <PriceDelta diff={odds?.diff} pct={odds?.diffPct} size="sm" />
               </div>
             </div>
             <ClauseBlock player={player} />
-          </>
+          </div>
         ))}
     </>
   );
 
   return (
     <div
-      className="border-line rise hover:border-acid/40 relative flex items-center gap-3 rounded-2xl border bg-white py-3 pr-3 pl-4 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5"
+      className={`border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-white py-3 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5 ${
+        compact ? "lg:flex-nowrap" : "sm:flex-nowrap"
+      }`}
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Enlace extendido: cubre la fila entera sin envolver su contenido, así
@@ -730,7 +747,7 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
   return (
     <div
-      className={`${compact ? "w-[132px]" : "w-[152px]"} shrink-0 rounded-xl border px-2.5 py-2 shadow-sm ${
+      className={`${compact ? "w-[116px] lg:w-[132px]" : "w-[124px] sm:w-[152px]"} shrink-0 rounded-xl border px-2.5 py-2 shadow-sm ${
         open
           ? "border-up bg-up/15"
           : urgent

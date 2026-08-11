@@ -36,8 +36,35 @@ export function SortHeader<K extends string>({
   /** Ancho del hueco inicial, el de la foto. */
   leading?: string;
 }) {
+  const sortable = columns.filter((c) => !c.spacer && c.label);
+
   return (
-    <div className="border-line bg-panel-2/70 sticky top-0 z-20 flex items-center gap-3 border-y py-2 pr-4 pl-4 backdrop-blur-sm lg:gap-5 lg:pr-6 lg:pl-6">
+    <>
+    {/* En el móvil las filas se parten en dos líneas y una cabecera de columnas
+        no cuadraría con nada: allí se ordena con una tira de pastillas que se
+        desliza en horizontal. */}
+    <div className="border-line bg-panel-2/70 sticky top-0 z-20 flex gap-1.5 overflow-x-auto border-y px-3 py-2 backdrop-blur-sm sm:hidden">
+      <span className="label shrink-0 self-center pr-1">Ordenar</span>
+      {sortable.map((col) => {
+        const active = sort === col.key;
+        const nextDir = active ? (dir === "desc" ? "asc" : "desc") : (col.natural ?? "desc");
+        return (
+          <Link
+            key={col.key}
+            href={hrefOf(col.key, nextDir)}
+            scroll={false}
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold transition-colors ${
+              active ? "border-acid bg-acid text-white" : "border-line text-muted"
+            }`}
+          >
+            {col.label}
+            {active && <span className="ml-1 text-[0.6rem]">{dir === "desc" ? "▼" : "▲"}</span>}
+          </Link>
+        );
+      })}
+    </div>
+
+    <div className="border-line bg-panel-2/70 sticky top-0 z-20 hidden items-center gap-3 border-y py-2 pr-4 pl-4 backdrop-blur-sm sm:flex lg:gap-5 lg:pr-6 lg:pl-6">
       {leading && <span className={`${leading} shrink-0`} aria-hidden />}
 
       {columns.map((col) => {
@@ -73,5 +100,6 @@ export function SortHeader<K extends string>({
         );
       })}
     </div>
+    </>
   );
 }

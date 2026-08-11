@@ -18,13 +18,15 @@ const COLUMNS: {
   label: string;
   align: "left" | "right";
   natural: "asc" | "desc";
+  /** Clases de visibilidad: en el móvil no caben las siete. */
+  hide?: string;
 }[] = [
   { key: "puesto", label: "#", align: "left", natural: "asc" },
   { key: "manager", label: "Manager", align: "left", natural: "asc" },
-  { key: "clausulas", label: "Cláusulas abiertas", align: "right", natural: "desc" },
+  { key: "clausulas", label: "Cláusulas", align: "right", natural: "desc", hide: "hidden sm:table-cell" },
   { key: "valorhoy", label: "Valor hoy", align: "right", natural: "desc" },
-  { key: "jornada", label: "Jornada", align: "right", natural: "desc" },
-  { key: "valor", label: "Valor", align: "right", natural: "desc" },
+  { key: "jornada", label: "Jornada", align: "right", natural: "desc", hide: "hidden md:table-cell" },
+  { key: "valor", label: "Valor", align: "right", natural: "desc", hide: "hidden sm:table-cell" },
   { key: "puntos", label: "Puntos", align: "right", natural: "desc" },
 ];
 
@@ -131,7 +133,7 @@ export default async function LigaPage({
       />
 
       {/* Podio */}
-      <div className="grid grid-cols-1 gap-4 px-4 py-6 sm:grid-cols-3 lg:px-6">
+      <div className="grid grid-cols-1 gap-3 px-3 py-4 sm:grid-cols-3 sm:gap-4 sm:px-4 sm:py-6 lg:px-6">
         {managers.slice(0, 3).map((m, i) => (
           <Link
             key={m.teamId}
@@ -197,8 +199,8 @@ export default async function LigaPage({
       </div>
 
       {/* Tabla completa */}
-      <div className="border-line mx-4 mb-6 overflow-x-auto rounded-2xl border bg-white shadow-sm lg:mx-6">
-        <table className="w-full min-w-[680px] text-sm">
+      <div className="border-line mx-3 mb-6 overflow-x-auto rounded-2xl border bg-white shadow-sm sm:mx-4 lg:mx-6">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-line bg-panel-2/60 border-b">
               {COLUMNS.map((col, i) => {
@@ -206,13 +208,18 @@ export default async function LigaPage({
                 const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
                 const edge = i === 0 ? "pl-5 lg:pl-6" : i === COLUMNS.length - 1 ? "pr-5 lg:pr-6" : "";
                 return (
-                  <th key={col.key} className={`px-3 py-2.5 ${edge}`}>
+                  <th
+                    key={col.key}
+                    className={`px-2.5 py-2.5 sm:px-3 ${edge} ${col.hide ?? ""} ${
+                      col.align === "right" ? "text-right" : "text-left"
+                    }`}
+                  >
                     <Link
                       href={sortHref(col.key, nextDir)}
                       scroll={false}
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors ${
-                        col.align === "right" ? "justify-end" : ""
-                      } ${active ? "bg-acid/10 text-acid" : "text-faint hover:text-ink"}`}
+                        active ? "bg-acid/10 text-acid" : "text-faint hover:text-ink"
+                      }`}
                       title={`Ordenar por ${col.label}`}
                     >
                       <span className="text-[0.62rem] font-bold tracking-wide uppercase">
@@ -236,7 +243,7 @@ export default async function LigaPage({
                 }`}
                 style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
               >
-                <td className="relative px-5 py-3 lg:px-6">
+                <td className="relative px-3 py-3 text-left sm:px-5 lg:px-6">
                   <span
                     className="display inline-flex h-8 w-8 items-center justify-center rounded-xl text-[0.95rem] text-white shadow-sm"
                     style={{ background: `linear-gradient(140deg, ${m.color}, ${m.color}bb)` }}
@@ -244,13 +251,13 @@ export default async function LigaPage({
                     {m.position}
                   </span>
                 </td>
-                <td className="px-3 py-3 text-left">
+                <td className="px-2.5 py-3 text-left sm:px-3">
                   <Link href={hrefOf(m)} className="hover:text-acid font-medium transition-colors">
                     {m.name}
                   </Link>
                   {m.isMe && <span className="label text-acid ml-2">tú</span>}
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td className="hidden px-2.5 py-3 text-right sm:table-cell sm:px-3">
                   {m.openClauses > 0 ? (
                     <span className="tnum border-down/50 bg-down/15 text-down rounded-sm border px-2 py-[3px] text-sm font-semibold">
                       {m.openClauses}
@@ -259,7 +266,7 @@ export default async function LigaPage({
                     <span className="tnum text-faint text-sm">0</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td className="px-2.5 py-3 text-right sm:px-3">
                   <div className="flex justify-end">
                     <NetChip net={m.swing.net} />
                   </div>
@@ -267,11 +274,13 @@ export default async function LigaPage({
                     {m.swing.risers} suben · {m.swing.fallers} bajan
                   </div>
                 </td>
-                <td className="tnum text-muted px-3 py-3 text-right">
+                <td className="tnum text-muted hidden px-3 py-3 text-right md:table-cell">
                   {m.weekPoints === null ? "—" : num(m.weekPoints)}
                 </td>
-                <td className="tnum text-muted px-3 py-3 text-right">{money(m.teamValue)}</td>
-                <td className="tnum px-5 py-3 text-right lg:px-6">{num(m.points)}</td>
+                <td className="tnum text-muted hidden px-3 py-3 text-right sm:table-cell">
+                  {money(m.teamValue)}
+                </td>
+                <td className="tnum px-3 py-3 text-right sm:px-5 lg:px-6">{num(m.points)}</td>
               </tr>
             ))}
           </tbody>

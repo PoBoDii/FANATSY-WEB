@@ -270,10 +270,27 @@ function parseAlerts(html: string): Map<string, PlayerAlert[]> {
  * de llegar después a la ficha individual, porque no siempre es el nombre
  * completo ("ratiu" y no "andrei-ratiu").
  */
+/**
+ * La página de un club enlaza a jugadores desde varios sitios, y sólo uno es
+ * la plantilla: las secciones `alineacion_wrapper` (el campo y la lista). Las
+ * `mercado-box` son rumores de fichaje y las `lesionados`, partes médicos.
+ *
+ * Sin acotarlo, el Atlético salía con Cristian Romero —que no es suyo— porque
+ * aparecía en un rumor.
+ */
+const SQUAD_SECTION = /<section[^>]*class="mod alineacion_wrapper[^"]*"[\s\S]*?(?=<section|$)/g;
+
+function squadHtml(html: string): string {
+  const parts = [...html.matchAll(SQUAD_SECTION)].map((m) => m[0]);
+  // Si el marcado cambia y no se reconoce ninguna sección, mejor lo de antes
+  // (con rumores incluidos) que quedarse sin plantilla.
+  return parts.length > 0 ? parts.join("") : html;
+}
+
 function parseTeamPage(html: string): TeamEntry[] {
   const bySlug = new Map<string, TeamEntry>();
 
-  for (const match of html.matchAll(ANCHOR)) {
+  for (const match of squadHtml(html).matchAll(ANCHOR)) {
     const slug = match[1];
     const from = match.index + match[0].length;
     const close = html.indexOf("</a>", from);
@@ -336,6 +353,29 @@ function joinClub(
   }
 
   const extra: FfPlayer[] = [];
+  const claimed = new Set<FfPlayer>();
+
+  /**
+   * Los slugs de futbolfantasy se comen la letra acentuada inicial: Álex Baena
+   * es `lex-baena` y Julián Álvarez, `julian-lvarez`. Comparando token a token
+   * no casan con "alex baena" ni con "julian alvarez", y el jugador acababa
+   * duplicado: una vez desde el mercado y otra como añadido.
+   */
+  const sameToken = (a: string, b: string) => {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+    return long.length - short.length === 1 && long.endsWith(short);
+  };
+
+  const looseSurname = (surname: string) => {
+    if (!surname) return [];
+    const exact = bySurname.get(surname);
+    if (exact) return exact;
+    const out: FfPlayer[] = [];
+    for (const [key, list] of bySurname) if (sameToken(key, surname)) out.push(...list);
+    return out;
+  };
 
   for (const entry of entries) {
     const words = slugWords(entry.slug);
@@ -343,14 +383,27 @@ function joinClub(
 
     let row = byName.get(words) ?? byName.get(display);
     if (!row) {
-      const candidates =
-        bySurname.get(lastToken(words) || words) ??
-        bySurname.get(lastToken(display) || display);
-      if (candidates?.length === 1) row = candidates[0];
+      const candidates = [
+        ...new Set([
+          ...looseSurname(lastToken(words) || words),
+          ...looseSurname(lastToken(display) || display),
+        ]),
+      ];
+      // Con varios homónimos en la misma plantilla decide el nombre de pila.
+      const first = words.split(" ")[0] ?? "";
+      const narrowed =
+        candidates.length > 1
+          ? candidates.filter((c) => c.name.split(" ").some((t) => sameToken(t, first)))
+          : candidates;
+      const pool = narrowed.length === 1 ? narrowed : candidates;
+      if (pool.length === 1) row = pool[0];
     }
 
     if (row) {
+      claimed.add(row);
       row.slug = entry.slug;
+      // El nombre del campo suele ser el corto ("Baena"); se guarda como alias
+      // para poder cruzarlo, pero sin perder el completo del mercado.
       row.displayName = display || null;
       if (row.probability === null) row.probability = entry.probability;
       row.stats = entry.stats;
@@ -361,6 +414,12 @@ function joinClub(
     // No está en la tabla de precios (pasa con recién llegados y con quien no
     // cotiza todavía). Entra igual al índice, aunque sea sólo con su club:
     // así al menos se enlaza el equipo aunque no haya probabilidad.
+    //
+    // Antes de darlo por nuevo se comprueba que no sea uno ya emparejado con
+    // otro nombre: duplicarlo es peor que perderlo.
+    const surname = lastToken(words) || words;
+    if ([...claimed].some((r) => sameToken(lastToken(r.name), surname))) continue;
+
     extra.push({
       name: words || display,
       displayName: display || null,

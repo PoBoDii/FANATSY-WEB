@@ -33,7 +33,7 @@ export default async function AlineacionesPage({
           hint="futbolfantasy todavía no publica los onces de esta jornada."
         />
       ) : (
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:p-6">
+        <div className="grid gap-2.5 p-2.5 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:p-6">
           {matches.map((match, i) => {
             const home = findTeamByName(match.home.name);
             const away = findTeamByName(match.away.name);
@@ -51,10 +51,10 @@ export default async function AlineacionesPage({
                   <span className="flex-1" style={{ background: away?.color ?? "#cbd5e1" }} />
                 </div>
 
-                <div className="flex items-center gap-3 p-4">
+                <div className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
                   <Side name={match.home.name} badge={match.home.badge} align="right" />
 
-                  <div className="w-[92px] shrink-0 text-center">
+                  <div className="w-[84px] shrink-0 text-center sm:w-[92px]">
                     <div className="text-faint text-[0.68rem] leading-tight">{match.kickoff}</div>
                     <div className="display text-acid mt-1 text-sm">VS</div>
                   </div>

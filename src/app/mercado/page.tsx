@@ -168,7 +168,7 @@ export default async function MercadoPage({
           hint="No hay jugadores pujables ahora mismo. Se renueva cada día."
         />
       ) : (
-        <div className="space-y-2 p-3 lg:p-4">
+        <div className="space-y-2 p-2.5 sm:p-3 lg:p-4">
           {sorted.map((item, i) => (
             <MarketRow
               key={item.id || item.player.id}
@@ -187,7 +187,7 @@ export default async function MercadoPage({
             <h2 className="display text-lg">Entrenadores</h2>
             <span className="tnum text-faint text-xs">{coaches.length}</span>
           </div>
-          <div className="space-y-2 p-3 lg:p-4">
+          <div className="space-y-2 p-2.5 sm:p-3 lg:p-4">
             {coaches.map((item, i) => (
               <MarketRow key={item.id || item.player.id} item={item} odds={null} delay={i * 22} />
             ))}
@@ -224,7 +224,7 @@ function MarketRow({
 
   return (
     <div
-      className="border-line rise hover:border-acid/40 relative flex items-center gap-3 rounded-2xl border bg-white py-2.5 pr-4 pl-4 shadow-sm transition-all hover:shadow-md lg:gap-5 lg:pr-6 lg:pl-6"
+      className="border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-white py-2.5 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md sm:flex-nowrap lg:gap-5 lg:pr-6 lg:pl-6"
       style={{ animationDelay: `${delay}ms` }}
     >
       <Link href={`/jugador/${player.id}`} className="absolute inset-0" aria-label={player.name} />
@@ -234,18 +234,20 @@ function MarketRow({
         style={{ background: tone?.color ?? "transparent" }}
       />
 
-      <PlayerAvatar player={player} size={52} />
+      <PlayerAvatar player={player} size={52} className="h-11 w-11 sm:h-[52px] sm:w-[52px]" />
 
       {/* Identidad */}
-      <div className="min-w-0 w-[190px] shrink-0">
+      <div className="min-w-0 flex-1 sm:w-[190px] sm:flex-none sm:shrink-0">
         <div className="flex items-center gap-2">
           <PositionTag position={player.position} />
-          <span className="truncate text-[0.95rem] leading-tight font-medium">{player.name}</span>
+          <span className="truncate text-[0.9rem] leading-tight font-medium sm:text-[0.95rem]">
+            {player.name}
+          </span>
           <AlertBadge alerts={odds?.alerts} />
         </div>
         <ClubLink name={club} badge={badge} size={14} className="text-muted mt-1 text-xs" />
         {fixtures && fixtures.length > 0 && (
-          <div className="mt-1.5 hidden lg:block">
+          <div className="mt-1.5 hidden sm:block lg:block">
             <FixtureStrip fixtures={fixtures} limit={5} />
           </div>
         )}
@@ -253,11 +255,11 @@ function MarketRow({
 
       {/* Probabilidad, con espacio propio en vez de pegada al nombre */}
       {player.position !== "EN" ? (
-        <div className="w-[86px] shrink-0">
+        <div className="w-auto shrink-0 sm:w-[86px]">
           <OddsChip odds={odds} />
         </div>
       ) : (
-        <div className="w-[86px] shrink-0" />
+        <div className="hidden w-[86px] shrink-0 sm:block" />
       )}
 
       <div className="hidden min-w-0 flex-1 flex-col gap-1 md:flex">
@@ -299,21 +301,32 @@ function MarketRow({
         </div>
       </div>
 
-      {/* Variación del día: el dato que más se mira, en grande */}
-      <div className="border-line w-[150px] shrink-0 border-l pl-3 text-right">
-        <div className="flex justify-end">
-          <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
-        </div>
-        <div className="tnum text-faint mt-1 text-[0.68rem]">valor {money(player.marketValue)}</div>
-      </div>
+      <div className="border-line flex w-full items-center gap-3 border-t pt-2.5 sm:contents sm:border-0 sm:pt-0">
+        {/* Calendario: en el móvil va aquí, que arriba no cabe */}
+        {fixtures && fixtures.length > 0 && (
+          <div className="shrink-0 sm:hidden">
+            <FixtureStrip fixtures={fixtures} limit={3} />
+          </div>
+        )}
 
-      {/* Precio de venta */}
-      <div className="border-line bg-panel-2/60 w-[126px] shrink-0 rounded-sm border px-2.5 py-1.5">
-        <div className="tnum text-ink text-[1.15rem] leading-none font-semibold whitespace-nowrap">
-          {money(item.price)}
+        {/* Variación del día: el dato que más se mira, en grande */}
+        <div className="border-line ml-auto shrink-0 text-right sm:ml-0 sm:w-[150px] sm:border-l sm:pl-3">
+          <div className="flex justify-end">
+            <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
+          </div>
+          <div className="tnum text-faint mt-1 text-[0.68rem]">
+            valor {money(player.marketValue)}
+          </div>
         </div>
-        <div className="tnum text-faint mt-1.5 text-[0.65rem] whitespace-nowrap">
-          {overValue === 0 ? "al valor" : `${signed(overValue)} s/ valor`}
+
+        {/* Precio de venta */}
+        <div className="border-line bg-panel-2/60 w-[104px] shrink-0 rounded-lg border px-2.5 py-1.5 sm:w-[126px]">
+          <div className="tnum text-ink text-[1.05rem] leading-none font-semibold whitespace-nowrap sm:text-[1.15rem]">
+            {money(item.price)}
+          </div>
+          <div className="tnum text-faint mt-1.5 text-[0.65rem] whitespace-nowrap">
+            {overValue === 0 ? "al valor" : `${signed(overValue)} s/ valor`}
+          </div>
         </div>
       </div>
     </div>
