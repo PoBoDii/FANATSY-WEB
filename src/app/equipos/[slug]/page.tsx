@@ -5,7 +5,15 @@ import { getSession } from "@/lib/session";
 import { getFf, normalizeName } from "@/lib/futbolfantasy";
 import { getFixtures, findTeam, type Fixture, type TeamRef } from "@/lib/equipos";
 import { getClubLineup, getLineup } from "@/lib/alineaciones";
-import { ffBadge, ffPhoto, oddsTone, type PlayerAlert } from "@/lib/odds";
+import {
+  FF_INJURED_URL,
+  ffBadge,
+  ffFixtureUrl,
+  ffPhoto,
+  ffTeamUrl,
+  oddsTone,
+  type PlayerAlert,
+} from "@/lib/odds";
 import { playersOfTeam, toList, toManager, type Player } from "@/lib/normalize";
 import { DifficultyBadge, FixtureRow, isLeague } from "@/components/Fixtures";
 import { managerColor } from "@/lib/managers";
@@ -15,6 +23,7 @@ import { PendingLink } from "@/components/PendingLink";
 import { findInjury, getInjuries, injuryTone, type Injury } from "@/lib/lesionados";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
 import { AlertBadge, Empty } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
 import { TeamPlayers, type TeamPlayerRow } from "@/components/TeamPlayers";
 
 export const dynamic = "force-dynamic";
@@ -210,7 +219,10 @@ export default async function EquipoClubPage({
 
       {tab === "noticias" && (
         <section className="px-3 py-5 sm:px-6 sm:py-6 lg:px-10">
-          <SectionTitle color="#dc2626">Lesionados · {injured.length}</SectionTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SectionTitle color="#dc2626">Lesionados · {injured.length}</SectionTitle>
+            <FfLink href={FF_INJURED_URL} label="Ver el parte de lesionados en futbolfantasy" />
+          </div>
           {injured.length === 0 ? (
             <p className="text-muted text-sm">Ningún lesionado ahora mismo.</p>
           ) : (
@@ -310,10 +322,15 @@ function TeamHeader({
             <h1 className="display text-[clamp(2rem,5vw,3.2rem)] text-white drop-shadow">
               {team.name}
             </h1>
-            <div className="mt-1.5 flex flex-wrap gap-2 text-[0.72rem] font-semibold">
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.72rem] font-semibold">
               <Pill>{squad} jugadores</Pill>
               {mine > 0 && <Pill highlight>{mine} tuyos</Pill>}
               {injured > 0 && <Pill danger>{injured} lesionados</Pill>}
+              <FfLink
+                href={ffTeamUrl(team.slug)}
+                label={`Ver ${team.name} en futbolfantasy`}
+                tone="sobre-color"
+              />
             </div>
           </div>
         </div>
@@ -435,6 +452,7 @@ function Lineup({
           </span>
           <DifficultyBadge level={nextLeague.difficulty} />
           <span className="text-muted tnum text-[0.75rem]">{nextLeague.date}</span>
+          <FfLink href={ffFixtureUrl(nextLeague.url)} label="Ver el partido en futbolfantasy" compact />
         </div>
       )}
 

@@ -11,6 +11,8 @@ import { BackLink } from "@/components/BackLink";
 import { money, num } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
+import { FF_MARKET_URL } from "@/lib/odds";
 import {
   SortBar,
   SquadHeader,
@@ -104,7 +106,12 @@ export default async function EquipoPage({
             {inLeague ? ` · ${inLeague.position}º de la liga · ${num(inLeague.points)} pts` : ""}
           </>
         }
-        action={<AutoRefresh seconds={180} />}
+        action={
+          <div className="flex items-center gap-2">
+            <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
+            <AutoRefresh seconds={180} />
+          </div>
+        }
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

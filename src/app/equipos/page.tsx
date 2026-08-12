@@ -3,6 +3,8 @@ import { TEAMS, getFixtures } from "@/lib/equipos";
 import { ffBadge } from "@/lib/odds";
 import { DifficultyBadge, isLeague } from "@/components/Fixtures";
 import { PageHeader } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
+import { FF_STANDINGS_URL } from "@/lib/odds";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function EquiposPage() {
         eyebrow="LaLiga"
         title="Equipos"
         meta="Once probable, calendario con dificultad, plantilla, lesionados y noticias de cada club."
+        action={<FfLink href={FF_STANDINGS_URL} label="Ver la clasificación en futbolfantasy" />}
       />
 
       <div className="grid grid-cols-2 gap-2.5 p-2.5 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:p-6">

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { clubHref, difficultyTone, type Fixture } from "@/lib/equipos";
+import { ffFixtureUrl } from "@/lib/odds";
+import { FfLink } from "./FfLink";
 
 /**
  * Envoltorio de una tarjeta de partido: lleva a la ficha del rival.
@@ -19,11 +21,21 @@ function FixtureLink({
   children: React.ReactNode;
 }) {
   const href = clubHref(rival.name);
-  if (!href) return <div className={className}>{children}</div>;
+
+  // Enlace extendido en vez de envolver el contenido: así la tarjeta puede
+  // llevar dentro su propio enlace a futbolfantasy sin anidar dos <a>.
   return (
-    <Link href={href} className={className} title={`Ver ${rival.name}`}>
+    <div className={`relative ${className}`}>
+      {href && (
+        <Link
+          href={href}
+          className="absolute inset-0"
+          title={`Ver ${rival.name}`}
+          aria-label={rival.name}
+        />
+      )}
       {children}
-    </Link>
+    </div>
   );
 }
 
@@ -207,6 +219,18 @@ export function FixtureRow({
           }`}
         >
           {compact ? <SplitDate value={fixture.date} /> : fixture.date}
+        </span>
+      )}
+
+      {/* En el calendario completo hay sitio para ir al partido en la fuente,
+          donde están las alineaciones y la previa. En la versión compacta no. */}
+      {!compact && (
+        <span className="mr-3 hidden sm:block">
+          <FfLink
+            href={ffFixtureUrl(fixture.url)}
+            label={`Ver ${fixture.home.name} - ${fixture.away.name} en futbolfantasy`}
+            compact
+          />
         </span>
       )}
     </FixtureLink>

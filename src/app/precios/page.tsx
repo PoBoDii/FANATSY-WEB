@@ -6,6 +6,8 @@ import { playersOfTeam, toList, toManager, type Player } from "@/lib/normalize";
 import { money, num } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Empty, PageHeader, StatTile } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
+import { FF_MARKET_URL } from "@/lib/odds";
 import { PriceFilters, PriceTabs, type PriceEntry } from "@/components/PriceList";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +36,13 @@ export default async function PreciosPage({
   if (ff.size === 0) {
     return (
       <>
-        <PageHeader eyebrow="Precios" title="Subidas y bajadas" />
+        {/* Justo cuando no hay datos es cuando más falta hace poder ir a mirarlo
+            a la fuente. */}
+        <PageHeader
+          eyebrow="Precios"
+          title="Subidas y bajadas"
+          action={<FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />}
+        />
         <Empty
           title="Sin datos de precios"
           hint="futbolfantasy no respondió o cambió el marcado. Míralo en Diagnóstico."
@@ -142,7 +150,12 @@ export default async function PreciosPage({
             {num(risers.length)} suben · {num(fallers.length)} bajan · variación respecto a ayer
           </>
         }
-        action={<AutoRefresh seconds={300} />}
+        action={
+          <div className="flex items-center gap-2">
+            <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
+            <AutoRefresh seconds={300} />
+          </div>
+        }
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

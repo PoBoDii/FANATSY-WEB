@@ -2,7 +2,7 @@ import Link from "next/link";
 import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { enrichOdds, getFf, normalizeName } from "@/lib/futbolfantasy";
-import { ffBadge, ffPhoto, oddsTone, type FfPlayer } from "@/lib/odds";
+import { ffBadge, ffPhoto, ffPlayerUrl, ffTeamUrl, oddsTone, type FfPlayer } from "@/lib/odds";
 import {
   POSITION_LABEL,
   playersOfTeam,
@@ -29,6 +29,7 @@ import {
   PriceDelta,
   StatusTag,
 } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export default async function JugadorPage({
             <Link href={`/equipos/${club.slug}?tab=calendario`} className="text-acid text-xs hover:underline">
               ver calendario completo →
             </Link>
+            <FfLink href={ffTeamUrl(club.slug)} label={`Ver ${club.name} en futbolfantasy`} compact />
           </div>
           <NextFixtures fixtures={fixtures.next} limit={6} />
           <div className="label mt-5 mb-3">Últimos partidos</div>
@@ -162,6 +164,7 @@ function Header({
             <PositionTag position={player.position} />
             <span className="label">{POSITION_LABEL[player.position]}</span>
             <AlertBadge alerts={odds?.alerts} />
+            <FfLink href={ffPlayerUrl(odds?.slug)} label={`Ver a ${player.name} en futbolfantasy`} />
           </div>
 
           <h1 className="display mt-2 text-[clamp(1.9rem,4.5vw,3rem)]">{player.name}</h1>

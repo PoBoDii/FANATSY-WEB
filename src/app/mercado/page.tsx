@@ -4,7 +4,8 @@ import { getSession } from "@/lib/session";
 import { fixturesByClub, type Fixture } from "@/lib/equipos";
 import { FixtureStrip } from "@/components/Fixtures";
 import { enrichOdds, getFf } from "@/lib/futbolfantasy";
-import { ffBadge, oddsTone, type FfPlayer } from "@/lib/odds";
+import { FF_MARKET_URL, ffBadge, oddsTone, type FfPlayer } from "@/lib/odds";
+import { FfLink } from "@/components/FfLink";
 import { toList, toMarketItem, type MarketItem } from "@/lib/normalize";
 import { money, num, signed, timeLeft } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
@@ -151,7 +152,12 @@ export default async function MercadoPage({
             {hidden > 0 ? ` · ${hidden} ocultos (los venden otros managers)` : ""}
           </>
         }
-        action={<AutoRefresh seconds={120} />}
+        action={
+          <div className="flex items-center gap-2">
+            <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
+            <AutoRefresh seconds={120} />
+          </div>
+        }
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

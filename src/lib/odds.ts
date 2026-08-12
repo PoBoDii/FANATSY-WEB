@@ -110,6 +110,61 @@ export function ffPhoto(ffId: string | null): string | null {
   return ffId ? `https://media.futbolfantasy.com/thumb/80x80/v2026/uploads/images/jugadores/ficha/${ffId}.png` : null;
 }
 
+/* ------------------------------------------------- enlaces a la fuente */
+
+/**
+ * Casi todo lo que se enseña aquí sale de futbolfantasy, así que cada pantalla
+ * lleva un botón a la página equivalente de allí: para contrastar un dato raro,
+ * leer el parte médico entero o ver lo que aquí no se copia.
+ *
+ * Los constructores viven en este módulo y no en los scrapers porque los
+ * componentes importan de aquí; llevarlos a `futbolfantasy.ts` arrastraría el
+ * scraper entero a cualquier bundle que los use.
+ */
+export const FF_HOST = "https://www.futbolfantasy.com";
+
+/** Ficha del jugador. El slug lo publica la página de su club. */
+export function ffPlayerUrl(slug: string | null | undefined): string | null {
+  return slug ? `${FF_HOST}/jugadores/${slug}` : null;
+}
+
+/** Página del club, con su plantilla y su once probable. */
+export function ffTeamUrl(slug: string | null | undefined): string | null {
+  return slug ? `${FF_HOST}/laliga/equipos/${slug}` : null;
+}
+
+/** Página de un partido, con sus alineaciones. */
+export function ffMatchUrl(id: string, slug?: string | null): string {
+  return `${FF_HOST}/partidos/${slug ? `${id}-${slug}` : id}`;
+}
+
+/**
+ * El enlace de un partido tal cual viene del calendario, ya absoluto: la fuente
+ * lo publica unas veces entero y otras como ruta.
+ */
+export function ffFixtureUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  return `${FF_HOST}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+/** El mercado: subidas, bajadas y valores del día. */
+export const FF_MARKET_URL = `${FF_HOST}/analytics/laliga-fantasy/mercado`;
+
+/** Las alineaciones probables de una jornada. */
+export function ffLineupsUrl(round?: number | null): string {
+  return `${FF_HOST}/laliga/posibles-alineaciones${round ? `/${round}` : ""}`;
+}
+
+/** El parte de lesionados de toda la liga. */
+export const FF_INJURED_URL = `${FF_HOST}/laliga/lesionados`;
+
+/**
+ * La clasificación de LaLiga. Es el destino de la pantalla de equipos: en
+ * futbolfantasy no hay índice de clubes, sólo la ficha de cada uno.
+ */
+export const FF_STANDINGS_URL = `${FF_HOST}/laliga/clasificacion`;
+
 /**
  * Tono de la variación de precio según su tamaño. Cinco escalones por lado:
  * de un verde pálido para calderilla a uno saturado para el millón. Así se ve

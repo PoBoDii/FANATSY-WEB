@@ -14,7 +14,8 @@ import { findTeamByName, opponentDifficulty, squadValues, type TeamRef } from "@
 import { findRecord, getStrengthTable } from "@/lib/clasificacion";
 import { forecast, forecastLabel } from "@/lib/pronostico";
 import { MatchForecast } from "@/components/MatchForecast";
-import { ffPhoto, oddsTone } from "@/lib/odds";
+import { ffMatchUrl, ffPhoto, oddsTone } from "@/lib/odds";
+import { FfLink } from "@/components/FfLink";
 import { playersOfTeam, toList, toManager } from "@/lib/normalize";
 import { managerColor } from "@/lib/managers";
 import { BackLink } from "@/components/BackLink";
@@ -213,20 +214,26 @@ export default async function PartidoPage({
           </>
         }
         action={
-          <div className="border-line bg-panel rounded-xl border px-4 py-2.5 text-center shadow-sm">
-            <div className="label">Se juega</div>
-            <div className="tnum text-ink mt-1 text-[1.15rem] leading-none font-semibold">
-              {match.kickoff}
-            </div>
-            {order > 0 && (
-              <div className="text-faint mt-1 text-[0.68rem] font-semibold">
-                {order === 1
-                  ? "Abre la jornada"
-                  : order === matches.length
-                    ? "Cierra la jornada"
-                    : `${order}º de ${matches.length} partidos`}
+          <div className="flex flex-wrap items-center gap-2">
+            <FfLink
+              href={ffMatchUrl(match.id, match.slug)}
+              label={`Ver ${match.home.name} - ${match.away.name} en futbolfantasy`}
+            />
+            <div className="border-line bg-panel rounded-xl border px-4 py-2.5 text-center shadow-sm">
+              <div className="label">Se juega</div>
+              <div className="tnum text-ink mt-1 text-[1.15rem] leading-none font-semibold">
+                {match.kickoff}
               </div>
-            )}
+              {order > 0 && (
+                <div className="text-faint mt-1 text-[0.68rem] font-semibold">
+                  {order === 1
+                    ? "Abre la jornada"
+                    : order === matches.length
+                      ? "Cierra la jornada"
+                      : `${order}º de ${matches.length} partidos`}
+                </div>
+              )}
+            </div>
           </div>
         }
       />

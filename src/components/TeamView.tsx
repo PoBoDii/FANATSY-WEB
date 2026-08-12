@@ -18,6 +18,8 @@ import { money, num } from "@/lib/format";
 import Link from "next/link";
 import { PendingLink } from "./PendingLink";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
+import { FfLink } from "./FfLink";
+import { ffLineupsUrl } from "@/lib/odds";
 import { bestEleven, rate, type FormationOption } from "@/lib/once-ideal";
 import { AutoRefresh } from "./AutoRefresh";
 import { NextRival } from "./Fixtures";
@@ -149,7 +151,13 @@ export async function TeamView({
             {inLeague ? ` · ${inLeague.position}º de la liga` : ""}
           </>
         }
-        action={<AutoRefresh seconds={180} />}
+        action={
+          <div className="flex items-center gap-2">
+            {/* Las probabilidades del once salen de aquí. */}
+            <FfLink href={ffLineupsUrl()} label="Ver las alineaciones probables en futbolfantasy" />
+            <AutoRefresh seconds={180} />
+          </div>
+        }
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

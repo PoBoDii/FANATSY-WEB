@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getMatches } from "@/lib/alineaciones";
 import { findTeamByName } from "@/lib/equipos";
 import { Empty, PageHeader } from "@/components/ui";
+import { FfLink } from "@/components/FfLink";
+import { ffLineupsUrl } from "@/lib/odds";
 import { RoundPicker } from "@/components/RoundPicker";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,15 @@ export default async function AlineacionesPage({
         eyebrow="Alineaciones probables"
         title={`Jornada ${round}`}
         meta="Onces que futbolfantasy da como más probables. Entra en un partido para verlos."
-        action={<RoundPicker rounds={ROUNDS} current={round} />}
+        action={
+          <div className="flex items-center gap-2">
+            <FfLink
+              href={ffLineupsUrl(round)}
+              label={`Ver las alineaciones de la jornada ${round} en futbolfantasy`}
+            />
+            <RoundPicker rounds={ROUNDS} current={round} />
+          </div>
+        }
       />
 
       {matches.length === 0 ? (
