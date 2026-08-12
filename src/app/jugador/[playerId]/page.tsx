@@ -255,7 +255,7 @@ function Ownership({
   return (
     <div
       className={`border-line grid gap-px border-b sm:grid-cols-2 lg:grid-cols-4 ${
-        open ? "bg-down-soft/60" : "bg-panel-2/40"
+        open ? "bg-up-soft/60" : "bg-panel-2/40"
       }`}
     >
       <Cell label="Lo tiene">
@@ -265,7 +265,8 @@ function Ownership({
       </Cell>
 
       <Cell label="Cláusula">
-        <span className={`tnum text-[1.35rem] font-semibold ${open ? "text-down" : "text-ink"}`}>
+        {/* Verde = se puede pagar ya, aquí y en el resto de la web. */}
+        <span className={`tnum text-[1.35rem] font-semibold ${open ? "text-up" : "text-ink"}`}>
           {clause ? money(clause) : "—"}
         </span>
       </Cell>

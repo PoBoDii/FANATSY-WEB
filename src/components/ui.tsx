@@ -691,10 +691,13 @@ function Highlighted({
       if (!clause) return block("Cláusula", <span className="text-faint text-sm">sin cláusula</span>);
       const unlockAt = player.buyoutUnlockAt;
       const open = !unlockAt || new Date(unlockAt).getTime() <= Date.now();
+      // Mismo código de color que la tarjeta de cláusula: verde cuando ya se
+      // puede pagar, rojo mientras siga blindada. En rojo las dos cosas no se
+      // distinguía lo abierto de lo que todavía no lo está.
       return block(
-        open ? "Cláusula abierta" : "Se abre en",
+        open ? "Cláusula" : "Se abre en",
         <div className="flex flex-col items-center gap-1.5">
-          <span className={`${big} text-down`}>{money(clause)}</span>
+          <span className={`${big} ${open ? "text-up" : "text-down"}`}>{money(clause)}</span>
           {unlockAt && !open ? (
             <>
               <Countdown until={unlockAt} />
@@ -703,7 +706,7 @@ function Highlighted({
               </span>
             </>
           ) : (
-            <span className="tnum text-down text-[0.72rem] font-semibold">
+            <span className="tnum text-up text-[0.72rem] font-semibold">
               cualquiera puede pagarla
             </span>
           )}
