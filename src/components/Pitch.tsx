@@ -40,6 +40,7 @@ export function Pitch({
   fixturesOf,
   xpOf,
   alreadyIn,
+  outOf,
   title,
   maxWidth,
   stat = "ahora",
@@ -55,6 +56,11 @@ export function Pitch({
   xpOf?: (player: Player) => number | null;
   /** Quiénes están ya en mi alineación de esta jornada. */
   alreadyIn?: Set<string>;
+  /**
+   * Quiénes ocupan casilla sin poder jugar, porque no hay nadie más para ese
+   * puesto. Devuelve el motivo en corto ("lesionado") o `null` si sí juega.
+   */
+  outOf?: (player: Player) => string | null;
   /** Rótulo de la esquina; por defecto, "Once titular". */
   title?: string;
   /** Ancho máximo del césped, para que no se estire de lado a lado. */
@@ -117,7 +123,7 @@ export function Pitch({
 
           <div className="flex flex-col gap-3.5 sm:gap-5 lg:gap-8">
             {lines.map((line, i) => (
-              <div key={i} className="flex justify-center gap-1 sm:gap-2 lg:gap-5">
+              <div key={i} className="flex justify-center gap-0.5 sm:gap-2 lg:gap-5">
                 {line.map((player, j) => (
                   <PitchToken
                     key={player.id}
@@ -127,6 +133,7 @@ export function Pitch({
                     fixtures={fixturesOf?.(player) ?? null}
                     xp={xpOf?.(player) ?? null}
                     alreadyIn={alreadyIn?.has(player.id)}
+                    out={outOf?.(player) ?? null}
                     stat={stat}
                     delay={i * 80 + j * 40}
                   />
@@ -236,6 +243,7 @@ function PitchToken({
   fixtures,
   xp,
   alreadyIn,
+  out,
   stat,
   delay,
 }: {
@@ -245,13 +253,22 @@ function PitchToken({
   fixtures: Fixture[] | null;
   xp?: number | null;
   alreadyIn?: boolean;
+  /**
+   * Está en el once por no dejar el hueco vacío. Trae el motivo por el que no
+   * va a jugar; `null` si sí juega.
+   */
+  out?: string | null;
   stat: PitchStat;
   delay: number;
 }) {
   const content = (
     <>
       <div className="relative">
-        <PlayerAvatar player={player} size={72} className="h-[54px] w-[54px] sm:h-[72px] sm:w-[72px]" />
+        <PlayerAvatar
+          player={player}
+          size={72}
+          className={`h-12 w-12 sm:h-[72px] sm:w-[72px] ${out ? "ring-down ring-2" : ""}`}
+        />
 
         {/* La probabilidad es el dato que se busca al mirar el once: va grande
             y encima de la foto, no como una etiqueta más. */}
@@ -302,9 +319,18 @@ function PitchToken({
           {player.name}
         </div>
         <div className="mt-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2">
-          {statLine(stat, player, odds, fixtures, xp ?? null)}
+          {out ? (
+            <span
+              className="bg-down rounded px-1.5 py-[2px] text-center text-[0.55rem] leading-tight font-bold text-white uppercase"
+              title="Ocupa el puesto porque no te queda nadie más para esa línea"
+            >
+              {out}
+            </span>
+          ) : (
+            statLine(stat, player, odds, fixtures, xp ?? null)
+          )}
         </div>
-        {stat === "ideal" && (
+        {stat === "ideal" && !out && (
           <div className="mt-1 flex justify-center">
             <NextRival fixtures={fixtures} size="sm" />
           </div>
@@ -313,9 +339,11 @@ function PitchToken({
     </>
   );
 
+  // Ancho elástico con tope: en el móvil las cinco fichas de una línea de cinco
+  // tienen que repartirse lo que haya sin salirse de la pantalla.
   return (
     <div
-      className="rise relative flex w-[68px] flex-col items-center transition-transform hover:-translate-y-1 sm:w-[84px] lg:w-[104px]"
+      className="rise relative flex max-w-[64px] min-w-0 flex-1 flex-col items-center transition-transform hover:-translate-y-1 sm:max-w-[84px] lg:max-w-[104px]"
       style={{ animationDelay: `${delay}ms` }}
     >
       {leagueId && (

@@ -4,6 +4,7 @@ import { PITCH_STATS, type PitchStat } from "@/components/Pitch";
 import { ErrorBox } from "@/components/ui";
 import { Setup } from "@/components/Setup";
 import { NoLeague } from "@/components/NoLeague";
+import { FORMATIONS } from "@/lib/once-ideal";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function MiPlantillaPage({
     dir?: string;
     pos?: string;
     abiertas?: string;
+    formacion?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -51,6 +53,11 @@ export default async function MiPlantillaPage({
       }
       sortParams={params}
       pitchStat={(PITCH_STATS.find((s) => s.key === params.stat)?.key ?? "ahora") as PitchStat}
+      // Sólo se acepta una de las que permite el juego: cualquier otra cosa en
+      // la URL se ignora y vuelve la mejor.
+      formationWanted={
+        FORMATIONS.map((f) => f.join("-")).find((f) => f === params.formacion) ?? null
+      }
     />
   );
 }

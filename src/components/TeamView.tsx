@@ -18,7 +18,7 @@ import { money, num } from "@/lib/format";
 import Link from "next/link";
 import { PendingLink } from "./PendingLink";
 import { PITCH_STATS, Pitch, type PitchStat } from "./Pitch";
-import { bestEleven, rate } from "@/lib/once-ideal";
+import { bestEleven, rate, type FormationOption } from "@/lib/once-ideal";
 import { AutoRefresh } from "./AutoRefresh";
 import { NextRival } from "./Fixtures";
 import type { Fixture } from "@/lib/equipos";
@@ -66,6 +66,7 @@ export async function TeamView({
   view = "once",
   sortParams = {},
   pitchStat = "ahora",
+  formationWanted = null,
 }: {
   leagueId: string;
   teamId: string;
@@ -74,6 +75,8 @@ export async function TeamView({
   sortParams?: { orden?: string; dir?: string; pos?: string; abiertas?: string };
   /** Qué estadística se enseña en el campo. */
   pitchStat?: PitchStat;
+  /** Formación elegida a mano en el once ideal; si no, la mejor. */
+  formationWanted?: string | null;
 }) {
   const [{ data: teamRaw, error }, { data: lineupRaw }, { data: teamsRaw }, odds] =
     await Promise.all([
@@ -122,12 +125,14 @@ export async function TeamView({
   const fixturesOf = await fixturesByClub(squad, oddsOf);
   const swing = squadSwing(squad, oddsOf);
 
-  // El once que más puntos debería dar con lo que tengo en plantilla.
+  // El once que más puntos debería dar con lo que tengo en plantilla. Si se ha
+  // pedido una formación concreta se monta esa, pero se guarda cuál era la
+  // mejor para poder señalarla en el selector.
   const rated = squad
     .filter((p) => p.position !== "EN")
     .map((p) => rate(p, oddsOf(p), fixturesOf(p)));
-  const ideal = bestEleven(rated);
-  const idealXp = new Map(rated.map((r) => [r.player.id, r.xp]));
+  const best = bestEleven(rated);
+  const ideal = formationWanted ? bestEleven(rated, formationWanted) : best;
 
   const { sort, dir, positions, openOnly } = readSortParams(sortParams, "posicion");
   const listed = sortSquad(filterSquad(squad, positions, openOnly), sort, dir, oddsOf);
@@ -172,6 +177,7 @@ export async function TeamView({
       {view === "ideal" ? (
         <IdealView
           ideal={ideal}
+          best={best?.formation ?? null}
           rated={rated}
           starters={starterIds}
           leagueId={leagueId}
@@ -331,13 +337,13 @@ function Tabs({ view }: { view: "once" | "lista" | "ideal" }) {
     <PendingLink
       href={href}
       scroll={false}
-      className={`flex-1 border-b-2 px-4 py-3 text-center transition-colors ${
+      className={`flex-1 border-b-2 px-1.5 py-3 text-center transition-colors sm:px-4 ${
         view === mine
           ? "border-acid text-acid"
           : "border-transparent text-faint hover:text-muted"
       }`}
     >
-      <span className="display text-base">{label}</span>
+      <span className="display text-[0.88rem] sm:text-base">{label}</span>
     </PendingLink>
   );
 
@@ -356,6 +362,7 @@ function Tabs({ view }: { view: "once" | "lista" | "ideal" }) {
  */
 function IdealView({
   ideal,
+  best,
   rated,
   starters,
   leagueId,
@@ -363,6 +370,8 @@ function IdealView({
   fixturesOf,
 }: {
   ideal: ReturnType<typeof bestEleven>;
+  /** La formación que sale sola, para marcarla aunque estés viendo otra. */
+  best: string | null;
   rated: ReturnType<typeof rate>[];
   starters: Set<string>;
   leagueId: string;
@@ -381,10 +390,16 @@ function IdealView({
   const xpOf = new Map(ideal.players.map((r) => [r.player.id, r.xp]));
   const changes = ideal.players.filter((r) => !starters.has(r.player.id));
 
+  // Bajo la ficha del campo no cabe la explicación entera, sólo el motivo.
+  const forced = new Map(ideal.forced.map((r) => [r.player.id, shortReason(r.note)]));
+
+  // El banquillo es todo lo que no entra en el once, disponibles primero. Los
+  // lesionados y sancionados también se quedan aquí, marcados: no entran al
+  // once, pero siguen siendo tuyos y hay que verlos.
   const chosen = new Set(ideal.players.map((r) => r.player.id));
-  const rest = rated.filter((r) => !chosen.has(r.player.id));
-  const bench = rest.filter((r) => !r.unavailable).sort((a, b) => b.xp - a.xp);
-  const out = rest.filter((r) => r.unavailable);
+  const bench = rated
+    .filter((r) => !chosen.has(r.player.id))
+    .sort((a, b) => Number(a.unavailable) - Number(b.unavailable) || b.xp - a.xp);
 
   return (
     <>
@@ -404,12 +419,23 @@ function IdealView({
           delay={120}
         />
         <StatTile
-          label="Titulares seguros"
-          value={num(ideal.players.filter((r) => r.plays >= 0.8).length)}
-          sub="de 11"
+          label={ideal.missing > 0 ? "Puestos sin cubrir" : "Titulares seguros"}
+          value={
+            ideal.missing > 0
+              ? num(ideal.missing)
+              : num(ideal.players.filter((r) => r.plays >= 0.8).length)
+          }
+          sub={ideal.missing > 0 ? "nadie que vaya a jugar" : "de 11"}
+          tone={ideal.missing > 0 ? "down" : "neutral"}
           delay={180}
         />
       </div>
+
+      <FormationPicker
+        options={ideal.options}
+        active={ideal.formation}
+        best={best}
+      />
 
       <Pitch
         players={ideal.players.map((r) => r.player)}
@@ -419,20 +445,57 @@ function IdealView({
         fixturesOf={fixturesOf}
         xpOf={(p) => xpOf.get(p.id) ?? null}
         alreadyIn={starters}
+        outOf={(p) => forced.get(p.id) ?? null}
         title="Once ideal"
         maxWidth="mx-auto max-w-3xl"
         stat="ideal"
       />
 
+      {/* Lo que falta en la plantilla, dicho como lo que hay que hacer: ir al
+          mercado a por un puesto concreto. */}
+      {ideal.gaps.length > 0 && (
+        <div className="space-y-2.5 px-3.5 pb-4 sm:px-6 lg:px-10">
+          {ideal.gaps.map((gap) => (
+            <div
+              key={`${gap.position}-${gap.kind}`}
+              className={`flex items-start gap-3 rounded-2xl border p-3.5 sm:p-4 ${
+                gap.kind === "hueco"
+                  ? "border-down/60 bg-down-soft"
+                  : "border-warn/60 bg-warn-soft"
+              }`}
+            >
+              <span
+                className="mt-[2px] inline-flex h-7 w-9 shrink-0 items-center justify-center rounded-lg text-[0.62rem] font-bold text-white"
+                style={{ background: POSITION_COLOR[gap.position] }}
+              >
+                {gap.position}
+              </span>
+              <div className="min-w-0">
+                <h3
+                  className={`display text-[0.98rem] ${
+                    gap.kind === "hueco" ? "text-down" : "text-warn"
+                  }`}
+                >
+                  {gap.title}
+                </h3>
+                <p className="text-muted mt-1 text-[0.78rem] leading-snug">{gap.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Los que se quedan fuera, con el porqué */}
       {bench.length > 0 && (
-        <div className="px-4 pb-2 sm:px-6 lg:px-10">
+        <div className="px-3.5 pb-2 sm:px-6 lg:px-10">
           <h3 className="label mb-2.5">En el banquillo · {bench.length}</h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
             {bench.map((r) => (
               <div
                 key={r.player.id}
-                className="border-line bg-panel relative w-[104px] rounded-xl border p-2 text-center"
+                className={`relative rounded-xl border p-2 text-center sm:w-[104px] ${
+                  r.unavailable ? "border-down/50 bg-down-soft" : "border-line bg-panel"
+                }`}
               >
                 <Link
                   href={`/jugador/${r.player.id}`}
@@ -451,8 +514,14 @@ function IdealView({
                 <div className="mt-1 flex justify-center">
                   <NextRival fixtures={r.fixtures} size="sm" />
                 </div>
-                <div className="text-faint mt-1 text-[0.58rem] leading-tight">
-                  {r.xp.toFixed(1)} pts{r.note ? ` · ${r.note.split(" · ")[0]}` : ""}
+                <div
+                  className={`mt-1 text-[0.58rem] leading-tight ${
+                    r.unavailable ? "text-down font-semibold" : "text-faint"
+                  }`}
+                >
+                  {r.unavailable
+                    ? (r.note || "no disponible")
+                    : `${r.xp.toFixed(1)} pts${r.note ? ` · ${r.note.split(" · ")[0]}` : ""}`}
                 </div>
               </div>
             ))}
@@ -460,9 +529,9 @@ function IdealView({
         </div>
       )}
 
-      <div className="px-4 pb-6 sm:px-6 lg:px-10">
+      <div className="px-3.5 pb-6 sm:px-6 lg:px-10">
         {changes.length > 0 && (
-          <div className="border-line bg-warn-soft mb-4 rounded-2xl border p-4">
+          <div className="border-line bg-warn-soft mt-4 rounded-2xl border p-4">
             <h3 className="display text-base">
               {changes.length === 1 ? "Un cambio" : `${changes.length} cambios`} respecto a tu once
             </h3>
@@ -481,51 +550,87 @@ function IdealView({
           </div>
         )}
 
-        {out.length > 0 && (
-          <div className="border-line bg-down-soft mb-4 rounded-2xl border p-4">
-            <h3 className="display text-base">No pueden jugar · {out.length}</h3>
-            <p className="text-muted mt-1 text-[0.78rem]">
-              Nunca entran en el once, por muy bien que puntúen de normal.
-            </p>
-            <ul className="mt-2 space-y-1">
-              {out.map((r) => (
-                <li key={r.player.id} className="text-[0.82rem]">
-                  <span className="font-semibold">{r.player.name}</span>
-                  <span className="text-muted"> — {r.note || "no disponible"}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <h3 className="label mb-2">Qué da cada formación</h3>
-        <div className="flex flex-wrap gap-2">
-          {ideal.options.map((o) => (
-            <span
-              key={o.formation}
-              className={`tnum rounded-xl border px-3 py-1.5 text-[0.78rem] ${
-                o.formation === ideal.formation
-                  ? "border-acid bg-acid/15 text-acid font-bold"
-                  : o.possible
-                    ? "border-line text-muted"
-                    : "border-line text-faint opacity-50"
-              }`}
-            >
-              {o.formation}{" "}
-              <span className="opacity-70">{o.possible ? o.xp.toFixed(1) : "no llegas"}</span>
-            </span>
-          ))}
-        </div>
-
         <p className="text-faint mt-4 text-[0.76rem]">
           Los puntos esperados salen de la probabilidad de ser titular multiplicada por lo que
           suele dar cada puesto: portería a cero y despejes atrás, la mezcla en el centro, y goles
           y asistencias arriba. La portería a cero se estima con la dificultad del próximo rival.
           Con la liga sin empezar se tira de la temporada pasada y de la jerarquía, así que irá
-          afinándose jornada a jornada.
+          afinándose jornada a jornada. Los lesionados y sancionados no cuentan para el once: sólo
+          ocupan una casilla si no queda absolutamente nadie más para ese puesto.
         </p>
       </div>
     </>
+  );
+}
+
+/** El motivo, en dos palabras, para que quepa debajo de la ficha del campo. */
+function shortReason(note: string): string {
+  if (note.startsWith("ya no está")) return "vendido";
+  if (note.startsWith("0%")) return "no juega";
+  return note.split(" · ")[0].split(":")[0];
+}
+
+/**
+ * Selector de formación. Enseña lo que daría cada una y deja verla montada en
+ * el campo, que es la única forma de decidir si compensa el 3-4-3.
+ *
+ * Va por URL, así que se puede compartir el enlace y funciona sin JavaScript.
+ */
+function FormationPicker({
+  options,
+  active,
+  best,
+}: {
+  options: FormationOption[];
+  active: string;
+  best: string | null;
+}) {
+  return (
+    <div className="border-line border-b px-3.5 py-3 sm:px-6 lg:px-10">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h3 className="label">Qué da cada formación</h3>
+        <span className="text-faint text-[0.7rem]">toca una para verla en el campo</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {options.map((o) => {
+          const on = o.formation === active;
+          return (
+            <PendingLink
+              key={o.formation}
+              href={`/?vista=ideal&formacion=${o.formation}`}
+              scroll={false}
+              className={`tnum flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[0.8rem] transition-colors sm:justify-start ${
+                on
+                  ? "border-acid bg-acid/15 text-acid font-bold"
+                  : "border-line text-muted hover:border-faint hover:text-ink"
+              }`}
+            >
+              <span>{o.formation}</span>
+              <span className="flex items-center gap-1.5">
+                <span className={on ? "" : "opacity-70"}>{o.xp.toFixed(1)}</span>
+                {o.formation === best && (
+                  <span className="bg-acid rounded-full px-1.5 py-[1px] text-[0.55rem] font-bold text-white">
+                    MEJOR
+                  </span>
+                )}
+                {!o.complete && (
+                  <span
+                    className="bg-down/20 text-down rounded-full px-1.5 py-[1px] text-[0.55rem] font-bold"
+                    title={
+                      o.missing === 1
+                        ? "No llegas: un puesto se queda sin nadie que vaya a jugar"
+                        : `No llegas: ${o.missing} puestos se quedan sin nadie que vaya a jugar`
+                    }
+                  >
+                    −{o.missing}
+                  </span>
+                )}
+              </span>
+            </PendingLink>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

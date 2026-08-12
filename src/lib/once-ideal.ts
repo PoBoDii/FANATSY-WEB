@@ -241,14 +241,75 @@ export const FORMATIONS: [number, number, number][] = [
   [3, 4, 3],
 ];
 
+export const LINE_POSITIONS: Position[] = ["DF", "MC", "DL"];
+
+/** Cómo se llama cada puesto cuando hay que decir qué falta fichar. */
+const NOUN: Record<Position, { one: string; many: string }> = {
+  PT: { one: "un portero", many: "porteros" },
+  DF: { one: "un defensa", many: "defensas" },
+  MC: { one: "un centrocampista", many: "centrocampistas" },
+  DL: { one: "un delantero", many: "delanteros" },
+  EN: { one: "un entrenador", many: "entrenadores" },
+  "?": { one: "un jugador", many: "jugadores" },
+};
+
+/**
+ * Por debajo de esta probabilidad el jugador no sostiene un puesto del once:
+ * puede salir, pero contar con él es jugar a los dados.
+ */
+const WEAK_PLAYS = 0.5;
+
+/**
+ * Un puesto del once que no está bien cubierto: o no hay nadie que pueda
+ * jugarlo, o quien lo ocupa no es de fiar. Es lo que hay que ir a buscar al
+ * mercado.
+ */
+export type Gap = {
+  position: Position;
+  /**
+   * `hueco`: no queda nadie disponible y la casilla la tapa alguien que no va
+   * a jugar. `flojo`: hay quien la ocupe, pero con poca probabilidad de salir.
+   */
+  kind: "hueco" | "flojo";
+  count: number;
+  /** "Necesitas fichar un defensa". */
+  title: string;
+  detail: string;
+};
+
+export type FormationOption = {
+  formation: string;
+  xp: number;
+  /** Se puede montar entera con jugadores que sí pueden jugar. */
+  complete: boolean;
+  /**
+   * Casillas que no cubre nadie que vaya a jugar: las tapa un lesionado o se
+   * quedan directamente vacías porque no tienes a nadie más de ese puesto.
+   */
+  missing: number;
+};
+
 export type IdealXI = {
   formation: string;
   players: Rated[];
   /** Puntos esperados del once entero. */
   xp: number;
+  /** Los que están en el once sólo porque no hay nadie más para ese puesto. */
+  forced: Rated[];
+  /** Casillas que no cubre nadie que vaya a jugar, incluidas las vacías. */
+  missing: number;
+  /** Los que sí pueden jugar pero son poco fiables (menos del 50%). */
+  weak: Rated[];
+  /** Qué hay que reforzar, línea por línea. */
+  gaps: Gap[];
   /** Cada formación con su total, para poder enseñar las alternativas. */
-  options: { formation: string; xp: number; possible: boolean }[];
+  options: FormationOption[];
 };
+
+/** "un defensa" / "3 defensas", para el aviso de fichar. */
+function count(position: Position, n: number): string {
+  return n === 1 ? NOUN[position].one : `${n} ${NOUN[position].many}`;
+}
 
 /**
  * El mejor once posible.
@@ -257,45 +318,136 @@ export type IdealXI = {
  * por separado, basta ordenar por puntos esperados y coger los mejores de cada
  * línea. Lo que hay que probar son las siete formaciones, porque tener cuatro
  * defensas buenísimos o tres delanteros en racha cambia cuál conviene.
+ *
+ * Los lesionados, sancionados y vendidos no compiten por un puesto, pero sí
+ * tapan el agujero si no queda nadie más: un hueco vacío puntúa cero seguro, y
+ * el juego tampoco deja alinear a diez. Cuando pasa, se marca como `forced` y
+ * sale el aviso de que hace falta fichar.
+ *
+ * Con `want` se fuerza una formación concreta, para poder mirar qué daría otra
+ * sin perder cuál es la mejor.
  */
-export function bestEleven(squad: Rated[]): IdealXI | null {
-  // Los que no pueden jugar quedan fuera del reparto: da igual lo bueno que
-  // sea uno si está vendido, lesionado o sancionado.
-  const byPos = (pos: Position) =>
-    squad
-      .filter((r) => r.player.position === pos && !r.unavailable)
-      .sort((a, b) => b.xp - a.xp);
+export function bestEleven(squad: Rated[], want?: string | null): IdealXI | null {
+  if (squad.length === 0) return null;
 
-  const keepers = byPos("PT");
-  const defenders = byPos("DF");
-  const midfielders = byPos("MC");
-  const forwards = byPos("DL");
+  /**
+   * Primero los que pueden jugar, de más a menos puntos; detrás, los que no.
+   * Entre los que no pueden jugar manda lo que rinden de normal: si hay que
+   * quemar una casilla, mejor quemarla con el que al menos tiene opción de que
+   * le levanten la sanción o llegue justo.
+   */
+  const pool = (pos: Position) => {
+    const line = squad.filter((r) => r.player.position === pos);
+    const ready = line.filter((r) => !r.unavailable).sort((a, b) => b.xp - a.xp);
+    const out = line
+      .filter((r) => r.unavailable)
+      .sort(
+        (a, b) =>
+          b.player.averagePoints - a.player.averagePoints ||
+          b.player.marketValue - a.player.marketValue,
+      );
+    return { ready, all: [...ready, ...out] };
+  };
 
-  if (keepers.length === 0) return null;
+  const at: Record<string, ReturnType<typeof pool>> = {
+    PT: pool("PT"),
+    DF: pool("DF"),
+    MC: pool("MC"),
+    DL: pool("DL"),
+  };
 
-  const options: IdealXI["options"] = [];
-  let best: IdealXI | null = null;
+  const build = (shape: [number, number, number]) => {
+    const need: [Position, number][] = [
+      ["PT", 1],
+      ["DF", shape[0]],
+      ["MC", shape[1]],
+      ["DL", shape[2]],
+    ];
 
-  for (const [d, m, f] of FORMATIONS) {
-    const name = `${d}-${m}-${f}`;
-    const possible = defenders.length >= d && midfielders.length >= m && forwards.length >= f;
-    if (!possible) {
-      options.push({ formation: name, xp: 0, possible: false });
+    const players: Rated[] = [];
+    /** Casillas por línea que no cubre nadie que vaya a jugar. */
+    const holes = new Map<Position, number>();
+
+    for (const [pos, n] of need) {
+      players.push(...at[pos].all.slice(0, n));
+      holes.set(pos, Math.max(0, n - at[pos].ready.length));
+    }
+
+    const missing = [...holes.values()].reduce((s, n) => s + n, 0);
+
+    return {
+      formation: shape.join("-"),
+      players,
+      xp: players.reduce((sum, r) => sum + r.xp, 0),
+      forced: players.filter((r) => r.unavailable),
+      holes,
+      missing,
+      complete: missing === 0,
+    };
+  };
+
+  const built = FORMATIONS.map(build);
+
+  const options: FormationOption[] = built.map((b) => ({
+    formation: b.formation,
+    xp: b.xp,
+    complete: b.complete,
+    missing: b.missing,
+  }));
+
+  // La mejor es la que más puntos da; a igualdad, la que menos casillas deja
+  // sin cubrir con alguien que vaya a jugar.
+  const best = [...built].sort((a, b) => b.xp - a.xp || a.missing - b.missing)[0];
+
+  const chosen = (want && built.find((b) => b.formation === want)) || best;
+
+  const weak = chosen.players.filter((r) => !r.unavailable && r.plays < WEAK_PLAYS);
+
+  /**
+   * Los avisos van por línea y no por jugador: lo que hay que hacer no es
+   * "sustituir a Rosier", es ir al mercado a por un lateral.
+   */
+  const gaps: Gap[] = [];
+  for (const pos of ["PT", ...LINE_POSITIONS] as Position[]) {
+    const ready = at[pos].ready.length;
+    const holes = chosen.holes.get(pos) ?? 0;
+    // Los puestos que pide la formación, no los que se han podido llenar.
+    const slots = ready + holes;
+
+    if (holes > 0) {
+      gaps.push({
+        position: pos,
+        kind: "hueco",
+        count: holes,
+        title: `Necesitas fichar ${count(pos, holes)}`,
+        detail:
+          ready === 0
+            ? `No te queda ninguno que pueda jugar, así que ${slots === 1 ? "la casilla se tapa" : "las casillas se tapan"} con quien no va a saltar al campo.`
+            : `Sólo tienes ${ready} que pueda${ready === 1 ? "" : "n"} jugar para ${slots} puesto${slots === 1 ? "" : "s"}.`,
+      });
       continue;
     }
 
-    const players = [
-      keepers[0],
-      ...defenders.slice(0, d),
-      ...midfielders.slice(0, m),
-      ...forwards.slice(0, f),
-    ];
-    const xp = players.reduce((sum, r) => sum + r.xp, 0);
-    options.push({ formation: name, xp, possible: true });
-
-    if (!best || xp > best.xp) best = { formation: name, players, xp, options: [] };
+    const flojos = weak.filter((r) => r.player.position === pos).length;
+    if (flojos > 0) {
+      gaps.push({
+        position: pos,
+        kind: "flojo",
+        count: flojos,
+        title: `Te vendría bien ${count(pos, flojos)}`,
+        detail: `${flojos === 1 ? "Uno de los que entra" : `${flojos} de los que entran`} tiene menos de un 50% de salir de titular: el once sale adelante, pero a medias.`,
+      });
+    }
   }
 
-  if (!best) return null;
-  return { ...best, options: options.sort((a, b) => b.xp - a.xp) };
+  return {
+    formation: chosen.formation,
+    players: chosen.players,
+    xp: chosen.xp,
+    forced: chosen.forced,
+    missing: chosen.missing,
+    weak,
+    gaps,
+    options: options.sort((a, b) => b.xp - a.xp),
+  };
 }

@@ -574,28 +574,28 @@ export function PlayerRow({
         (compact ? (
           /* En columna estrecha nada de `ml-auto`: los tres datos se reparten
              el hueco que sobra en vez de amontonarse contra el borde. */
-          <div className="border-line flex w-full items-center gap-2 border-t pt-2.5 lg:contents lg:border-0 lg:pt-0">
-            <div className="flex flex-1 items-center justify-evenly gap-2 lg:flex-[3]">
-              <div className="text-center">
+          <div className="border-line flex w-full min-w-0 items-center gap-2 border-t pt-2.5 lg:contents lg:border-0 lg:pt-0">
+            <div className="flex min-w-0 flex-1 items-center justify-evenly gap-1.5 lg:flex-[3] lg:gap-2">
+              <div className="min-w-0 text-center">
                 <div className="label text-[0.55rem] leading-none">Juega</div>
                 <div className="mt-1.5 flex justify-center">
                   <OddsChip odds={odds} />
                 </div>
               </div>
 
-              <div className="text-center">
+              <div className="min-w-0 text-center">
                 <div className="label text-[0.55rem] leading-none">Puntos</div>
-                <div className="tnum text-ink mt-1.5 text-[1.05rem] leading-none font-bold lg:text-[1.3rem]">
+                <div className="tnum text-ink mt-1.5 text-[0.95rem] leading-none font-bold lg:text-[1.3rem]">
                   {num(player.points)}
                 </div>
-                <div className="tnum text-faint mt-1.5 text-[0.66rem] leading-none">
+                <div className="tnum text-faint mt-1.5 text-[0.62rem] leading-none">
                   {num(player.averagePoints, 1)} media
                 </div>
               </div>
 
-              <div className="text-center">
+              <div className="min-w-0 text-center">
                 <div className="label text-[0.55rem] leading-none">Valor</div>
-                <div className="tnum text-ink mt-1.5 text-[1.05rem] leading-none font-bold lg:text-[1.3rem]">
+                <div className="tnum text-ink mt-1.5 text-[0.95rem] leading-none font-bold lg:text-[1.3rem]">
                   {money(player.marketValue)}
                 </div>
                 <div className="mt-1.5 flex justify-center">
@@ -606,8 +606,8 @@ export function PlayerRow({
             <ClauseBlock player={player} compact />
           </div>
         ) : (
-          <div className="border-line flex w-full items-center gap-3 border-t pt-2.5 sm:contents sm:border-0 sm:pt-0">
-            <div className="w-[62px] shrink-0 text-left sm:ml-auto sm:w-[84px] sm:text-right">
+          <div className="border-line flex w-full min-w-0 items-center gap-2 border-t pt-2.5 sm:contents sm:gap-3 sm:border-0 sm:pt-0">
+            <div className="w-[54px] shrink-0 text-left sm:ml-auto sm:w-[84px] sm:text-right">
               <span className="label text-[0.5rem] sm:hidden">Puntos</span>
               <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
                 {num(player.points)}
@@ -617,7 +617,7 @@ export function PlayerRow({
               </div>
             </div>
 
-            <div className="flex-1 text-left sm:w-[136px] sm:flex-none sm:shrink-0 sm:text-right">
+            <div className="min-w-0 flex-1 text-left sm:w-[136px] sm:flex-none sm:shrink-0 sm:text-right">
               <span className="label text-[0.5rem] sm:hidden">Valor</span>
               <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
                 {money(player.marketValue)}
@@ -756,62 +756,60 @@ export function ClauseBlock({ player, compact = false }: { player: Player; compa
 
   return (
     <div
-      className={`${compact ? "w-[104px] lg:w-[132px]" : "w-[112px] sm:w-[152px]"} shrink-0 rounded-xl border px-2 py-1.5 shadow-sm sm:px-2.5 sm:py-2 ${
+      // El verde ya dice que está abierta: no hace falta repetirlo con una
+      // etiqueta que además roba el ancho que necesitan las cifras.
+      className={`${compact ? "w-[92px] lg:w-[132px]" : "w-[104px] sm:w-[152px]"} shrink-0 overflow-hidden rounded-xl border px-2 py-1.5 shadow-sm sm:px-2.5 sm:py-2 ${
         open
           ? "border-up bg-up/15"
           : urgent
             ? "border-down/60 bg-down/10"
             : "border-line bg-panel-2/60"
       }`}
+      title={open ? "Cláusula abierta: cualquiera puede pagarla" : undefined}
     >
-      <div className="flex items-baseline justify-between">
-        <span className={`label text-[0.55rem] leading-none ${open ? "text-up" : ""}`}>
-          Cláusula
-        </span>
-        {open && (
-          <span className="label bg-up rounded-full px-1.5 py-[2px] text-[0.5rem] leading-none text-white">
-            Abierta
-          </span>
-        )}
-      </div>
+      <span className={`label text-[0.55rem] leading-none ${open ? "text-up" : ""}`}>
+        Cláusula
+      </span>
 
       <div
-        className={`tnum mt-1.5 text-[1.05rem] leading-none font-semibold sm:text-[1.25rem] ${
+        className={`tnum mt-1.5 text-[0.95rem] leading-none font-semibold sm:text-[1.25rem] ${
           open ? "text-up" : urgent ? "text-down" : "text-ink"
         }`}
       >
         {money(player.buyoutClause)}
       </div>
 
-      {/* Lo que cuesta por encima de su valor: el sobreprecio real de robarlo. */}
+      {/* Lo que cuesta por encima de su valor: el sobreprecio real de robarlo.
+          Sin `nowrap`: en el móvil parte en dos líneas antes que salirse. */}
       <div
-        className="tnum text-warn mt-1.5 text-[0.72rem] leading-none font-semibold whitespace-nowrap sm:text-[0.85rem]"
+        className="tnum text-warn mt-1.5 text-[0.7rem] leading-tight font-semibold sm:text-[0.85rem]"
         title="Diferencia entre la cláusula y el valor actual del jugador"
       >
         {signed(player.buyoutClause - player.marketValue)}
-        <span className="text-faint ml-1 text-[0.62rem] font-normal">s/ valor</span>
+        <span className="text-faint ml-1 text-[0.6rem] font-normal">s/ valor</span>
       </div>
 
-      <div className="mt-1.5">
-        {unlockAt && !open ? (
-          <Countdown until={unlockAt} />
-        ) : (
-          // En el móvil la etiqueta verde "Abierta" ya lo dice todo.
-          <span className="tnum text-up hidden text-[0.7rem] font-semibold sm:inline">
-            cualquiera puede pagarla
-          </span>
-        )}
-      </div>
+      {open && (
+        // En el móvil no cabe y tampoco hace falta: el verde ya lo dice.
+        <div className="text-up mt-1.5 hidden text-[0.7rem] leading-tight font-semibold sm:block">
+          cualquiera puede pagarla
+        </div>
+      )}
 
       {unlockAt && !open && (
-        <div
-          className={`tnum mt-1 text-[0.62rem] leading-tight whitespace-nowrap ${
-            urgent ? "text-down" : "text-muted"
-          }`}
-          title="Momento exacto en que se desbloquea la cláusula"
-        >
-          libre {dateTime(unlockAt)}
-        </div>
+        <>
+          <div className="mt-1.5">
+            <Countdown until={unlockAt} />
+          </div>
+          <div
+            className={`tnum mt-1 text-[0.6rem] leading-tight ${
+              urgent ? "text-down" : "text-muted"
+            }`}
+            title="Momento exacto en que se desbloquea la cláusula"
+          >
+            libre {dateTime(unlockAt)}
+          </div>
+        </>
       )}
     </div>
   );
