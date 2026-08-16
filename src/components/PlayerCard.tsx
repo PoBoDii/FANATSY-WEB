@@ -83,6 +83,21 @@ export type CardData = {
     bids: number;
     myBid: number | null;
   } | null;
+
+  /**
+   * Si es una operación de fichajes: el puesto que ocupa en la lista, la nota
+   * sobre diez y la frase que la resume. La nota sustituye a los puntos en la
+   * esquina, porque aquí es el dato que decide.
+   */
+  deal?: {
+    rank: number;
+    /** De 0 a 10, con un decimal. */
+    score: number;
+    /** Lo que se gana o el porqué, en una línea. */
+    headline: string;
+    /** Cuándo se abre la cláusula, si no lo está. */
+    opensIn: string | null;
+  } | null;
 };
 
 /** Aplana lo que hace falta para la tarjeta y descarta el resto. */
@@ -90,7 +105,12 @@ export function toCard(
   player: Player,
   odds: FfPlayer | null,
   fixtures: Fixture[] | null,
-  extra?: { owner?: CardData["owner"]; note?: string | null; market?: CardData["market"] },
+  extra?: {
+    owner?: CardData["owner"];
+    note?: string | null;
+    market?: CardData["market"];
+    deal?: CardData["deal"];
+  },
 ): CardData {
   const unlockAt = player.buyoutUnlockAt ?? null;
   const clause = player.buyoutClause ?? 0;
@@ -133,6 +153,7 @@ export function toCard(
     owner: extra?.owner ?? null,
     note: extra?.note ?? null,
     market: extra?.market ?? null,
+    deal: extra?.deal ?? null,
   };
 }
 
@@ -164,6 +185,16 @@ export function PlayerCard({
       {/* Foto a sangre: sin marco, recortada al alto entero de la tarjeta */}
       <div className="bg-panel-2 relative w-[76px] shrink-0 overflow-hidden sm:w-[88px]">
         <PlayerPhoto src={card.photo} name={card.name} size={96} className="h-full w-full" />
+        {card.deal && (
+          <span
+            className={`tnum absolute top-1 left-1 rounded-md px-1.5 py-[1px] text-[0.62rem] font-bold ${
+              card.deal.rank <= 3 ? "bg-acid text-white" : "bg-black/60 text-white/85"
+            }`}
+            title={`Puesto ${card.deal.rank} de la lista`}
+          >
+            {card.deal.rank}
+          </span>
+        )}
         {card.badge && (
           <span className="absolute bottom-1 left-1 rounded-md bg-black/55 p-[3px] backdrop-blur-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -190,12 +221,32 @@ export function PlayerCard({
           </div>
 
           <div className="shrink-0 text-right leading-none">
-            <span className="tnum text-[1.35rem] font-semibold sm:text-[1.65rem]">
-              {num(card.points)}
-            </span>
-            <span className="text-faint mt-[3px] block text-[0.6rem] sm:text-[0.68rem]">
-              {num(card.average, 1)} media
-            </span>
+            {card.deal ? (
+              <>
+                <span
+                  className={`tnum text-[1.45rem] font-semibold sm:text-[1.7rem] ${
+                    card.deal.score >= 7
+                      ? "text-up"
+                      : card.deal.score >= 5
+                        ? "text-ink"
+                        : "text-faint"
+                  }`}
+                  title="Nota de la operación, de 0 a 10"
+                >
+                  {card.deal.score.toFixed(1)}
+                </span>
+                <span className="text-faint mt-[3px] block text-[0.6rem]">nota</span>
+              </>
+            ) : (
+              <>
+                <span className="tnum text-[1.35rem] font-semibold sm:text-[1.65rem]">
+                  {num(card.points)}
+                </span>
+                <span className="text-faint mt-[3px] block text-[0.6rem] sm:text-[0.68rem]">
+                  {num(card.average, 1)} media
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -350,6 +401,15 @@ export function PlayerCard({
             </div>
           )}
         </div>
+
+        {card.deal && (
+          <p className="flex flex-wrap items-center gap-x-2 text-[0.68rem] leading-tight">
+            <span className="text-muted">{card.deal.headline}</span>
+            {card.deal.opensIn && (
+              <span className="text-warn font-semibold">se abre {card.deal.opensIn}</span>
+            )}
+          </p>
+        )}
 
         {card.note && (
           <p className="text-faint truncate text-[0.68rem] leading-tight">{card.note}</p>

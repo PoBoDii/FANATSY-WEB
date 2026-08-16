@@ -44,10 +44,14 @@ export default async function MercadoPage({
   searchParams: Promise<{ orden?: string; dir?: string }>;
 }) {
   const { orden, dir: rawDir } = await searchParams;
-  const column = SORTS.find((c) => c.key === orden);
-  const sort: Sort = column?.key ?? "posicion";
-  const dir: "asc" | "desc" =
-    rawDir === "asc" || rawDir === "desc" ? rawDir : (column?.natural ?? "desc");
+  /**
+   * El sentido por defecto es el natural **del criterio que va a mandar**, no
+   * el de la URL. Sin `orden` el criterio cae en "posición" pero el sentido
+   * caía en "desc", y la lista salía de delanteros a porteros.
+   */
+  const sort: Sort = SORTS.find((c) => c.key === orden)?.key ?? "posicion";
+  const natural = SORTS.find((c) => c.key === sort)!.natural;
+  const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : natural;
 
   const session = await getSession();
   if (!session.active)
@@ -98,11 +102,14 @@ export default async function MercadoPage({
   const compare = (a: MarketItem, b: MarketItem) => {
     switch (sort) {
       case "posicion":
-        // Al revés que el resto: la lista se invierte después, así que se
-        // define de atrás hacia adelante para que "asc" salga PT→DL.
+        /**
+         * Portero, defensa, centro y delantera, como se lee una alineación.
+         * Va definido al revés porque la lista se invierte después cuando el
+         * sentido es "asc", que es el natural de este criterio.
+         */
         return (
           POSITION_RANK[b.player.position] - POSITION_RANK[a.player.position] ||
-          a.price - b.price
+          b.price - a.price
         );
       case "nombre":
         return b.player.name.localeCompare(a.player.name, "es");

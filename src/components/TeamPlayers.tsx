@@ -353,7 +353,7 @@ function Row({
                   open ? "text-up" : "text-down"
                 }`}
               >
-                🔒 {money(player.buyoutClause)}
+                {money(player.buyoutClause)}
               </span>
               {player.buyoutUnlockAt && !open && <Countdown until={player.buyoutUnlockAt} />}
             </>

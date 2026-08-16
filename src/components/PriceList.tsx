@@ -383,7 +383,7 @@ function PriceRow({
                   entry.buyoutUnlockAt ? "text-down" : "text-up"
                 }`}
               >
-                🔒 {money(entry.buyoutClause)}
+                {money(entry.buyoutClause)}
               </span>
               {entry.buyoutUnlockAt && <Countdown until={entry.buyoutUnlockAt} />}
             </>

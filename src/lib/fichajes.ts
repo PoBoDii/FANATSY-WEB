@@ -249,12 +249,84 @@ export function shieldCost(extraClause: number): number {
 /* ------------------------------------------------------------ clausulazos */
 
 /**
+ * Todas las notas salen de la misma pregunta: **¿va a jugar?**
+ *
+ * Es el filtro que manda en las tres listas, porque un jugador que no sale no
+ * sube de valor ni puntúa, y entonces da igual lo barata que tenga la cláusula.
+ * Por eso la probabilidad no entra como un sumando más sino como un
+ * multiplicador: un 0% deja la nota casi a cero por bueno que sea todo lo
+ * demás, y por debajo del 50% la recorta a menos de la mitad.
+ */
+function playFactor(c: Omit<Candidate, "score" | "reasons">): number {
+  const p = c.odds?.probability;
+
+  if (c.player.status === "injured" || c.player.status === "suspended") return 0.12;
+  // Sin dato no es lo mismo que un cero: se penaliza, pero sin hundirlo.
+  if (p == null) return 0.55;
+  if (p === 0) return 0.05;
+
+  const plays = p / 100;
+  if (plays < 0.5) return 0.2 + plays * 0.5;
+
+  // De 50 a 100 va de 0,55 a 1, con la curva cargada hacia arriba: entre un
+  // 90% y un 70% hay más distancia real de la que sugieren los números.
+  return 0.55 + 0.45 * Math.pow((plays - 0.5) / 0.5, 0.85);
+}
+
+/**
+ * Lo que viene haciendo últimamente.
+ *
+ * La API no publica los puntos jornada a jornada en el listado de plantillas
+ * —eso sólo viene en la ficha de cada jugador—, así que lo más cercano que hay
+ * de toda la liga a la vez es su media. Con la temporada empezada es una buena
+ * señal de forma; en las primeras jornadas se apoya en lo del año pasado.
+ */
+function formOf(c: Omit<Candidate, "score" | "reasons">): number {
+  const average =
+    c.player.averagePoints > 0 ? c.player.averagePoints : (c.player.lastSeasonPoints ?? 0) / 38;
+  return clamp(average / 7);
+}
+
+/** Dificultad media de los tres próximos partidos de liga, de 0 a 1. */
+function calendarOf(c: Omit<Candidate, "score" | "reasons">): number {
+  const next = (c.fixtures ?? []).filter((f) => /liga/i.test(f.competition)).slice(0, 3);
+  const levels = next
+    .map((f) => f.difficulty)
+    .filter((d): d is NonNullable<Fixture["difficulty"]> => d !== null)
+    .map((d) => DIFFICULTY_LEVEL[d]);
+  if (levels.length === 0) return 0.5;
+  return clamp((5 - levels.reduce((a, b) => a + b, 0) / levels.length) / 4);
+}
+
+/**
+ * Lo cara que es la cláusula **en proporción a lo que vale el jugador**.
+ *
+ * Pagar 4 M€ por uno de 2 M€ es normal; pagar 40 M€ por uno de 20 M€ es lo
+ * mismo en proporción, pero deja el saldo temblando. De ahí que se mida el
+ * múltiplo y no la cifra: 1,0 es la cláusula clavada en su valor y a partir de
+ * ×2,5 ya da igual, es cara.
+ */
+function priceFactor(c: Omit<Candidate, "score" | "reasons">): number {
+  return clamp(1 - (c.ratio - 1) / 1.5);
+}
+
+/** Lo que queda para que se abra: 1 si ya está abierta, 0 si faltan cinco días. */
+function urgencyOf(c: Omit<Candidate, "score" | "reasons">): number {
+  if (c.isOpen) return 1;
+  return clamp(1 - c.opensInHours / (5 * 24));
+}
+
+/** La nota tal como se enseña: de 0 a 10 con un decimal. */
+export function outOfTen(score: number): number {
+  return Math.round(clamp(score / 100) * 100) / 10;
+}
+
+/**
  * Puntúa la operación por el dinero que deja.
  *
  * Todo se mide contra la venta al final del blindaje: pagas la cláusula, el
- * jugador sube mientras nadie puede tocarlo y lo colocas. Importa cuánto
- * queda, cuánto rinde lo invertido y qué probabilidad hay de que la subida
- * aguante.
+ * jugador sube mientras nadie puede tocarlo y lo colocas. Lo que decide es el
+ * ritmo al que sube y lo poco que pagas de más; el resto acompaña.
  */
 export function scoreClause(c: Omit<Candidate, "score" | "reasons">): {
   score: number;
@@ -262,60 +334,48 @@ export function scoreClause(c: Omit<Candidate, "score" | "reasons">): {
 } {
   const reasons: string[] = [];
 
-  // Rentabilidad de lo invertido: es lo que permite comparar a uno de 2 M€ con
-  // otro de 60 M€ sin que gane siempre el caro por ser caro.
-  const roiScore = clamp(c.roi / GREAT_ROI);
+  // El ritmo, ya descontado el riesgo de que no continúe: de ahí sale el
+  // beneficio entero de la operación.
+  const rise = clamp(c.adjustedRise / GOOD_RISE);
 
-  /**
-   * Lo barata que es la cláusula respecto a su valor. Es el factor que más
-   * decide si una operación puede salir bien: pagar un 10% por encima se
-   * recupera solo, y pagar el doble no lo arregla ninguna racha.
-   */
-  const cheapClause = clamp(1 - c.premiumPct / CHEAP_PREMIUM);
+  // Lo poco que pagas de más. Un 40% por encima agota la escala.
+  const cheap = clamp(1 - c.premiumPct / CHEAP_PREMIUM);
 
-  // El ritmo por sí mismo, que es la señal que premia el propio juego.
-  const riseScore = clamp(c.dailyRise / (GOOD_RISE * 2));
-
-  // El volumen también cuenta: ganar 6 M€ mueve más que ganar 300 k€.
-  const profitScore = clamp(c.profit / BIG_PROFIT);
+  // Rentabilidad y volumen del beneficio a catorce días.
+  const roi = clamp(c.roi / GREAT_ROI);
+  const profit = clamp(c.profit / BIG_PROFIT);
 
   // Que aguante incluso cobrando la oferta mala de la liga.
   const safety = c.profitSafe > 0 ? 1 : c.floorToday > 0 ? 0.5 : 0;
 
-  let score =
-    100 *
-    (0.3 * roiScore +
-      0.22 * cheapClause +
-      0.2 * riseScore +
-      0.14 * profitScore +
-      0.08 * c.momentum +
-      0.06 * safety);
+  const base = 100 * (0.32 * rise + 0.24 * cheap + 0.2 * roi + 0.14 * profit + 0.1 * safety);
 
-  // Si la operación pierde dinero no hay nota que valga. No desaparece, porque
-  // puede interesar por rendimiento puro, pero se va al fondo.
-  if (c.profit <= 0) score *= 0.3;
+  // Que juegue multiplica: si no sale, ni sube ni se revende.
+  let score = base * playFactor(c);
+
+  if (c.profit <= 0) score *= 0.45;
   if (!c.affordable) score *= 0.6;
-  // Todavía no se puede pagar: cuenta, pero por detrás de lo que ya está.
-  if (c.opensSoon) score *= 0.85;
+  if (c.opensSoon) score *= 0.9;
 
   /* --------------------------------------------------------- explicación */
 
   if (c.premium <= 0) {
-    reasons.push("Su cláusula está en su valor de mercado o por debajo: chollo");
+    reasons.push("Su cláusula está en su valor o por debajo: chollo");
   } else if (c.premiumPct <= CHEAP_PREMIUM) {
-    reasons.push(`Sólo pagas un ${Math.round(c.premiumPct * 100)}% por encima de su valor`);
-  } else if (c.premiumPct >= 1) {
-    reasons.push(`Su cláusula es el doble de su valor o más`);
+    reasons.push(`Sólo pagas un ${Math.round(c.premiumPct * 100)}% de más`);
+  } else if (c.ratio >= 2) {
+    reasons.push(`Cláusula de ×${c.ratio.toFixed(1)} su valor: cara`);
   }
-
-  reasons.push(
-    c.profit > 0
-      ? `Vendiéndolo al acabar el blindaje ganarías ${fmt(c.profit)} (${Math.round(c.roi * 100)}%)`
-      : `Al ritmo de ahora perderías ${fmt(-c.profit)} en ${PROTECTION_DAYS} días`,
-  );
 
   if (c.dailyRise >= GOOD_RISE * 2) reasons.push("Sube más de 1 M€ al día");
   else if (c.dailyRise >= GOOD_RISE) reasons.push(`Sube ${fmt(c.dailyRise)} al día`);
+  else if (c.dailyRise <= 0) reasons.push("No está subiendo");
+
+  reasons.push(
+    c.profit > 0
+      ? `Ganarías ${fmt(c.profit)} en ${PROTECTION_DAYS} días (${Math.round(c.roi * 100)}%)`
+      : `Al ritmo de ahora perderías ${fmt(-c.profit)}`,
+  );
 
   if (c.premium > 0 && c.daysToBreakEven !== null && c.daysToBreakEven <= PROTECTION_DAYS) {
     reasons.push(
@@ -325,9 +385,9 @@ export function scoreClause(c: Omit<Candidate, "score" | "reasons">): {
     );
   }
 
-  if (c.floorToday > 0) reasons.push("Aunque lo revendas hoy a la liga, no pierdes");
-  if (c.momentum >= 0.65) reasons.push("Juega, puntúa y tiene calendario a favor");
-  else if (c.momentum <= 0.35) reasons.push("Poca confianza en que la subida siga");
+  const p = c.odds?.probability;
+  if (p === 0) reasons.push("No va a jugar");
+  else if (p != null && p < 50) reasons.push(`Sólo ${p}% de jugar: la subida no se sostiene`);
   if (!c.affordable) reasons.push("No te llega el saldo");
 
   return { score, reasons };
@@ -338,15 +398,10 @@ export function scoreClause(c: Omit<Candidate, "score" | "reasons">): {
 /**
  * Puntúa la operación por lo que suma al equipo, no por lo que deja de dinero.
  *
- * Aquí el jugador es para quedárselo, así que manda **jugar**: uno que no sale
- * puntúa cero por bueno que sea, y ninguna otra virtud lo compensa. Después
- * viene lo barato que resulta cada punto —un titular fijo de 5 M€ vale más que
- * uno de 40 M€ que rinde igual, porque deja saldo para otros dos— y el
- * calendario, que decide cuánto va a poder lucirse en las próximas jornadas.
- *
- * La prima de la cláusula pesa poco a propósito: si el jugador es un fijo que
- * puntúa, pagar el doble de su valor sigue siendo un buen negocio deportivo.
- * Lo que no se perdona es que no juegue.
+ * Aquí el jugador es para quedárselo, así que manda **jugar**. Después viene la
+ * forma —lo que está puntuando—, lo barato que resulta cada punto y el
+ * calendario que le espera. El precio de la cláusula cuenta poco: si es un fijo
+ * que puntúa, pagar el doble de su valor sigue siendo buen negocio deportivo.
  */
 export function scoreSquad(c: Omit<Candidate, "score" | "reasons">): {
   score: number;
@@ -354,67 +409,45 @@ export function scoreSquad(c: Omit<Candidate, "score" | "reasons">): {
 } {
   const reasons: string[] = [];
 
-  const probability = c.odds?.probability ?? null;
-  const plays = probability != null ? probability / 100 : 0.35;
-
-  /**
-   * La titularidad entra elevada al cuadrado: la diferencia entre un 90% y un
-   * 60% es mucho mayor que la que sugieren los números, porque el que sale
-   * cada semana acumula y el otro depende de que le toque.
-   */
-  const playScore = clamp(plays * plays);
-
-  const average =
-    c.player.averagePoints > 0 ? c.player.averagePoints : (c.player.lastSeasonPoints ?? 0) / 38;
-  const scoring = clamp(average / 6);
+  const form = formOf(c);
+  const calendar = calendarOf(c);
 
   // Puntos por millón: lo que mide si es barato para lo que da.
+  const average =
+    c.player.averagePoints > 0 ? c.player.averagePoints : (c.player.lastSeasonPoints ?? 0) / 38;
   const perMillion = c.value > 0 ? average / (c.value / 1_000_000) : 0;
   const value4money = clamp(perMillion / 0.8);
 
-  const next = (c.fixtures ?? []).filter((f) => /liga/i.test(f.competition)).slice(0, 3);
-  const levels = next
-    .map((f) => f.difficulty)
-    .filter((d): d is NonNullable<Fixture["difficulty"]> => d !== null)
-    .map((d) => DIFFICULTY_LEVEL[d]);
-  const easy = levels.length > 0 ? levels.reduce((a, b) => a + b, 0) / levels.length : 3;
-  const calendar = clamp((5 - easy) / 4);
+  const base = 100 * (0.3 * form + 0.26 * value4money + 0.24 * calendar + 0.2 * priceFactor(c));
 
-  // Lo cara que sale la cláusula sobre su valor. Cuenta, pero poco.
-  const price = clamp(1 - (c.ratio - 1) / 2);
+  // La titularidad, otra vez como multiplicador y no como sumando: aquí es
+  // todavía más determinante que en la reventa.
+  let score = base * playFactor(c);
 
-  let score =
-    100 *
-    (0.42 * playScore +
-      0.18 * scoring +
-      0.16 * value4money +
-      0.14 * calendar +
-      0.1 * price);
-
-  // Sin saldo no hay fichaje, y un lesionado no entra en el once por barato
-  // que salga.
-  if (!c.affordable) score *= 0.5;
-  if (c.player.status === "injured" || c.player.status === "suspended") score *= 0.25;
-  if (c.player.status === "doubtful") score *= 0.75;
-  if (c.opensSoon) score *= 0.9;
+  if (!c.affordable) score *= 0.55;
+  if (c.player.status === "doubtful") score *= 0.8;
+  if (c.opensSoon) score *= 0.92;
 
   /* --------------------------------------------------------- explicación */
 
-  if (probability != null) {
-    if (probability >= 85) reasons.push(`Titular fijo: ${probability}% de jugar`);
-    else if (probability >= 65) reasons.push(`Juega casi siempre: ${probability}%`);
-    else if (probability <= 40) reasons.push(`Sólo ${probability}% de salir de titular`);
+  const p = c.odds?.probability;
+  if (p != null) {
+    if (p >= 85) reasons.push(`Titular fijo: ${p}% de jugar`);
+    else if (p >= 65) reasons.push(`Juega casi siempre: ${p}%`);
+    else if (p > 0) reasons.push(`Sólo ${p}% de salir de titular`);
+    else reasons.push("No va a jugar");
   } else {
     reasons.push("Sin dato de alineación");
   }
 
-  if (c.value <= 8_000_000 && plays >= 0.7) {
-    reasons.push("Barato y titular: justo lo que deja hueco en el presupuesto");
+  if (average >= 6) reasons.push(`Viene puntuando ${average.toFixed(1)} de media`);
+  if (c.value <= 8_000_000 && (p ?? 0) >= 70) {
+    reasons.push("Barato y titular: deja hueco en el presupuesto");
   }
   if (perMillion >= 0.8) reasons.push(`Da ${perMillion.toFixed(1)} pts por millón`);
-  if (calendar >= 0.6) reasons.push("Calendario cómodo en las próximas tres jornadas");
+  if (calendar >= 0.6) reasons.push("Calendario cómodo las próximas tres jornadas");
   else if (calendar <= 0.3) reasons.push("Calendario duro por delante");
-  if (c.ratio > 2) reasons.push(`Su cláusula es ×${c.ratio.toFixed(1)} su valor: caro de robar`);
+  if (c.ratio > 2) reasons.push(`Su cláusula es ×${c.ratio.toFixed(1)} su valor`);
   if (c.player.status === "injured") reasons.push("Lesionado");
   if (c.player.status === "suspended") reasons.push("Sancionado");
   if (!c.affordable) reasons.push("No te llega el saldo");
@@ -438,9 +471,9 @@ export function needsDeal(c: Omit<Candidate, "score" | "reasons">): boolean {
 /**
  * Puntúa a quién conviene pedirle a su dueño.
  *
- * Aquí no se paga cláusula, así que cuenta quién estaría dispuesto a escuchar
- * y quién merece el esfuerzo: uno que sube fuerte y rinde vale la llamada
- * aunque su cláusula sea intocable.
+ * Aquí no se paga cláusula, así que cuenta a quién merece la pena llamar: uno
+ * que juega, que rinde y cuya cláusula está a punto de abrirse —porque su dueño
+ * tiene que decidir o exponerlo— vale la conversación.
  */
 export function scoreTarget(c: Omit<Candidate, "score" | "reasons">): {
   score: number;
@@ -449,33 +482,40 @@ export function scoreTarget(c: Omit<Candidate, "score" | "reasons">): {
   const reasons: string[] = [];
   const days = c.opensInHours / 24;
 
-  const urgency = c.isOpen ? 0 : clamp(1 - days / 5);
-  const cheapClause = clamp(1 - (c.ratio - 1) / 1.2);
-  const riseScore = clamp(c.dailyRise / (GOOD_RISE * 2));
+  const form = formOf(c);
+  const calendar = calendarOf(c);
+  const rise = clamp(c.adjustedRise / GOOD_RISE);
+  const urgency = urgencyOf(c);
 
   const average =
     c.player.averagePoints > 0 ? c.player.averagePoints : (c.player.lastSeasonPoints ?? 0) / 38;
   const perMillion = c.value > 0 ? average / (c.value / 1_000_000) : 0;
-  const bargain = clamp(perMillion / 0.6);
+  const bargain = clamp(perMillion / 0.8);
 
-  const score =
-    100 *
-    (0.26 * urgency +
-      0.22 * cheapClause +
-      0.24 * riseScore +
-      0.16 * c.momentum +
-      0.12 * bargain);
+  const base =
+    100 * (0.26 * form + 0.22 * urgency + 0.2 * priceFactor(c) + 0.18 * rise + 0.14 * bargain);
+
+  let score = base * playFactor(c);
+  if (calendar <= 0.3) score *= 0.92;
+
+  /* --------------------------------------------------------- explicación */
 
   if (c.isOpen) {
-    reasons.push(`Su cláusula está abierta pero cuesta ×${c.ratio.toFixed(2)}: sale mejor negociar`);
+    reasons.push(`Abierta pero a ×${c.ratio.toFixed(1)} su valor: sale mejor negociar`);
   } else if (days <= 2) {
-    reasons.push(days <= 1 ? "Se libera en menos de un día" : `Se libera en ${Math.ceil(days)} días`);
+    reasons.push(
+      days <= 1 ? "Se libera en menos de un día" : `Se libera en ${Math.ceil(days)} días`,
+    );
   }
+
+  const p = c.odds?.probability;
+  if (p != null && p >= 80) reasons.push(`Titular fijo: ${p}%`);
+  else if (p != null && p < 50) reasons.push(`Sólo ${p}% de jugar`);
 
   if (c.dailyRise >= GOOD_RISE) reasons.push(`Sube ${fmt(c.dailyRise)} al día`);
   if (c.ratio <= 1.4) reasons.push("Cláusula baja: a su dueño le renta venderlo");
   if (bargain > 0.6 && c.value < 15_000_000) reasons.push("Barato para lo que puntúa");
-  if (c.momentum >= 0.65) reasons.push("Juega, puntúa y tiene calendario a favor");
+  if (calendar >= 0.6) reasons.push("Calendario cómodo por delante");
 
   return { score, reasons };
 }

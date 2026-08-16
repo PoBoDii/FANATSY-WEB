@@ -113,7 +113,7 @@ export function Pitch({
           <rect x="38" y="129" width="24" height="8" />
         </svg>
 
-        <div className="relative px-1.5 py-4 sm:px-3 sm:py-6 lg:px-6">
+        <div className="relative px-1.5 py-4 sm:px-3 sm:py-7 lg:px-6 lg:py-9">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1.5 sm:mb-4 sm:gap-3">
             <span className="rounded-full bg-black/25 px-2.5 py-1 text-[0.62rem] font-semibold tracking-wide text-white/90 uppercase sm:px-3 sm:text-[0.7rem]">
               {title ?? "Once titular"} · {derived}
@@ -121,7 +121,7 @@ export function Pitch({
             {selector}
           </div>
 
-          <div className="flex flex-col gap-3.5 sm:gap-5 lg:gap-8">
+          <div className="flex flex-col gap-5 sm:gap-8 lg:gap-11">
             {lines.map((line, i) => (
               <div key={i} className="flex justify-center gap-0.5 sm:gap-2 lg:gap-5">
                 {line.map((player, j) => (
@@ -284,7 +284,7 @@ function PitchToken({
         <PlayerAvatar
           player={player}
           size={80}
-          className={`h-[46px] w-[46px] sm:h-[76px] sm:w-[76px] lg:h-[88px] lg:w-[88px] ${
+          className={`h-[54px] w-[54px] sm:h-[86px] sm:w-[86px] lg:h-[102px] lg:w-[102px] ${
             out ? "ring-down ring-2" : ""
           }`}
         />
@@ -370,7 +370,7 @@ function PitchToken({
    */
   return (
     <div
-      className="rise relative flex max-w-[64px] min-w-0 flex-1 basis-0 flex-col items-center transition-transform hover:-translate-y-1 sm:max-w-[92px] lg:max-w-[112px]"
+      className="rise relative flex max-w-[68px] min-w-0 flex-1 basis-0 flex-col items-center transition-transform hover:-translate-y-1 sm:max-w-[104px] lg:max-w-[126px]"
       style={{ animationDelay: `${delay}ms` }}
     >
       {leagueId && (
