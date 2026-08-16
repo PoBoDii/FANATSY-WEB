@@ -17,7 +17,8 @@ const LINKS = [
   { href: "/alineaciones", label: "Alineaciones", num: "06" },
   { href: "/equipos", label: "Equipos", num: "07" },
   { href: "/actividad", label: "Actividad", num: "08" },
-  { href: "/debug", label: "Diagnóstico", num: "09" },
+  { href: "/informe", label: "Informe de hoy", num: "09" },
+  { href: "/debug", label: "Diagnóstico", num: "10" },
 ];
 
 /**

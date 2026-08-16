@@ -1,0 +1,50 @@
+# Informe diario a Telegram.
+#
+# GitHub Actions es gratis para repositorios públicos y da 2.000 minutos al mes
+# en los privados; esto consume unos segundos al día, así que no cuesta nada.
+#
+# Lo único que hace es llamar a la web, que es quien construye el informe y lo
+# manda: aquí no hay credenciales de LaLiga ni de futbolfantasy, sólo la llave
+# de la ruta.
+#
+# ── Qué hay que configurar antes ─────────────────────────────────────────────
+#
+# En el repositorio → Settings → Secrets and variables → Actions:
+#   SITE_URL        la dirección de la web (https://pobofantasy.netlify.app)
+#   INFORME_TOKEN   una contraseña larga que inventes
+#
+# Y en Netlify → Site settings → Environment variables, las mismas más las del
+# bot:
+#   INFORME_TOKEN         el mismo valor que arriba
+#   TELEGRAM_BOT_TOKEN    el que da @BotFather
+#   TELEGRAM_CHAT_ID      tu id de chat
+
+name: Informe diario
+
+on:
+  schedule:
+    # 08:15 en España (07:15 UTC en invierno, 06:15 en verano). GitHub usa UTC
+    # siempre, así que se programan las dos y la web ignora la repetida.
+    - cron: "15 6 * * *"
+  # Y un botón para lanzarlo a mano desde la pestaña Actions.
+  workflow_dispatch:
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir el informe y mandarlo a Telegram
+        run: |
+          respuesta=$(curl --silent --show-error --max-time 120 \
+            --write-out "\n%{http_code}" \
+            "${{ secrets.SITE_URL }}/api/informe?token=${{ secrets.INFORME_TOKEN }}&enviar=1")
+
+          codigo=$(echo "$respuesta" | tail -n1)
+          cuerpo=$(echo "$respuesta" | sed '$d')
+
+          echo "$cuerpo"
+
+          if [ "$codigo" != "200" ]; then
+            echo "::error::La web respondió $codigo"
+            exit 1
+          fi

@@ -434,8 +434,11 @@ export function bestEleven(squad: Rated[], want?: string | null): IdealXI | null
         position: pos,
         kind: "flojo",
         count: flojos,
-        title: `Te vendría bien ${count(pos, flojos)}`,
-        detail: `${flojos === 1 ? "Uno de los que entra" : `${flojos} de los que entran`} tiene menos de un 50% de salir de titular: el once sale adelante, pero a medias.`,
+        title: `Te ${flojos === 1 ? "vendría" : "vendrían"} bien ${count(pos, flojos)}`,
+        detail:
+          flojos === 1
+            ? "Uno de los que entra tiene menos de un 50% de salir de titular: el once sale adelante, pero a medias."
+            : `${flojos} de los que entran tienen menos de un 50% de salir de titular: el once sale adelante, pero a medias.`,
       });
     }
   }

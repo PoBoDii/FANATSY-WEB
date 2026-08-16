@@ -14,6 +14,7 @@ import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 type Sort =
+  | "nota"
   | "posicion"
   | "nombre"
   | "precio"
@@ -30,6 +31,7 @@ const POSITION_RANK: Record<string, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 
 /** Criterios de orden. Sin elegir nada manda el puesto, como en el juego. */
 const SORTS: { key: Sort; label: string; natural: "asc" | "desc" }[] = [
   { key: "posicion", label: "Posición", natural: "asc" },
+  { key: "nota", label: "Nota", natural: "desc" },
   { key: "precio", label: "Precio", natural: "desc" },
   { key: "prob", label: "Juega", natural: "desc" },
   { key: "dif", label: "Cambio de valor", natural: "desc" },
@@ -93,6 +95,27 @@ export default async function MercadoPage({
   );
   const oddsOf = (item: MarketItem): FfPlayer | null => lookup(item.player);
 
+  /**
+   * Nota del jugador, de 0 a 10.
+   *
+   * La probabilidad de jugar multiplica en vez de sumar, igual que en fichajes:
+   * quien no sale no puntúa, y ninguna otra virtud lo compensa.
+   */
+  const marketScore = (item: MarketItem): number => {
+    const player = item.player;
+    const p = oddsOf(item)?.probability;
+    if (player.status === "injured" || player.status === "suspended" || p === 0) return 0;
+
+    const plays = p == null ? 0.5 : p / 100;
+    const average =
+      player.averagePoints > 0 ? player.averagePoints : (player.lastSeasonPoints ?? 0) / 38;
+    const form = Math.min(1, average / 7);
+    const perMillion = item.price > 0 ? average / (item.price / 1_000_000) : 0;
+    const cheap = Math.min(1, perMillion / 0.8);
+
+    return Math.round(plays * (0.5 + 0.3 * form + 0.2 * cheap) * 100) / 10;
+  };
+
   // A igualdad de criterio manda quien más sube: es el desempate útil.
   const byDiff = (a: MarketItem, b: MarketItem) =>
     (oddsOf(b)?.diff ?? -Infinity) - (oddsOf(a)?.diff ?? -Infinity);
@@ -119,6 +142,8 @@ export default async function MercadoPage({
         return b.player.averagePoints - a.player.averagePoints || byDiff(a, b);
       case "prob":
         return (oddsOf(b)?.probability ?? -1) - (oddsOf(a)?.probability ?? -1) || byDiff(a, b);
+      case "nota":
+        return marketScore(b) - marketScore(a) || b.price - a.price;
       case "pujas":
         return b.bids - a.bids || b.price - a.price;
       case "dif":
@@ -128,9 +153,16 @@ export default async function MercadoPage({
     }
   };
 
-  /** Cada jugador del mercado, ya aplanado a lo que pinta la tarjeta. */
+  /**
+   * Cada jugador del mercado, ya aplanado a lo que pinta la tarjeta.
+   *
+   * La nota es la misma idea que en fichajes: lo primero es que juegue, y
+   * después lo que rinde por lo que cuesta. Aquí no hay cláusula que valorar,
+   * así que se puntúa al jugador, no la operación.
+   */
   const cardOf = (item: MarketItem) =>
     toCard(item.player, oddsOf(item), fixturesOf(item.player), {
+      deal: { rank: 0, score: marketScore(item), headline: "", opensIn: null },
       market: {
         price: item.price,
         overValue: item.price - item.player.marketValue,

@@ -90,6 +90,7 @@ export type CardData = {
    * esquina, porque aquí es el dato que decide.
    */
   deal?: {
+    /** 0 = sin puesto en ninguna lista, sólo la nota. */
     rank: number;
     /** De 0 a 10, con un decimal. */
     score: number;
@@ -185,7 +186,7 @@ export function PlayerCard({
       {/* Foto a sangre: sin marco, recortada al alto entero de la tarjeta */}
       <div className="bg-panel-2 relative w-[76px] shrink-0 overflow-hidden sm:w-[88px]">
         <PlayerPhoto src={card.photo} name={card.name} size={96} className="h-full w-full" />
-        {card.deal && (
+        {card.deal && card.deal.rank > 0 && (
           <span
             className={`tnum absolute top-1 left-1 rounded-md px-1.5 py-[1px] text-[0.62rem] font-bold ${
               card.deal.rank <= 3 ? "bg-acid text-white" : "bg-black/60 text-white/85"

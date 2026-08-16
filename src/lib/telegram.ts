@@ -1,0 +1,136 @@
+import type { Report, ReportPlayer } from "./informe";
+import { money } from "./format";
+
+/**
+ * Envío a Telegram.
+ *
+ * ── Por qué Telegram y no correo ──────────────────────────────────────────
+ *
+ * Porque es gratis, sin cuotas ni límites que valgan para esto, y sobre todo
+ * porque no hace falta ningún servicio intermedio: un bot es una URL a la que
+ * se le hace POST. El correo exigiría contratar un proveedor de envío, y
+ * WhatsApp e Instagram piden cuenta de empresa y aprobación previa.
+ *
+ * ── Qué hace falta configurar ─────────────────────────────────────────────
+ *
+ *  1. Hablar con @BotFather en Telegram y crear un bot → da el `BOT_TOKEN`.
+ *  2. Escribirle algo al bot desde tu cuenta, y abrir
+ *     `https://api.telegram.org/bot<TOKEN>/getUpdates` para leer tu `chat.id`.
+ *  3. Guardar los dos valores como variables de entorno en Netlify:
+ *     `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
+ */
+
+const API = "https://api.telegram.org";
+
+export type TelegramResult = { ok: boolean; error: string | null };
+
+/**
+ * Manda un mensaje. Nunca lanza: si Telegram falla, el informe de la web tiene
+ * que seguir viéndose igual.
+ */
+export async function sendTelegram(text: string): Promise<TelegramResult> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chat = process.env.TELEGRAM_CHAT_ID;
+
+  if (!token || !chat) {
+    return { ok: false, error: "Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID" };
+  }
+
+  try {
+    const res = await fetch(`${API}/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chat,
+        text,
+        parse_mode: "HTML",
+        // Sin vista previa: los enlaces a la web meterían una tarjeta enorme.
+        link_preview_options: { is_disabled: true },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) {
+      return { ok: false, error: `Telegram respondió ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    }
+    return { ok: true, error: null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/* ------------------------------------------------------------- formato */
+
+/** Telegram interpreta HTML: hay que escapar lo que venga de los datos. */
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Un emoji por tipo de aviso: es lo que hace escaneable el mensaje. */
+const MARK = {
+  urgente: "🔴",
+  aviso: "🟠",
+  oportunidad: "🟢",
+  neutral: "⚪️",
+} as const;
+
+function line(player: ReportPlayer): string {
+  const bits = [`<b>${esc(player.name)}</b>`];
+  if (player.probability !== null) bits.push(`${player.probability}%`);
+  bits.push(money(player.value));
+  if (player.diff) bits.push(`${player.diff > 0 ? "▲" : "▼"}${money(Math.abs(player.diff))}`);
+  if (player.score !== null) bits.push(`nota ${player.score.toFixed(1)}`);
+
+  return `• ${bits.join(" · ")}\n   <i>${esc(player.why)}</i>`;
+}
+
+/**
+ * El informe como mensaje.
+ *
+ * Se recorta a lo que cabe leer en el móvil sin desplazarse tres pantallas:
+ * los titulares, y de cada bloque los cuatro primeros. Para el detalle está la
+ * web, cuyo enlace va al final.
+ */
+export function reportToText(report: Report, webUrl?: string): string {
+  const day = new Date(report.builtAt).toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  const out: string[] = [`<b>⚽ Informe del ${day}</b>`];
+
+  // El aviso del día va antes que nada y en mayúsculas: es lo que se pierde si
+  // se lee el mensaje tarde.
+  if (report.alert) {
+    out.push("", `<b>${report.alert.kind === "cierre" ? "⏰" : "🏁"} ${esc(report.alert.text.toUpperCase())}</b>`);
+  }
+
+  out.push("");
+  for (const headline of report.headlines) out.push(`▸ ${esc(headline)}`);
+
+  if (report.today.length > 0) {
+    out.push("", "<b>Hoy se juega</b>");
+    for (const match of report.today) {
+      // Los partidos con jugadores míos van marcados: son los que decido.
+      const mark = match.mine > 0 ? ` ⭐️${match.mine}` : "";
+      out.push(
+        `• ${esc(match.home.name)} — ${esc(match.away.name)} · ${esc(match.time)}${mark}`,
+      );
+    }
+  }
+
+  for (const section of report.sections) {
+    out.push("", `${MARK[section.tone]} <b>${esc(section.title)}</b>`);
+
+    for (const note of section.notes ?? []) out.push(`• ${esc(note)}`);
+    for (const player of section.players.slice(0, 4)) out.push(line(player));
+
+    const rest = section.players.length - 4;
+    if (rest > 0) out.push(`   <i>y ${rest} más</i>`);
+  }
+
+  out.push("", `<i>Saldo: ${money(report.money)}</i>`);
+  if (webUrl) out.push(`<a href="${webUrl}/informe">Ver el informe completo</a>`);
+
+  return out.join("\n");
+}

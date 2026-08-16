@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { clubHref, difficultyTone, type Fixture } from "@/lib/equipos";
+import { clubHref, difficultyTone, isLeagueFixture, type Fixture } from "@/lib/equipos";
 import { ffFixtureUrl } from "@/lib/odds";
 import { FfLink } from "./FfLink";
 
@@ -40,9 +40,7 @@ function FixtureLink({
 }
 
 /** ¿Es partido de liga? Los amistosos importan mucho menos. */
-export function isLeague(fixture: Fixture): boolean {
-  return /liga/i.test(fixture.competition);
-}
+export const isLeague = isLeagueFixture;
 
 /** Distintivo de dificultad. Con la palabra entera: "MD" no lo entiende nadie. */
 export function DifficultyBadge({

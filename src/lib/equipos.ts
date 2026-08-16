@@ -151,6 +151,14 @@ function parseSection(html: string, teamName: string): Fixture[] {
 
 const text = (raw?: string) => (raw ? raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "");
 
+/**
+ * ¿Es partido de liga? Los amistosos de pretemporada no puntúan, y en agosto
+ * son la mitad del calendario.
+ */
+export function isLeagueFixture(fixture: Fixture): boolean {
+  return /liga/i.test(fixture.competition);
+}
+
 export type Fixtures = { last: Fixture[]; next: Fixture[] };
 
 const cache = new Map<string, { at: number; fixtures: Fixtures }>();

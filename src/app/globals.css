@@ -199,3 +199,50 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ------------------------------------------------------------- impresión
+   El informe del día se imprime a PDF con Ctrl+P. Generar el PDF en el
+   servidor exigiría un navegador headless —pesado y de pago en Netlify—, y
+   para una hoja diaria el "imprimir a PDF" del propio navegador hace lo mismo
+   gratis. Sólo hay que quitar de en medio lo que no es el informe.
+   ------------------------------------------------------------------------ */
+
+@media print {
+  /* Fuera el menú, los botones y todo lo que no se lee en papel. */
+  nav,
+  header[data-nav],
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body,
+  main {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Papel: fondo blanco y tinta negra, que en oscuro sale un borrón. */
+  :root {
+    --void: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #f2f4f7;
+    --line: #d5dae1;
+    --ink: #0a0a0a;
+    --muted: #3a4048;
+    --faint: #5c636c;
+  }
+
+  /* Ni animaciones ni sombras: en papel no significan nada. */
+  * {
+    animation: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Que ningún bloque se parta entre dos páginas. */
+  section,
+  article,
+  li {
+    break-inside: avoid;
+  }
+}
