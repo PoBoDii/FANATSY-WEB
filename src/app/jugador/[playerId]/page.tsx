@@ -108,7 +108,7 @@ export default async function JugadorPage({
           {/* Filas y no tarjetas: en el móvil una tarjeta por línea obligaba a
               recorrer media pantalla por partido. Así entran seis de un vistazo
               y las dos listas caben en paralelo en escritorio. */}
-          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 lg:gap-6">
             <div>
               <div className="label mb-2 text-[0.6rem]">Próximos</div>
               {fixtures.next.length === 0 ? (
@@ -139,7 +139,7 @@ export default async function JugadorPage({
 
       <PriceTrend odds={odds} />
 
-      <div className="grid lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2">
         <div className="border-line rise border-b lg:border-r lg:border-b-0">
           <ValueChart series={values} />
         </div>

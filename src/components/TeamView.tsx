@@ -195,7 +195,7 @@ export async function TeamView({
           <SquadBrowser cards={cards} leagueId={leagueId} />
         </>
       ) : (
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         <div className="border-line border-b lg:border-r lg:border-b-0">
           {starters.length > 0 ? (
             <Pitch
@@ -220,7 +220,7 @@ export async function TeamView({
                 label={benchFromLineup.length > 0 ? "Banquillo" : "Sin alinear"}
                 count={bench.length}
               />
-              <div className="grid gap-2 p-2.5 sm:p-3">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3">
                 {bench.map((p, i) => (
                   <PlayerCard
                     key={p.id}
@@ -253,7 +253,7 @@ export async function TeamView({
                     color={POSITION_COLOR[pos]}
                     right={money(group.reduce((s, p) => s + p.marketValue, 0))}
                   />
-                  <div className="grid gap-2 p-2.5 sm:p-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3">
                     {group.map((p, i) => (
                       <PlayerCard
                         key={p.id}
@@ -591,7 +591,7 @@ function IdealView({
                 return (
                   <li
                     key={r.player.id}
-                    className="grid gap-1.5 sm:grid-cols-2 sm:items-start sm:gap-4"
+                    className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 sm:items-start sm:gap-4"
                   >
                     <div className="flex items-baseline gap-2">
                       <span className="text-up text-[0.7rem] font-bold">ENTRA</span>

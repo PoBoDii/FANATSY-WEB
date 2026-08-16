@@ -202,7 +202,7 @@ export function SquadBrowser({
                   <span className="tnum text-faint text-[0.78rem]">{group.length}</span>
                   <span className="bg-line h-px flex-1" />
                 </div>
-                <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-2 lg:grid-cols-2 2xl:grid-cols-3">
                   {group.map((card, i) => (
                     <PlayerCard
                       key={card.id}
@@ -217,7 +217,7 @@ export function SquadBrowser({
           })}
           {/* Entrenadores y los que no encajan en ninguna línea. */}
           {rows.filter((c) => !POSITIONS.includes(c.position as Position)).length > 0 && (
-            <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-2 lg:grid-cols-2 2xl:grid-cols-3">
               {rows
                 .filter((c) => !POSITIONS.includes(c.position as Position))
                 .map((card) => (
@@ -232,7 +232,7 @@ export function SquadBrowser({
          * mensaje, y repartir en dos o tres columnas obliga a leer en zigzag
          * para saber quién va antes que quién.
          */
-        <div className="mx-auto grid max-w-2xl gap-2 p-2.5 sm:p-3 lg:p-4">
+        <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-2xl gap-2 p-2.5 sm:p-3 lg:p-4">
           {rows.map((card, i) => (
             <PlayerCard
               key={card.id}

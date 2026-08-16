@@ -138,7 +138,8 @@ export default async function LigaPage({
           derecha. Cabe entera en cualquier pantalla. */}
       <div className="border-line flex gap-1.5 overflow-x-auto border-b px-3.5 py-2.5 sm:px-5 lg:px-6">
         <span className="label shrink-0 self-center pr-1">Ordenar</span>
-        {COLUMNS.filter((c) => c.key !== "puesto").map((col) => {
+        {/* Puesto primero por ser el orden de entrada. */}
+        {COLUMNS.map((col) => {
           const active = sort === col.key;
           const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
           return (
@@ -150,25 +151,18 @@ export default async function LigaPage({
                 active ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
               }`}
             >
-              {col.label}
-              {active && <span className="text-[0.62rem] opacity-70">{dir === "desc" ? "▼" : "▲"}</span>}
+              {col.key === "puesto" ? "Puesto" : col.label}
+              {active && (
+                <span className="text-[0.62rem] opacity-70">{dir === "desc" ? "▼" : "▲"}</span>
+              )}
             </Link>
           );
         })}
-        <Link
-          href={sortHref("puesto", "asc")}
-          scroll={false}
-          className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[0.78rem] transition-colors ${
-            sort === "puesto" ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
-          }`}
-        >
-          Puesto
-        </Link>
       </div>
 
       {/* Siempre en una columna: una clasificación se lee 1, 2, 3… y en dos
           columnas el cuarto queda a la derecha del primero. */}
-      <div className="mx-auto grid max-w-3xl gap-2 p-2.5 sm:p-3 lg:p-4">
+      <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-3xl gap-2 p-2.5 sm:p-3 lg:p-4">
         {rows.map((m, i) => (
           <Link
             key={m.teamId}

@@ -232,7 +232,7 @@ export function FichajesList({
           Nadie encaja con estos filtros.
         </p>
       ) : (
-        <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
           {rows.map((c, i) => (
             <Card key={c.id} c={c} rank={i + 1} tab={tab} protectionDays={protectionDays} />
           ))}

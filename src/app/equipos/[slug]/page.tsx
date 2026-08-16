@@ -191,7 +191,7 @@ export default async function EquipoClubPage({
         ))}
 
       {tab === "calendario" && (
-        <section className="grid gap-6 px-3 py-5 sm:gap-8 sm:px-6 sm:py-6 lg:grid-cols-2 lg:px-10">
+        <section className="grid grid-cols-[minmax(0,1fr)] gap-6 px-3 py-5 sm:gap-8 sm:px-6 sm:py-6 lg:grid-cols-2 lg:px-10">
           <div>
             <SectionTitle color={team.color}>Últimos partidos · {fixtures.last.length}</SectionTitle>
             <div className="space-y-2.5">
@@ -226,7 +226,7 @@ export default async function EquipoClubPage({
           {injured.length === 0 ? (
             <p className="text-muted text-sm">Ningún lesionado ahora mismo.</p>
           ) : (
-            <div className="grid gap-2.5 md:grid-cols-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2">
               {injured.map(({ player, injury }) => (
                 <InjuryCard
                   key={injury.slug}
@@ -457,7 +457,7 @@ function Lineup({
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:gap-5 lg:justify-center">
+      <div className="flex flex-col gap-4 lg:grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,580px)_minmax(0,340px)] lg:gap-5 lg:justify-center">
       <div className="relative order-1 overflow-hidden rounded-2xl shadow-md lg:col-start-1 lg:row-start-1">
         <div
           aria-hidden
@@ -480,7 +480,7 @@ function Lineup({
           <rect x="26" y="117" width="48" height="20" />
         </svg>
 
-        <div className="relative flex flex-col gap-5 px-1.5 py-6 sm:gap-7 sm:px-3 sm:py-8 lg:gap-10 lg:py-12">
+        <div className="relative flex flex-col gap-4 px-1.5 py-5 sm:gap-6 sm:px-3 sm:py-6 lg:gap-8 lg:py-7">
           {lines.map((line, i) => (
             <div key={i} className="flex justify-center gap-1.5 sm:gap-3 lg:gap-5">
               {line.map((slot) => {
@@ -567,13 +567,13 @@ function Lineup({
       {bench.length > 0 && (
         <div className="order-2 lg:col-start-1 lg:row-start-2">
           <SectionTitle color={team.color}>Alternativas · {bench.length}</SectionTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-4 justify-items-center gap-2 sm:grid-cols-6 lg:grid-cols-7">
             {bench.map((slot) => {
               const main = slot.players[0];
               const tone = slot.probability !== null ? oddsTone(slot.probability) : null;
               const playerId = idOf(main.name);
               return (
-                <div key={slot.ffId} className="relative w-[68px] text-center sm:w-[80px]">
+                <div key={slot.ffId} className="relative w-full max-w-[80px] text-center">
                   {playerId && (
                     <Link
                       href={`/jugador/${playerId}`}

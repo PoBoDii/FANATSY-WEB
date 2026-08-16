@@ -94,7 +94,7 @@ export default async function AlineacionesPage({
           hint="futbolfantasy todavía no publica los onces de esta jornada."
         />
       ) : (
-        <div className="grid gap-2 p-2.5 sm:grid-cols-2 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:grid-cols-2 sm:p-4 lg:p-6">
           {matches.map((match, i) => {
             const home = countOf(match.home.teamId);
             const away = countOf(match.away.teamId);

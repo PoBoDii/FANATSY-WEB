@@ -263,7 +263,7 @@ export default async function PartidoPage({
           hint="futbolfantasy aún no ha publicado las alineaciones de este partido."
         />
       ) : (
-        <div className="grid gap-3 p-2.5 sm:p-4 lg:grid-cols-2 lg:items-stretch lg:gap-5 lg:p-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 p-2.5 sm:p-4 lg:grid-cols-2 lg:items-stretch lg:gap-5 lg:p-6">
           <TeamPitch
             side={match.home}
             slots={home}
@@ -368,10 +368,11 @@ function TeamPitch({
           <rect x="26" y="117" width="48" height="20" />
         </svg>
 
-        {/* Altura fija e igual en los dos campos: las líneas se reparten el
-            espacio, así que una formación con más líneas las junta más en vez
-            de estirar el campo. */}
-        <div className="relative flex h-[360px] flex-col justify-around px-1 py-3 sm:h-[440px] sm:px-2 sm:py-4 lg:h-[560px] lg:py-6">
+        {/* En el móvil el alto lo marca el contenido: con un alto fijo, cuatro
+            líneas de fichas grandes se salían del césped y se montaban encima
+            del banquillo. Desde `lg` vuelve a ser fijo, que es cuando los dos
+            campos van en paralelo y tienen que medir lo mismo. */}
+        <div className="relative flex flex-col gap-4 px-1.5 py-5 sm:gap-5 sm:px-2 lg:h-[600px] lg:justify-around lg:gap-0 lg:py-6">
           {lines.map((line, i) => (
             <div key={i} className="flex justify-center gap-1 sm:gap-1.5 lg:gap-2.5">
               {line.map((slot, k) => (
@@ -393,7 +394,7 @@ function TeamPitch({
       {bench.length > 0 && (
         <div className="border-line border-t px-3 py-3">
           <div className="label mb-2">Alternativas · {bench.length}</div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-5 justify-items-center gap-2 sm:grid-cols-6 lg:grid-cols-8">
             {bench.map((slot) => (
               <SlotToken
                 key={slot.ffId}
@@ -433,11 +434,18 @@ function SlotToken({
   const playerId = idOf(main, ffTeamId);
   const photo = ffPhoto(main.ffId || slot.ffId);
   // Del tamaño de las fichas de "mi once": a 46 px no se reconocía a nadie.
-  const size = compact ? 44 : 62;
+  const size = compact ? 56 : 76;
+  const box = compact
+    ? "h-[52px] w-[52px] sm:h-[60px] sm:w-[60px]"
+    : "h-[56px] w-[56px] sm:h-[64px] sm:w-[64px] lg:h-[76px] lg:w-[76px]";
 
   return (
     <div
-      className={`rise relative flex flex-col items-center ${compact ? "w-[52px] sm:w-[58px]" : "w-[54px] sm:w-[62px] lg:w-[72px]"}`}
+      className={`rise relative flex min-w-0 flex-col items-center ${
+        compact
+          ? "w-[62px] sm:w-[72px]"
+          : "max-w-[76px] flex-1 basis-0 sm:max-w-[86px] lg:max-w-[100px]"
+      }`}
       style={{ animationDelay: `${delay}ms` }}
       title={
         alternatives.length
@@ -450,14 +458,13 @@ function SlotToken({
         <Link href={`/jugador/${playerId}`} className="absolute inset-0 z-10" aria-label={main.name} />
       )}
       <div className={`relative ${playerId ? "transition-transform hover:-translate-y-1" : ""}`}>
+        {/* Marco oscuro, no blanco: sobre el césped una tarjeta blanca pesa
+            más que la propia foto y era lo primero que se veía del campo. */}
         <div
-          className="overflow-hidden rounded-xl border-[3px] bg-white shadow-md"
+          className={`overflow-hidden rounded-xl border-2 bg-[#12161c] shadow-md ${box}`}
           style={{
-            width: size,
-            height: size,
-            borderColor: owner?.color ?? "#ffffff",
-            // El halo repite el color del manager: mismo código que la etiqueta.
-            boxShadow: owner ? `0 0 0 4px ${owner.color}55` : undefined,
+            borderColor: owner?.color ?? "rgba(255,255,255,0.25)",
+            boxShadow: owner ? `0 0 0 3px ${owner.color}66` : undefined,
           }}
         >
           <PlayerPhoto

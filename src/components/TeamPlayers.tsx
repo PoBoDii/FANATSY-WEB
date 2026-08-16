@@ -200,7 +200,7 @@ export function TeamPlayers({
         </div>
       </div>
 
-      <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
         {visible.map((player, i) => (
           <Row key={player.name} player={player} delay={Math.min(i * 14, 260)} />
         ))}
@@ -209,7 +209,7 @@ export function TeamPlayers({
       {coaches.length > 0 && (
         <>
           <GroupTitle>Cuerpo técnico · {coaches.length}</GroupTitle>
-          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
             {coaches.map((player) => (
               <Row key={player.name} player={player} delay={0} />
             ))}
@@ -224,7 +224,7 @@ export function TeamPlayers({
             Canteranos y fichajes recién anunciados: ni futbolfantasy ni el juego publican todavía
             su valor, su probabilidad ni sus estadísticas.
           </p>
-          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
             {unknown.map((player) => (
               <Row key={player.name} player={player} delay={0} muted />
             ))}

@@ -53,7 +53,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen">
-        <div className="lg:grid lg:grid-cols-[248px_1fr]">
+        <div className="lg:grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[248px_1fr]">
           <Nav leagues={session.leagues} activeId={session.active?.id ?? null} />
           <main className="min-h-screen">{children}</main>
         </div>

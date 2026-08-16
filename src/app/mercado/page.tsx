@@ -199,7 +199,15 @@ export default async function MercadoPage({
           hint="No hay jugadores libres ahora mismo. Se renueva cada día."
         />
       ) : (
-        <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+        // Ordenando por puesto se reparte en columnas; con cualquier otro
+        // criterio va en una sola, que es donde se ve el orden de un vistazo.
+        <div
+          className={
+            sort === "posicion"
+              ? "grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3"
+              : "mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:p-4"
+          }
+        >
           {sorted.map((item, i) => (
             <PlayerCard
               key={item.id || item.player.id}
@@ -217,7 +225,7 @@ export default async function MercadoPage({
             <h2 className="display text-lg">Entrenadores</h2>
             <span className="tnum text-faint text-xs">{coaches.length}</span>
           </div>
-          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
             {coaches.map((item, i) => (
               <PlayerCard
                 key={item.id || item.player.id}

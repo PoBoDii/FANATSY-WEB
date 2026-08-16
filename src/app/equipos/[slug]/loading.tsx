@@ -22,7 +22,7 @@ export default function Loading() {
         ))}
       </div>
 
-      <div className="grid gap-5 p-4 lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:justify-center lg:p-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-4 lg:grid-cols-[minmax(0,480px)_minmax(0,360px)] lg:justify-center lg:p-6">
         <div className="bg-panel-2 h-[520px] animate-pulse rounded-2xl" />
         <div className="space-y-2.5">
           {Array.from({ length: 8 }).map((_, i) => (
