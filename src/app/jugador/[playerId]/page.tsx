@@ -77,7 +77,20 @@ export default async function JugadorPage({
   });
 
   const values = pickSeries(valueHistory(data), valueHistory(valuesRaw ?? {}));
-  const points = pointsHistory(data);
+
+  /**
+   * Los puntos por jornada.
+   *
+   * La ficha individual no siempre los trae, pero el listado de plantillas sí
+   * —de ahí salen las casillas de las tarjetas—, así que si el dueño está
+   * identificado se usan los suyos.
+   */
+  const owned = owner as { player: Player } | null;
+  const points = (() => {
+    const fromDetail = pointsHistory(data);
+    if (fromDetail.length > 0) return fromDetail;
+    return owned?.player.weekPoints ?? [];
+  })();
 
   return (
     <>
@@ -137,6 +150,8 @@ export default async function JugadorPage({
         </section>
       )}
 
+      <WeekPoints points={points} />
+
       <PriceTrend odds={odds} />
 
       <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2">
@@ -156,6 +171,53 @@ function pickSeries<T>(a: T[], b: T[]): T[] {
   return b.length >= a.length ? b : a;
 }
 
+/**
+ * Puntos jornada a jornada.
+ *
+ * Es lo primero que se mira para saber si un jugador está enchufado o vive de
+ * una buena jornada de hace un mes. Una casilla por partido, con el número
+ * dentro y el verde más intenso cuanto más puntúa; en rojo lo que resta.
+ */
+function WeekPoints({ points }: { points: { week: number; points: number }[] }) {
+  if (points.length === 0) return null;
+
+  const played = points.filter((p) => p.points !== 0).length;
+  const best = Math.max(...points.map((p) => p.points));
+
+  return (
+    <section className="border-line mx-auto max-w-5xl border-b px-3.5 py-4 sm:px-6 lg:px-10">
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-3">
+        <span className="label">Puntos por jornada</span>
+        <span className="text-faint text-[0.72rem]">
+          {played} {played === 1 ? "jornada puntuada" : "jornadas puntuadas"}
+          {best > 0 ? ` · mejor ${best}` : ""}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {points.map(({ week, points: value }) => (
+          <span
+            key={week}
+            className={`flex w-[38px] flex-col items-center gap-[2px] rounded-lg py-1.5 ${
+              value >= 10
+                ? "bg-up text-black"
+                : value > 0
+                  ? "bg-up/30 text-ink"
+                  : value === 0
+                    ? "bg-panel-2 text-faint"
+                    : "bg-down text-white"
+            }`}
+            title={`Jornada ${week}: ${value} puntos`}
+          >
+            <span className="text-[0.55rem] opacity-70">J{week}</span>
+            <span className="tnum text-[0.95rem] leading-none font-bold">{value}</span>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ---------------------------------------------------------------- cabecera */
 
 function Header({
@@ -169,91 +231,92 @@ function Header({
 }) {
   const tone = odds?.probability != null ? oddsTone(odds.probability) : null;
 
+  /**
+   * Una sola fila, alineada como cualquier otra ficha de la web.
+   *
+   * Antes cada dato flotaba en su propia caja de color —la probabilidad en un
+   * bloque verde, el cambio en otro rojo, el enlace en un tercero— y ninguno
+   * se apoyaba en nada. Ahora la foto marca el alto, todo lo demás cuelga de
+   * una línea base común y el color sólo aparece en la probabilidad, que es el
+   * único dato que se lee por color.
+   */
   return (
     <div className="border-line border-b">
-      {/* En el móvil todo va en columna: la foto y el nombre arriba, y los
-          datos debajo en una fila de pastillas. Antes el nombre y la caja de
-          probabilidad se peleaban por el mismo hueco y acababan encima. */}
-      <div className="mx-auto flex max-w-5xl flex-col gap-3.5 px-3.5 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-7 lg:px-10">
-        <div className="flex items-center gap-3.5 sm:contents">
-          <div className="border-line bg-panel relative shrink-0 overflow-hidden rounded-2xl border">
-            <PlayerPhoto
-              src={player.image}
-              fallback={ffPhoto(odds?.ffId ?? null)}
-              name={player.name}
-              size={96}
-              className="h-[72px] w-[72px] sm:h-24 sm:w-24"
-            />
-          </div>
-
-          <div className="rise min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <PositionTag position={player.position} />
-              <span className="label">{POSITION_LABEL[player.position]}</span>
-              <AlertBadge alerts={odds?.alerts} />
-            </div>
-
-            {/* `break-all` como último recurso: un apellido largo desbordaba su
-                caja y se pintaba encima de lo que viniera detrás. */}
-            <h1 className="display mt-1.5 text-[clamp(1.6rem,7vw,3rem)] break-all">
-              {player.name}
-            </h1>
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <ClubLink
-                name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
-                badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
-                size={18}
-                className="text-muted text-[0.82rem] font-medium"
-              />
-              <StatusTag status={player.status} />
-              {owner && (
-                <span
-                  className={`text-[0.72rem] font-semibold ${owner.isMe ? "text-acid" : "text-info"}`}
-                >
-                  {owner.isMe ? "es tuyo" : `de ${owner.manager}`}
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="mx-auto flex max-w-5xl items-center gap-3.5 px-3.5 py-4 sm:gap-5 sm:px-6 sm:py-6 lg:px-10">
+        <div className="bg-panel-2 relative shrink-0 overflow-hidden rounded-2xl">
+          <PlayerPhoto
+            src={player.image}
+            fallback={ffPhoto(odds?.ffId ?? null)}
+            name={player.name}
+            size={112}
+            className="h-[76px] w-[76px] sm:h-[104px] sm:w-[104px]"
+          />
         </div>
 
-        {/* Probabilidad, valor del día y enlace a la fuente. En el móvil es una
-            fila propia debajo; en escritorio, la caja de siempre a la derecha. */}
-        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-          {tone && (
-            <span
-              className="tnum inline-flex items-baseline gap-1.5 rounded-xl px-3 py-1.5 sm:flex-col sm:items-center sm:px-5 sm:py-3"
-              style={{ background: tone.color, color: tone.ink }}
-              title={`${tone.label} — ${odds!.probability}% de salir de titular`}
-            >
-              <span className="text-[1.3rem] leading-none font-bold sm:text-[2.2rem]">
-                {odds!.probability}%
+        <div className="rise min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PositionTag position={player.position} size="sm" />
+            <ClubLink
+              name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
+              badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
+              size={16}
+              className="text-muted text-[0.78rem] font-medium"
+            />
+            <AlertBadge alerts={odds?.alerts} />
+          </div>
+
+          {/* `break-words`: un apellido largo debe partir, no desbordar. */}
+          <h1 className="display mt-1 text-[clamp(1.5rem,6vw,2.6rem)] leading-none break-words">
+            {player.name}
+          </h1>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            {tone && (
+              <span
+                className="tnum rounded-md px-2 py-[3px] text-[0.85rem] leading-none font-bold"
+                style={{ background: tone.color, color: tone.ink }}
+                title={`${tone.label} — ${odds!.probability}% de salir de titular`}
+              >
+                {odds!.probability}% de titular
               </span>
-              <span className="text-[0.66rem] font-semibold opacity-85">de titular</span>
-            </span>
-          )}
+            )}
 
-          {odds?.diff ? (
-            <span
-              className={`tnum inline-flex items-baseline gap-1.5 rounded-xl px-2.5 py-1.5 text-[0.95rem] font-bold ${
-                odds.diff > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"
-              }`}
-              title="Variación de valor respecto a ayer"
-            >
-              {odds.diff > 0 ? "▲" : "▼"} {signed(odds.diff)}
-              {odds.diffPct !== null && (
-                <span className="text-[0.72rem] font-semibold opacity-80">
-                  {odds.diffPct > 0 ? "+" : "−"}
-                  {num(Math.abs(odds.diffPct), 1)}%
-                </span>
-              )}
+            <span className="tnum text-[1.05rem] leading-none font-semibold">
+              {money(player.marketValue)}
             </span>
-          ) : (
-            <span className="text-faint text-[0.76rem]">sin cambio de valor hoy</span>
-          )}
 
-          <FfLink href={ffPlayerUrl(odds?.slug)} label={`Ver a ${player.name} en futbolfantasy`} />
+            {odds?.diff ? (
+              <span
+                className={`tnum text-[0.85rem] leading-none font-semibold ${
+                  odds.diff > 0 ? "text-up" : "text-down"
+                }`}
+                title="Variación de valor respecto a ayer"
+              >
+                {odds.diff > 0 ? "▲" : "▼"} {signed(odds.diff)}
+                {odds.diffPct !== null && (
+                  <span className="opacity-70">
+                    {" "}
+                    {odds.diffPct > 0 ? "+" : "−"}
+                    {num(Math.abs(odds.diffPct), 1)}%
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="text-faint text-[0.78rem]">sin cambio hoy</span>
+            )}
+
+            <StatusTag status={player.status} />
+
+            {owner && (
+              <span
+                className={`text-[0.76rem] font-semibold ${owner.isMe ? "text-acid" : "text-info"}`}
+              >
+                {owner.isMe ? "es tuyo" : `de ${owner.manager}`}
+              </span>
+            )}
+
+            <FfLink href={ffPlayerUrl(odds?.slug)} label={`Ver a ${player.name} en futbolfantasy`} compact />
+          </div>
         </div>
       </div>
     </div>

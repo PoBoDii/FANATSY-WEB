@@ -162,7 +162,7 @@ export default async function MercadoPage({
    */
   const cardOf = (item: MarketItem) =>
     toCard(item.player, oddsOf(item), fixturesOf(item.player), {
-      deal: { rank: 0, score: marketScore(item), headline: "", opensIn: null },
+      deal: { rank: 0, place: "junto-al-nombre", score: marketScore(item), headline: "", opensIn: null },
       market: {
         price: item.price,
         overValue: item.price - item.player.marketValue,

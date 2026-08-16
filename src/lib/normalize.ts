@@ -32,6 +32,14 @@ export type Player = {
    * mientras la liga no ha empezado y todos van a cero.
    */
   lastSeasonPoints?: number;
+  /**
+   * Puntos de las últimas jornadas, de la más antigua a la más reciente.
+   *
+   * Vienen en `lastStats` dentro del propio listado de la plantilla, así que se
+   * pueden enseñar en las tarjetas sin pedir la ficha de cada jugador: eso
+   * serían veinticuatro peticiones por pantalla.
+   */
+  weekPoints?: { week: number; points: number }[];
   /** Sólo presente dentro de una alineación. */
   inLineup?: boolean;
   /** Puja/precio de venta si viene del mercado. */
@@ -177,6 +185,13 @@ export function toPlayer(raw: unknown): Player {
     ),
     salePrice: num(pick(rel, ["salePrice", "price"], 0)) || undefined,
     valueDelta: num(pick(p, ["lastMarketValueDiff", "marketValueDiff", "valueDiff"], 0)) || undefined,
+    weekPoints: toList(p.lastStats)
+      .map((entry) => ({
+        week: num(pick(entry, ["weekNumber", "week"], 0)),
+        points: num(pick(entry, ["totalPoints", "points"], 0)),
+      }))
+      .filter((entry) => entry.week > 0)
+      .sort((a, b) => a.week - b.week),
   };
 }
 
@@ -412,7 +427,12 @@ export function valueHistory(raw: unknown): { date: string; value: number }[] {
 /** Puntos por jornada → serie [{week, points}]. */
 export function pointsHistory(raw: unknown): { week: number; points: number }[] {
   const root = asObj(raw);
-  const list = toList(root.playerStats ?? root.stats ?? root.weeks ?? []);
+  // `lastStats` es el nombre que usa la API en la plantilla y en la ficha; los
+  // otros son formas antiguas que aún aparecen en algunas respuestas.
+  const master = asObj(root.playerMaster);
+  const list = toList(
+    master.lastStats ?? root.lastStats ?? root.playerStats ?? root.stats ?? root.weeks ?? [],
+  );
   return list
     .map((e) => ({
       week: num(pick(e, ["weekNumber", "week"], 0)),

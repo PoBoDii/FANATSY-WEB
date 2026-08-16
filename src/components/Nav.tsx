@@ -32,6 +32,14 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  /**
+   * El chat de negociación no lleva menú.
+   *
+   * Su enlace se pega en el grupo de la liga, así que ahí entra gente que no
+   * debe ver mi plantilla ni mis fichajes: sólo el bot.
+   */
+  const soloChat = pathname?.startsWith("/negociar") ?? false;
+
   // Al cambiar de página el cajón se cierra solo; si no, se queda abierto
   // encima del contenido nuevo.
   useEffect(() => setOpen(false), [pathname]);
@@ -43,6 +51,8 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  if (soloChat) return null;
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 

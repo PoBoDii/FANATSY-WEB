@@ -62,6 +62,9 @@ export type CardData = {
    */
   riseStreak: number;
 
+  /** Puntos de las últimas jornadas, de la más antigua a la más reciente. */
+  lastPoints: number[];
+
   /** Los tres próximos de liga, con el color de su dificultad. */
   next3: { name: string; badge: string | null; atHome: boolean; bg: string; label: string }[];
 
@@ -92,6 +95,12 @@ export type CardData = {
   deal?: {
     /** 0 = sin puesto en ninguna lista, sólo la nota. */
     rank: number;
+    /**
+     * `esquina` la pone en grande arriba a la derecha, que es donde manda en
+     * las listas de fichajes. `junto-al-nombre` la deja como una pastilla al
+     * lado del jugador, para el mercado, donde arriba van sus puntos.
+     */
+    place?: "esquina" | "junto-al-nombre";
     /** De 0 a 10, con un decimal. */
     score: number;
     /** Lo que se gana o el porqué, en una línea. */
@@ -135,6 +144,8 @@ export function toCard(
     unlockAt,
     unlockLabel: unlockAt ? dateTime(unlockAt) : null,
     riseStreak: odds?.streak ?? 0,
+    // Las cinco últimas, que es lo que cabe y lo que dice si está en forma.
+    lastPoints: (player.weekPoints ?? []).slice(-5).map((w) => w.points),
 
     next3: (fixtures ?? [])
       .filter((f) => /liga/i.test(f.competition))
@@ -184,7 +195,9 @@ export function PlayerCard({
       )}
 
       {/* Foto a sangre: sin marco, recortada al alto entero de la tarjeta */}
-      <div className="bg-panel-2 relative w-[76px] shrink-0 overflow-hidden sm:w-[88px]">
+      {/* La foto crece con la tarjeta: en una lista a una columna la tarjeta es
+          ancha y baja, y con un ancho fijo el recorte se comía las orejas. */}
+      <div className="bg-panel-2 relative w-[22%] max-w-[104px] min-w-[76px] shrink-0 overflow-hidden">
         <PlayerPhoto src={card.photo} name={card.name} size={96} className="h-full w-full" />
         {card.deal && card.deal.rank > 0 && (
           <span
@@ -219,10 +232,24 @@ export function PlayerCard({
               {card.name}
             </h3>
             <StatusIcon status={card.status} size={15} />
+            {card.deal?.place === "junto-al-nombre" && (
+              <span
+                className={`tnum shrink-0 rounded-md px-1.5 py-[2px] text-[0.68rem] font-bold ${
+                  card.deal.score >= 6
+                    ? "bg-up/20 text-up"
+                    : card.deal.score >= 4
+                      ? "bg-panel-2 text-ink"
+                      : "bg-panel-2 text-faint"
+                }`}
+                title="Nota del jugador, de 0 a 10"
+              >
+                {card.deal.score.toFixed(1)}
+              </span>
+            )}
           </div>
 
           <div className="shrink-0 text-right leading-none">
-            {card.deal ? (
+            {card.deal && card.deal.place !== "junto-al-nombre" ? (
               <>
                 <span
                   className={`tnum text-[1.45rem] font-semibold sm:text-[1.7rem] ${
@@ -371,6 +398,8 @@ export function PlayerCard({
             )}
           </div>
 
+          <div className="flex shrink-0 items-end gap-2">
+            <LastPoints points={card.lastPoints} />
           {card.next3.length > 0 && (
             <div className="flex shrink-0 gap-1">
               {card.next3.map((f, i) => (
@@ -401,6 +430,7 @@ export function PlayerCard({
               ))}
             </div>
           )}
+          </div>
         </div>
 
         {card.deal && (
@@ -417,6 +447,44 @@ export function PlayerCard({
         )}
       </div>
     </article>
+  );
+}
+
+/**
+ * Las últimas jornadas, en casillas.
+ *
+ * Es la forma más rápida de ver si viene enchufado: cinco cuadrados, verde
+ * cuanto más puntúa, rojo si resta, y vacío el que no jugó. Se lee de un
+ * vistazo sin tener que interpretar una media.
+ */
+function LastPoints({ points }: { points: number[] }) {
+  if (points.length === 0) return null;
+
+  // Cinco casillas siempre: las que faltan van vacías, para que la fila mida
+  // igual en todas las tarjetas y se puedan comparar de un vistazo.
+  const slots = [...Array(Math.max(0, 5 - points.length)).fill(null), ...points];
+
+  return (
+    <span className="flex shrink-0 gap-[2px]" title="Puntos de las últimas jornadas">
+      {slots.map((value, i) => (
+        <span
+          key={i}
+          className={`tnum flex h-[17px] w-[17px] items-center justify-center rounded-[3px] text-[0.55rem] font-bold ${
+            value === null
+              ? "bg-panel-2"
+              : value >= 10
+                ? "bg-up text-black"
+                : value > 0
+                  ? "bg-up/35 text-ink"
+                  : value === 0
+                    ? "bg-panel-2 text-faint"
+                    : "bg-down text-white"
+          }`}
+        >
+          {value === null ? "" : value}
+        </span>
+      ))}
+    </span>
   );
 }
 
