@@ -73,14 +73,23 @@ const MARK = {
   neutral: "⚪️",
 } as const;
 
-function line(player: ReportPlayer): string {
+/**
+ * Un jugador, en uno o dos renglones.
+ *
+ * En las secciones marcadas como `compact` el porqué repetiría lo que ya dice
+ * la propia línea —"sube 563 k€" justo debajo de "▲563 k€"—, así que se omite y
+ * en su lugar se pega al final lo único que añade: de quién es.
+ */
+function line(player: ReportPlayer, compact: boolean): string {
   const bits = [`<b>${esc(player.name)}</b>`];
   if (player.probability !== null) bits.push(`${player.probability}%`);
   bits.push(money(player.value));
   if (player.diff) bits.push(`${player.diff > 0 ? "▲" : "▼"}${money(Math.abs(player.diff))}`);
   if (player.score !== null) bits.push(`nota ${player.score.toFixed(1)}`);
+  if (compact && player.owner) bits.push(esc(player.owner));
 
-  return `• ${bits.join(" · ")}\n   <i>${esc(player.why)}</i>`;
+  const first = `• ${bits.join(" · ")}`;
+  return compact || !player.why ? first : `${first}\n   <i>${esc(player.why)}</i>`;
 }
 
 /**
@@ -97,16 +106,13 @@ export function reportToText(report: Report, webUrl?: string): string {
     month: "long",
   });
 
-  const out: string[] = [`<b>⚽ Informe del ${day}</b>`];
+  const out: string[] = [`<b>⚽ Informe del ${day}</b>`, ""];
 
   // El aviso del día va antes que nada y en mayúsculas: es lo que se pierde si
   // se lee el mensaje tarde.
   if (report.alert) {
     out.push("", `<b>${report.alert.kind === "cierre" ? "⏰" : "🏁"} ${esc(report.alert.text.toUpperCase())}</b>`);
   }
-
-  out.push("");
-  for (const headline of report.headlines) out.push(`▸ ${esc(headline)}`);
 
   if (report.today.length > 0) {
     out.push("", "<b>Hoy se juega</b>");
@@ -123,7 +129,9 @@ export function reportToText(report: Report, webUrl?: string): string {
     out.push("", `${MARK[section.tone]} <b>${esc(section.title)}</b>`);
 
     for (const note of section.notes ?? []) out.push(`• ${esc(note)}`);
-    for (const player of section.players.slice(0, 4)) out.push(line(player));
+    for (const player of section.players.slice(0, 4)) {
+      out.push(line(player, section.compact === true));
+    }
 
     const rest = section.players.length - 4;
     if (rest > 0) out.push(`   <i>y ${rest} más</i>`);

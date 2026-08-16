@@ -153,7 +153,7 @@ export default async function PreciosPage({
         action={
           <div className="flex items-center gap-2">
             <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
-            <AutoRefresh seconds={300} />
+            <AutoRefresh seconds={1800} />
           </div>
         }
       />

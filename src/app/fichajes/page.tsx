@@ -168,7 +168,7 @@ export default async function FichajesPage() {
             {money(budget.money)}
           </>
         }
-        action={<AutoRefresh seconds={180} />}
+        action={<AutoRefresh seconds={900} />}
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">

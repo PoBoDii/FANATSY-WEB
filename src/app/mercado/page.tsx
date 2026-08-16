@@ -188,7 +188,7 @@ export default async function MercadoPage({
         action={
           <div className="flex items-center gap-2">
             <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
-            <AutoRefresh seconds={120} />
+            <AutoRefresh seconds={600} />
           </div>
         }
       />

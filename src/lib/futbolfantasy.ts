@@ -32,11 +32,14 @@ const TEAMS = [
 ] as const;
 
 /**
- * Cinco minutos. Los precios se recalculan una vez al día pero las
- * probabilidades se mueven durante la semana, y el mercado y la plantilla
- * cambian a todas horas, así que conviene ir corto.
+ * Media hora.
+ *
+ * Estaba en cinco minutos, y cada caducidad son veintiuna descargas de un mega
+ * más el trabajo de cruzarlas. Los precios se recalculan una vez al día y las
+ * probabilidades se mueven poco a poco: ir corto no daba datos más frescos, sólo
+ * repetía el mismo trabajo doce veces por hora.
  */
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = 30 * 60 * 1000;
 
 /* ------------------------------------------------------------------ utilidades */
 

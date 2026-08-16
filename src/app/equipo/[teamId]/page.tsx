@@ -97,7 +97,7 @@ export default async function EquipoPage({
         action={
           <div className="flex items-center gap-2">
             <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
-            <AutoRefresh seconds={180} />
+            <AutoRefresh seconds={900} />
           </div>
         }
       />

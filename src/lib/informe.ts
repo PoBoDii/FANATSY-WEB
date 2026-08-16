@@ -76,6 +76,11 @@ export type ReportSection = {
   notes?: string[];
   /** Rojo = urgente, ámbar = conviene mirarlo, verde = oportunidad. */
   tone: "urgente" | "aviso" | "oportunidad" | "neutral";
+  /**
+   * La línea del jugador ya lo dice todo y el `por qué` sólo repetiría lo
+   * mismo. En el mensaje de Telegram, donde cada renglón cuenta, se omite.
+   */
+  compact?: boolean;
 };
 
 export type ReportMatch = {
@@ -569,6 +574,7 @@ export async function buildReport(
   if (marketPicks.length > 0) {
     sections.push({
       key: "mercado",
+      compact: true,
       title: "Del mercado, esto vale la pena",
       lead: "De los libres de hoy, los que juegan y salen a cuenta. Del resto, ni una puja.",
       tone: "oportunidad",
@@ -615,6 +621,7 @@ export async function buildReport(
   if (risers.length > 0) {
     sections.push({
       key: "suben-liga",
+      compact: true,
       title: "Los que más suben hoy",
       lead: "De toda la liga, no sólo de tu grupo.",
       tone: "neutral",
@@ -642,6 +649,7 @@ export async function buildReport(
   if (rivalRisers.length > 0) {
     sections.push({
       key: "suben-rivales",
+      compact: true,
       title: "Suben en plantillas rivales",
       lead: "Cada día que pase, más caros de clausular.",
       tone: "neutral",
@@ -649,7 +657,7 @@ export async function buildReport(
         toReportPlayer(r.player, odds, {
           owner: r.owner.name,
           ownerTeamId: r.owner.teamId,
-          why: `${fmt(odds?.diff ?? 0)} hoy · lo tiene ${r.owner.name}`,
+          why: `lo tiene ${r.owner.name}`,
         }),
       ),
     });
@@ -659,6 +667,7 @@ export async function buildReport(
   if (fallers.length > 0) {
     sections.push({
       key: "bajan-liga",
+      compact: true,
       title: "Los que más bajan hoy",
       lead: "Si tienes alguno, cada día que pasa vale menos.",
       tone: "aviso",
@@ -686,6 +695,7 @@ export async function buildReport(
   if (myUp.length > 0 || myDown.length > 0) {
     sections.push({
       key: "mi-plantilla",
+      compact: true,
       title: "Tu plantilla hoy",
       lead: "Lo que se te ha movido. Los de abajo, si además no juegan, son candidatos a soltar.",
       tone: "neutral",

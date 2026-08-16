@@ -19,7 +19,7 @@ const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 /** Cinco minutos: los partes médicos salen a lo largo del día. */
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = 20 * 60 * 1000;
 
 export type Injury = {
   /** Nombre normalizado; es la clave del cruce. */

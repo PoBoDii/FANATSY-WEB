@@ -146,7 +146,7 @@ export async function TeamView({
           <div className="flex items-center gap-2">
             {/* Las probabilidades del once salen de aquí. */}
             <FfLink href={ffLineupsUrl()} label="Ver las alineaciones probables en futbolfantasy" />
-            <AutoRefresh seconds={180} />
+            <AutoRefresh seconds={900} />
           </div>
         }
       />

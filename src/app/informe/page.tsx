@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/session";
 import { buildReport, type ReportMatch, type ReportPlayer, type ReportSection } from "@/lib/informe";
 import { money } from "@/lib/format";
@@ -37,7 +38,19 @@ export default async function InformePage() {
   }
 
   const league = session.active;
-  const report = await buildReport(league.id, league.myTeamId, league.name);
+
+  /**
+   * El informe se guarda un cuarto de hora.
+   *
+   * Construirlo son veinte calendarios, la liga entera y el mercado: es la
+   * página más cara de la web. Y no cambia de un minuto a otro, así que
+   * recalcularlo en cada visita era pagar por el mismo resultado.
+   */
+  const report = await unstable_cache(
+    () => buildReport(league.id, league.myTeamId, league.name),
+    ["informe", league.id, league.myTeamId ?? ""],
+    { revalidate: 900, tags: ["informe"] },
+  )();
 
   const day = new Date(report.builtAt).toLocaleDateString("es-ES", {
     weekday: "long",

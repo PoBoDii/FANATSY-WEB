@@ -1,0 +1,58 @@
+# Avisos al momento.
+#
+# Dos relojes distintos a propósito:
+#
+#  · El **periódico** pasa cada diez minutos y mira qué está a punto de pasar.
+#    Los avisos no se atan a la pasada: saltan en cuanto falta poco, así que
+#    aunque GitHub retrase un disparo —lo hace, y bastante— el aviso llega
+#    antes de tiempo, nunca después.
+#
+#  · El del **cierre del mercado** tiene su propio disparo a las 21:55 de
+#    España. Es el único con hora fija todos los días y el que no puede fallar,
+#    así que no depende del ciclo de diez minutos.
+#
+# Los secretos son los mismos que el informe: SITE_URL e INFORME_TOKEN.
+
+name: Avisos
+
+on:
+  schedule:
+    # Cada diez minutos.
+    - cron: "*/10 * * * *"
+    # 21:55 en España durante el horario de verano (19:55 UTC) y 20:55 en el de
+    # invierno. Se programan los dos: el aviso se manda una sola vez porque el
+    # de la hora que no toca cae fuera de la ventana.
+    - cron: "55 19 * * *"
+    - cron: "55 20 * * *"
+  workflow_dispatch:
+
+# Si un ciclo tarda más de la cuenta, el siguiente espera en vez de solaparse.
+concurrency:
+  group: avisos
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar y avisar
+        run: |
+          # A las :55 toca el aviso de cierre del mercado; el resto del tiempo,
+          # el ciclo normal.
+          if [ "$(date -u +%M)" = "55" ]; then
+            RUTA="tipo=mercado"
+          else
+            RUTA=""
+          fi
+
+          respuesta=$(curl --silent --show-error --max-time 120 \
+            --write-out "\n%{http_code}" \
+            "${{ secrets.SITE_URL }}/api/alertas?token=${{ secrets.INFORME_TOKEN }}&$RUTA")
+
+          codigo=$(echo "$respuesta" | tail -n1)
+          echo "$respuesta" | sed '$d'
+
+          if [ "$codigo" != "200" ]; then
+            echo "::error::La web respondió $codigo"
+            exit 1
+          fi

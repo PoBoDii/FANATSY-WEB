@@ -13,27 +13,41 @@ import { useRouter } from "next/navigation";
  * `router.refresh()` sólo revalida los Server Components: no recarga la
  * pestaña, no pierde el scroll ni lo que tengas escrito en un filtro.
  */
-export function AutoRefresh({ seconds = 60 }: { seconds?: number }) {
+export function AutoRefresh({ seconds = 600 }: { seconds?: number }) {
   const router = useRouter();
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     setUpdatedAt(new Date());
+    let last = Date.now();
 
     const tick = () => {
       // Con la pestaña en segundo plano no tiene sentido gastar peticiones.
       if (document.visibilityState !== "visible") return;
+      last = Date.now();
       router.refresh();
       setUpdatedAt(new Date());
     };
 
     const id = setInterval(tick, seconds * 1000);
-    // Al volver a la pestaña, refresco inmediato en vez de esperar al turno.
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") tick();
-    });
 
-    return () => clearInterval(id);
+    /**
+     * Al volver a la pestaña se refresca, pero sólo si ha pasado el intervalo.
+     *
+     * Antes se refrescaba en cada vuelta, y como el oyente **no se quitaba
+     * nunca**, cada navegación dejaba uno más: al cabo de diez páginas, volver
+     * a la pestaña disparaba diez recargas del servidor a la vez. Cada una de
+     * esas recargas es una ejecución de servidor que se paga.
+     */
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - last > seconds * 1000) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [router, seconds]);
 
   return (
