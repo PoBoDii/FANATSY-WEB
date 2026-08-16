@@ -1,5 +1,6 @@
 import type { Player } from "./normalize";
 import type { FfPlayer } from "./odds";
+import { riseOf } from "./fichajes";
 
 /**
  * El negociador.
@@ -78,48 +79,108 @@ export const tratoNuevo = (quien: string): Trato => ({
 /**
  * Lo que cuesta llevarse a un jugador mío.
  *
- * La idea es sencilla: cuanto más me sirve a mí, más caro le sale a él. Un
- * suplente que no juega se va por poco más de su valor; un titular fijo hay que
- * pagarlo casi como si se clausulara, porque perderlo me obliga a rehacer el
- * once.
- *
- * El techo siempre es la cláusula: pedir más que eso es absurdo, porque
- * entonces le sale más barato pagarla y quedarse con él igualmente.
+ * La cuenta es la que haría el dueño a mano: parte del valor más un diez por
+ * ciento —lo que paga la liga sin discutir—, le suma lo que el jugador va a
+ * revalorizarse durante los catorce días de blindaje del comprador, y añade un
+ * plus si es de los que no se sustituyen. Y por encima de todo eso está la
+ * cláusula: vender por menos de lo que cualquiera puede pagar es tirar dinero.
  */
 export function precioDe(player: Player, odds: FfPlayer | null): Precio {
   const valor = player.marketValue;
   const clausula = player.buyoutClause ?? valor * 2;
 
+  /**
+   * El suelo: valor más un diez por ciento.
+   *
+   * Es lo que paga la liga por él sin discutir, así que vender por debajo de
+   * eso es regalarlo — literalmente sale más a cuenta soltarlo al sistema. De
+   * aquí no se baja nunca, pase lo que pase en la conversación.
+   */
+  const sueloDuro = Math.round(valor * 1.1);
+
+  /**
+   * Lo que va a valer cuando el otro pueda revenderlo.
+   *
+   * Quien lo ficha se lo queda blindado catorce días, y si el jugador sube
+   * 500 k€ diarios en ese tiempo se habrá revalorizado siete millones. Ese
+   * dinero es suyo si no se cobra ahora, así que se cobra ahora. Las bajadas
+   * no se cuentan: el que compra ya asume ese riesgo.
+   */
+  /**
+   * Ojo con extrapolar el día de hoy.
+   *
+   * Un jugador puede subir 1,3 M€ el día después de marcar y quedarse plano el
+   * resto de la semana; multiplicar ese pico por catorce daba precios
+   * disparatados. Se usa el ritmo suavizado —el mismo que calcula la sección de
+   * fichajes, que pesa la media semanal por encima del día suelto— y se le pone
+   * un tope: la revalorización no puede valer más que un cuarto del jugador.
+   */
+  const sube = Math.max(0, riseOf(odds).rise);
+  const revalorizacion = Math.min(sube * 14, valor * 0.25);
+
+  /**
+   * Pluses por lo que hace caro a un jugador más allá de su ficha.
+   *
+   * Un titular de los grandes no se sustituye con otro cualquiera, y eso vale
+   * dinero aunque el mercado todavía no lo haya puesto en su valor.
+   */
+  const GRANDES = /barcelona|madrid|atl[ée]tico|athletic|betis|sociedad|villarreal|sevilla/i;
+  const club = `${player.clubName} ${odds?.teamName ?? ""}`;
   const juega = odds?.probability != null ? odds.probability / 100 : 0.5;
   const media =
     player.averagePoints > 0 ? player.averagePoints : (player.lastSeasonPoints ?? 0) / 38;
 
-  // De 1,10 (no juega y no puntúa) a 1,75 (fijo que rinde).
-  const utilidad = 1.1 + 0.45 * juega + 0.2 * Math.min(1, media / 8);
+  let plus = 1;
+  if (GRANDES.test(club)) plus += 0.06;
+  if (juega >= 0.8) plus += 0.06;
+  else if (juega >= 0.65) plus += 0.03;
+  if (media >= 6) plus += 0.06;
+  else if (media >= 4) plus += 0.03;
 
-  // Que esté subiendo también encarece: si sube solo, no hay prisa por vender.
-  const subiendo = (odds?.diff ?? 0) > 200_000 ? 1.08 : 1;
+  const objetivoBruto = Math.round((sueloDuro + revalorizacion) * plus);
 
-  const bruto = valor * utilidad * subiendo;
+  /**
+   * Y por encima de todo: la cláusula.
+   *
+   * Si alguien puede llevárselo pagando la cláusula, venderlo por menos es
+   * perder dinero a cambio de nada. Así que el precio nunca baja de ahí…
+   * salvo cuando la cláusula está a punto de abrirse: en las últimas horas
+   * más vale cobrar algo que ver cómo se lo llevan por el mismo precio.
+   */
+  const horasParaAbrir = player.buyoutUnlockAt
+    ? (new Date(player.buyoutUnlockAt).getTime() - Date.now()) / 3_600_000
+    : 0;
+  const seAbrePronto = horasParaAbrir > 0 && horasParaAbrir < 12;
 
-  // Nunca por encima de la cláusula: a ese precio se la paga y punto.
-  const minimo = Math.min(Math.round(bruto), Math.round(clausula * 0.92));
+  /**
+   * La cláusula manda por los dos lados.
+   *
+   * Por abajo, porque vender por menos de lo que cualquiera puede pagar es
+   * tirar dinero: el suelo se pega a ella. Y por arriba, porque pedir más no
+   * sirve de nada — si me paso, el otro deja de negociar y la paga y en paz.
+   *
+   * La excepción son las últimas horas antes de que se abra: ahí más vale
+   * cobrar algo que verla caer, y se admite bajar hasta el suelo de verdad.
+   */
+  const suelo = seAbrePronto ? sueloDuro : Math.max(sueloDuro, Math.round(clausula * 0.95));
+  const objetivo = Math.max(suelo, Math.round(Math.min(objetivoBruto, clausula)));
 
-  // Se abre alto para tener recorrido, pero sin pasarse de la cláusula.
-  const salida = Math.min(Math.round(minimo * 1.45), Math.round(clausula * 0.98));
+  // Se abre un poco por encima de la cláusula: si pica, mejor para nosotros.
+  const salida = Math.round(objetivo * 1.08);
 
-  const razon =
-    juega >= 0.75 && media >= 4
-      ? "es titular y viene puntuando"
-      : juega >= 0.75
+  const razon = GRANDES.test(club)
+    ? "juega en un grande"
+    : juega >= 0.8 && media >= 4
+      ? "es titular y puntúa"
+      : juega >= 0.8
         ? "es titular fijo"
-        : media >= 4
-          ? "puntúa bien"
-          : (odds?.diff ?? 0) > 200_000
-            ? "está subiendo de valor"
-            : "no es de los que más juego me dan";
+        : media >= 6
+          ? "puntúa de sobra"
+          : sube >= 300_000
+            ? "sube cada día"
+            : "va a valer más que hoy";
 
-  return { valor, clausula, minimo, salida, razon };
+  return { valor, clausula, minimo: objetivo, salida, razon };
 }
 
 /* ---------------------------------------------------- leer lo que escriben */
@@ -250,9 +311,9 @@ export function responder(
         trato: ahora,
         avisoAlDueno: null,
         texto:
-          `${jugador.name}. Vale ${money(precio.valor)} y su cláusula está en ` +
-          `${money(precio.clausula)}. ${capitalizar(precio.razon)}, así que no lo suelto barato: ` +
-          `**${money(precio.salida)}**. ¿Qué ofreces?`,
+          `${jugador.name}, buen ojo. Vale ${money(precio.valor)} y la cláusula está en ` +
+          `${money(precio.clausula)}, o sea que baratito no es. ${capitalizar(precio.razon)}, ` +
+          `así que empezamos en **${money(precio.salida)}**. Dispara.`,
       };
     }
   }
@@ -262,8 +323,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: null,
       texto:
-        "Dime por quién preguntas y te digo precio. Escribe su nombre tal cual " +
-        "(por ejemplo: «me interesa Raphinha, te doy 90»).",
+        "A ver, que no adivino. Dime el nombre del jugador y cuánto pones encima " +
+        "de la mesa. Por ejemplo: «quiero a Raphinha, te doy 90».",
     };
   }
 
@@ -276,7 +337,7 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: `Pues nada. Si cambias de idea sobre ${ahora.playerName}, aquí sigo.`,
+      texto: `Tú mismo. Cuando te lo pienses mejor ya sabes dónde estoy.`,
     };
   }
 
@@ -287,8 +348,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
       texto:
-        `Hecho: ${ahora.playerName} por ${money(ahora.pide)}. Se lo paso a ${duenoNombre} ` +
-        `para que lo confirme. Cuando te diga que sí, **manda tú la oferta** en el juego y él la acepta.`,
+        `Cerrado: ${ahora.playerName} por ${money(ahora.pide)}. Aviso a ${duenoNombre}, ` +
+        `y en cuanto dé el visto bueno **mandas tú la oferta** y él la acepta. No te arrepientas ahora.`,
     };
   }
 
@@ -298,7 +359,7 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: `Por ${ahora.playerName} pido ${money(ahora.pide)}. Dime tu número.`,
+      texto: `Por ${ahora.playerName} pido ${money(ahora.pide)}. ¿Tú qué pones?`,
     };
   }
 
@@ -312,8 +373,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
       texto:
-        `Trato hecho: ${ahora.playerName} por ${money(cifra)}. Se lo paso a ${duenoNombre} ` +
-        `para que lo confirme. Cuando te diga que sí, **manda tú la oferta** y él la acepta.`,
+        `Trato. ${ahora.playerName} por ${money(cifra)}. Se lo paso a ${duenoNombre} y, ` +
+        `en cuanto diga que sí, **mandas tú la oferta** y él la acepta. Un placer hacer negocios.`,
     };
   }
 
@@ -323,8 +384,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: null,
       texto:
-        `${money(cifra)} por ${ahora.playerName} no es una oferta, es una broma. ` +
-        `Su cláusula está en ${money(precio.clausula)}. Sigo en ${money(ahora.pide)}.`,
+        `¿${money(cifra)}? Anda ya. Su cláusula está en ${money(precio.clausula)}, ` +
+        `págala si tienes prisa. Yo sigo en ${money(ahora.pide)}.`,
     };
   }
 
@@ -336,8 +397,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: null,
       texto:
-        `${money(precio.minimo)} y no bajo más. Por menos me quedo con él, ` +
-        `que ${precio.razon}. Tú decides.`,
+        `${money(precio.minimo)}. Y de ahí no me muevo, ${precio.razon}. ` +
+        `Si no te cuadra, paga la cláusula y te dejo de contar el rollo.`,
     };
   }
 
@@ -348,8 +409,8 @@ export function responder(
     trato: ahora,
     avisoAlDueno: null,
     texto: cerca
-      ? `Estamos cerca. ${money(nuevo)} y cerramos.`
-      : `${money(cifra)} se queda corto: ${precio.razon}. Te lo dejo en ${money(nuevo)}.`,
+      ? `Ya casi. ${money(nuevo)} y no te doy más la brasa.`
+      : `${money(cifra)}, ¿en serio? ${capitalizar(precio.razon)}. Te lo dejo en ${money(nuevo)} y voy siendo generoso.`,
   };
 }
 
