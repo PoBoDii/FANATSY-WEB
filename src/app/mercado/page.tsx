@@ -83,10 +83,15 @@ export default async function MercadoPage({
     .map((raw) => toMarketItem(raw, league.myTeamId))
     .filter((item) => item.player.id);
 
-  // Fuera lo que venden otros managers: aquí sólo interesa lo pujable.
-  const items = all.filter(
-    (item) => !item.sellerTeamId || item.sellerTeamId === league.myTeamId,
-  );
+  /**
+   * Sólo el mercado del juego.
+   *
+   * Todo lo que tiene vendedor es de un manager —tuyo incluido— y no es lo que
+   * se viene a mirar aquí: los de otros se fichan por cláusula (eso está en
+   * Fichajes) y los tuyos ya los tienes. Lo que interesa es la lista diaria de
+   * jugadores libres, que es la única donde se puja de verdad.
+   */
+  const items = all.filter((item) => !item.sellerTeamId);
 
   // Los entrenadores van aparte, al final: rara vez interesan.
   const coaches = items.filter((i) => i.player.position === "EN");
@@ -147,9 +152,9 @@ export default async function MercadoPage({
         title="Mercado"
         meta={
           <>
-            {players.length} jugadores pujables
+            {players.length} jugadores libres
             {coaches.length > 0 ? ` · ${coaches.length} entrenadores` : ""}
-            {hidden > 0 ? ` · ${hidden} ocultos (los venden otros managers)` : ""}
+            {hidden > 0 ? ` · ${hidden} fuera (los vende un manager)` : ""}
           </>
         }
         action={

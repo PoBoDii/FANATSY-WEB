@@ -24,24 +24,9 @@ import { bestEleven, rate, type FormationOption } from "@/lib/once-ideal";
 import { AutoRefresh } from "./AutoRefresh";
 import { NextRival } from "./Fixtures";
 import type { Fixture } from "@/lib/equipos";
-import {
-  SortBar,
-  SquadHeader,
-  SquadRows,
-  filterSquad,
-  readSortParams,
-  sortSquad,
-} from "./SquadList";
-import {
-  Empty,
-  ErrorBox,
-  OddsChip,
-  PageHeader,
-  PlayerAvatar,
-  PlayerRow,
-  StatTile,
-  type LineupRole,
-} from "./ui";
+import { SquadBrowser } from "./SquadBrowser";
+import { Empty, ErrorBox, OddsChip, PageHeader, PlayerAvatar, StatTile, type LineupRole } from "./ui";
+import { PlayerCard, toCard } from "./PlayerCard";
 
 const ORDER: Position[] = ["PT", "DF", "MC", "DL", "EN", "?"];
 
@@ -136,8 +121,14 @@ export async function TeamView({
   const best = bestEleven(rated);
   const ideal = formationWanted ? bestEleven(rated, formationWanted) : best;
 
-  const { sort, dir, positions, openOnly } = readSortParams(sortParams, "posicion");
-  const listed = sortSquad(filterSquad(squad, positions, openOnly), sort, dir, oddsOf);
+  /**
+   * Una sola vez y ya aplanado: la lista filtra y ordena en el navegador, así
+   * que lo que viaja tiene que ser lo mínimo. El mapa evita recalcular la misma
+   * tarjeta en las tres vistas.
+   */
+  const cardIndex = new Map(squad.map((p) => [p.id, toCard(p, oddsOf(p), fixturesOf(p))]));
+  const cardOf = (player: Player) => cardIndex.get(player.id)!;
+  const cards = [...cardIndex.values()];
 
   return (
     <>
@@ -188,6 +179,7 @@ export async function TeamView({
           best={best?.formation ?? null}
           rated={rated}
           starters={starterIds}
+          starterList={starters}
           leagueId={leagueId}
           oddsOf={oddsOf}
           fixturesOf={fixturesOf}
@@ -195,31 +187,7 @@ export async function TeamView({
       ) : view === "lista" ? (
         <>
           <SquadCounter count={squad.length} />
-          <SortBar
-            base="/"
-            sort={sort}
-            dir={dir}
-            pos={sortParams.pos}
-            openOnly={openOnly}
-            extra={{ vista: "lista" }}
-          />
-          <SquadHeader
-            base="/"
-            sort={sort}
-            dir={dir}
-            keep={{ vista: "lista", pos: sortParams.pos, abiertas: openOnly ? "1" : undefined }}
-          />
-          {listed.length === 0 ? (
-            <Empty title="Sin jugadores" hint="Ninguno encaja con este filtro." />
-          ) : (
-            <SquadRows
-              players={listed}
-              leagueId={leagueId}
-              oddsOf={oddsOf}
-              highlight={sort}
-              fixturesOf={fixturesOf}
-            />
-          )}
+          <SquadBrowser cards={cards} leagueId={leagueId} />
         </>
       ) : (
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
@@ -243,18 +211,16 @@ export async function TeamView({
 
           {bench.length > 0 && (
             <div className="border-line border-t">
-              <div className="bg-ink mx-2.5 mt-2.5 rounded-xl px-3.5 py-2 text-[0.74rem] font-bold tracking-wide text-white uppercase shadow-sm sm:mx-3 sm:mt-3 sm:px-4">
-                {benchFromLineup.length > 0 ? "Banquillo" : "Sin alinear"} · {bench.length}
-              </div>
-              <div className="space-y-2 p-2.5 sm:p-3">
+              <GroupTitle
+                label={benchFromLineup.length > 0 ? "Banquillo" : "Sin alinear"}
+                count={bench.length}
+              />
+              <div className="grid gap-2 p-2.5 sm:p-3">
                 {bench.map((p, i) => (
-                  <PlayerRow
+                  <PlayerCard
                     key={p.id}
-                    player={p}
+                    card={cardOf(p)}
                     leagueId={leagueId}
-                    odds={oddsOf(p)}
-                    fixtures={fixturesOf(p)}
-                    compact
                     delay={i * 30}
                   />
                 ))}
@@ -276,29 +242,22 @@ export async function TeamView({
               if (group.length === 0) return null;
               return (
                 <div key={pos}>
-                  <div
-                    className="sticky top-0 z-10 mx-2.5 mt-2.5 flex items-baseline justify-between rounded-xl px-3.5 py-2 text-white shadow-sm sm:mx-3 sm:mt-3 sm:px-4"
-                    style={{
-                      background: `linear-gradient(100deg, ${POSITION_COLOR[pos]}, ${POSITION_COLOR[pos]}cc)`,
-                    }}
-                  >
-                    <span className="text-[0.74rem] font-bold tracking-wide uppercase">
-                      {POSITION_LABEL[pos]} · {group.length}
-                    </span>
-                    <span className="tnum text-xs font-bold">
-                      {money(group.reduce((s, p) => s + p.marketValue, 0))}
-                    </span>
-                  </div>
-                  <div className="space-y-2 p-2.5 sm:p-3">
+                  <GroupTitle
+                    label={POSITION_LABEL[pos]}
+                    count={group.length}
+                    color={POSITION_COLOR[pos]}
+                    right={money(group.reduce((s, p) => s + p.marketValue, 0))}
+                  />
+                  <div className="grid gap-2 p-2.5 sm:p-3">
                     {group.map((p, i) => (
-                      <PlayerRow
+                      <PlayerCard
                         key={p.id}
-                        player={p}
+                        card={{
+                          ...cardOf(p),
+                          note:
+                            roleOf(p) === "suplente" ? "no está en tu once de esta jornada" : null,
+                        }}
                         leagueId={leagueId}
-                        odds={oddsOf(p)}
-                        role={roleOf(p)}
-                        fixtures={fixturesOf(p)}
-                        compact
                         delay={i * 25}
                       />
                     ))}
@@ -311,6 +270,40 @@ export async function TeamView({
       </div>
       )}
     </>
+  );
+}
+
+/**
+ * Rótulo de grupo. Un punto de color, el nombre y la cuenta: lo justo para
+ * separar dos bloques. Las franjas de color a todo lo ancho pesaban más que los
+ * jugadores que separaban.
+ */
+function GroupTitle({
+  label,
+  count,
+  color,
+  right,
+}: {
+  label: string;
+  count: number;
+  color?: string;
+  right?: string;
+}) {
+  return (
+    <div className="border-line bg-void/80 sticky top-0 z-10 flex items-center justify-between gap-3 border-b px-3.5 py-2 backdrop-blur-md sm:px-4">
+      <span className="flex items-center gap-2">
+        {color && (
+          <span
+            aria-hidden
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: color }}
+          />
+        )}
+        <span className="text-[0.82rem] font-semibold">{label}</span>
+        <span className="tnum text-faint text-[0.78rem]">{count}</span>
+      </span>
+      {right && <span className="tnum text-faint text-[0.78rem]">{right}</span>}
+    </div>
   );
 }
 
@@ -373,6 +366,7 @@ function IdealView({
   best,
   rated,
   starters,
+  starterList,
   leagueId,
   oddsOf,
   fixturesOf,
@@ -382,6 +376,8 @@ function IdealView({
   best: string | null;
   rated: ReturnType<typeof rate>[];
   starters: Set<string>;
+  /** Tu once de esta jornada, para poder decir a quién hay que quitar. */
+  starterList: Player[];
   leagueId: string;
   oddsOf: (player: Player) => ReturnType<typeof rate>["odds"];
   fixturesOf: (player: Player) => Fixture[] | null;
@@ -408,6 +404,30 @@ function IdealView({
   const bench = rated
     .filter((r) => !chosen.has(r.player.id))
     .sort((a, b) => Number(a.unavailable) - Number(b.unavailable) || b.xp - a.xp);
+
+  /**
+   * A quién hay que sacar por cada uno que entra.
+   *
+   * Se emparejan por puesto siempre que se pueda: si entra un defensa, sale el
+   * peor de tus defensas. Cuando la formación cambia no hay pareja exacta y se
+   * coge al siguiente peor, que es igual lo que hay que hacer en el juego.
+   */
+  const rateOf = new Map(rated.map((r) => [r.player.id, r]));
+  const droppable = starterList
+    .filter((p) => !chosen.has(p.id))
+    .map((p) => rateOf.get(p.id))
+    .filter((r): r is NonNullable<typeof r> => r !== undefined)
+    .sort((a, b) => a.xp - b.xp);
+
+  const taken = new Set<string>();
+  const drops = changes.map((inc) => {
+    const same = droppable.find(
+      (o) => !taken.has(o.player.id) && o.player.position === inc.player.position,
+    );
+    const pick = same ?? droppable.find((o) => !taken.has(o.player.id));
+    if (pick) taken.add(pick.player.id);
+    return pick ?? null;
+  });
 
   return (
     <>
@@ -539,21 +559,49 @@ function IdealView({
 
       <div className="px-3.5 pb-6 sm:px-6 lg:px-10">
         {changes.length > 0 && (
-          <div className="border-line bg-warn-soft mt-4 rounded-2xl border p-4">
+          <div className="border-line mt-4 rounded-2xl border p-4">
             <h3 className="display text-base">
               {changes.length === 1 ? "Un cambio" : `${changes.length} cambios`} respecto a tu once
             </h3>
-            <ul className="mt-2 space-y-1">
-              {changes.map((r) => (
-                <li key={r.player.id} className="text-[0.82rem]">
-                  <span className="font-semibold">{r.player.name}</span>
-                  <span className="text-muted">
-                    {" "}
-                    — {r.xp.toFixed(1)} pts esperados
-                    {r.note ? ` · ${r.note}` : ""}
-                  </span>
-                </li>
-              ))}
+
+            {/* Emparejados: a quién metes y a quién sacas por él. Decir sólo
+                quién entra deja la mitad del trabajo sin hacer. */}
+            <ul className="mt-3 space-y-2.5">
+              {changes.map((r, i) => {
+                const out = drops[i] ?? null;
+                return (
+                  <li
+                    key={r.player.id}
+                    className="grid gap-1.5 sm:grid-cols-2 sm:items-start sm:gap-4"
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-up text-[0.7rem] font-bold">ENTRA</span>
+                      <span className="min-w-0">
+                        <span className="text-[0.86rem] font-semibold">{r.player.name}</span>
+                        <span className="text-faint ml-1.5 text-[0.74rem]">
+                          {r.xp.toFixed(1)} pts{r.note ? ` · ${r.note.split(" · ")[0]}` : ""}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-down text-[0.7rem] font-bold">SALE</span>
+                      {out ? (
+                        <span className="min-w-0">
+                          <span className="text-[0.86rem] font-semibold">{out.player.name}</span>
+                          <span className="text-faint ml-1.5 text-[0.74rem]">
+                            {out.xp.toFixed(1)} pts
+                            {out.note ? ` · ${out.note.split(" · ")[0]}` : ""}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-faint text-[0.78rem]">
+                          tu once tiene un hueco libre
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

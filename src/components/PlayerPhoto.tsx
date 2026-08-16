@@ -24,11 +24,15 @@ export function PlayerPhoto({
   const [index, setIndex] = useState(0);
   const current = sources[index];
 
+  // Con clases propias manda el CSS: la foto a sangre de la tarjeta necesita
+  // estirarse al hueco, y un alto en línea lo impediría.
+  const box = className ? undefined : { width: size, height: size };
+
   if (!current) {
     return (
       <div
         className={`bg-panel-2 text-faint flex items-center justify-center text-[0.65rem] font-semibold ${className}`}
-        style={{ width: size, height: size }}
+        style={box}
       >
         {name.slice(0, 2).toUpperCase()}
       </div>
@@ -45,7 +49,7 @@ export function PlayerPhoto({
       loading="lazy"
       onError={() => setIndex((i) => i + 1)}
       className={`object-cover object-top ${className}`}
-      style={{ width: size, height: size }}
+      style={box}
     />
   );
 }

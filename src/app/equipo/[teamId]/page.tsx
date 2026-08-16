@@ -13,15 +13,9 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
 import { FfLink } from "@/components/FfLink";
 import { FF_MARKET_URL } from "@/lib/odds";
-import {
-  SortBar,
-  SquadHeader,
-  SquadRows,
-  clauseIsOpen,
-  filterSquad,
-  readSortParams,
-  sortSquad,
-} from "@/components/SquadList";
+import { clauseIsOpen } from "@/components/SquadList";
+import { SquadBrowser } from "@/components/SquadBrowser";
+import { toCard } from "@/components/PlayerCard";
 import { TeamView } from "@/components/TeamView";
 
 export const dynamic = "force-dynamic";
@@ -38,17 +32,10 @@ export default async function EquipoPage({
   searchParams,
 }: {
   params: Promise<{ teamId: string }>;
-  searchParams: Promise<{
-    orden?: string;
-    dir?: string;
-    pos?: string;
-    abiertas?: string;
-    vista?: string;
-  }>;
+  searchParams: Promise<{ vista?: string }>;
 }) {
   const { teamId } = await params;
   const query = await searchParams;
-  const { sort, dir, positions, openOnly } = readSortParams(query, "posicion");
 
   const session = await getSession();
   if (!session.active)
@@ -91,8 +78,9 @@ export default async function EquipoPage({
 
   // Pestaña de cláusulas abiertas: mismo listado, pero sólo los fichables ya.
   const onlyOpen = query.vista === "clausulas";
-  const base = squad.filter((p) => !onlyOpen || clauseIsOpen(p));
-  const sorted = sortSquad(filterSquad(base, positions, openOnly), sort, dir, oddsOf);
+  const cards = squad
+    .filter((p) => !onlyOpen || clauseIsOpen(p))
+    .map((p) => toCard(p, oddsOf(p), fixturesOf(p)));
 
   return (
     <>
@@ -138,44 +126,15 @@ export default async function EquipoPage({
 
       <RivalTabs teamId={teamId} onlyOpen={onlyOpen} total={squad.length} open={openClauses} />
 
-      <SortBar
-        base={`/equipo/${teamId}`}
-        sort={sort}
-        dir={dir}
-        pos={query.pos}
-        openOnly={openOnly}
-        extra={onlyOpen ? { vista: "clausulas" } : undefined}
+      <SquadBrowser
+        cards={cards}
+        leagueId={league.id}
+        emptyHint={
+          onlyOpen
+            ? "Ahora mismo todos sus jugadores están blindados."
+            : "Ninguno encaja con este filtro."
+        }
       />
-
-      <SquadHeader
-        base={`/equipo/${teamId}`}
-        sort={sort}
-        dir={dir}
-        keep={{
-          vista: onlyOpen ? "clausulas" : undefined,
-          pos: query.pos,
-          abiertas: openOnly ? "1" : undefined,
-        }}
-      />
-
-      {sorted.length === 0 ? (
-        <Empty
-          title={onlyOpen ? "Ninguna cláusula abierta" : "Plantilla vacía"}
-          hint={
-            onlyOpen
-              ? "Ahora mismo todos sus jugadores están blindados."
-              : undefined
-          }
-        />
-      ) : (
-        <SquadRows
-          players={sorted}
-          leagueId={league.id}
-          oddsOf={oddsOf}
-          highlight={sort}
-          fixturesOf={fixturesOf}
-        />
-      )}
     </>
   );
 }

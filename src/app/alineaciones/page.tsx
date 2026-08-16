@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getMatches } from "@/lib/alineaciones";
-import { findTeamByName } from "@/lib/equipos";
+import { TEAMS, findTeamByName } from "@/lib/equipos";
+import { fantasy, safe } from "@/lib/api";
+import { getSession } from "@/lib/session";
+import { getFf } from "@/lib/futbolfantasy";
+import { playersOfTeam, toList, toManager } from "@/lib/normalize";
 import { Empty, PageHeader } from "@/components/ui";
 import { FfLink } from "@/components/FfLink";
 import { ffLineupsUrl } from "@/lib/odds";
@@ -18,14 +22,61 @@ export default async function AlineacionesPage({
 }) {
   const { j } = await searchParams;
   const round = Math.min(38, Math.max(1, Number(j) || 1));
-  const matches = await getMatches(round);
+
+  const session = await getSession();
+  const league = session.active;
+
+  const [matches, { data: teamRaw }, ff] = await Promise.all([
+    getMatches(round),
+    league?.myTeamId
+      ? safe(fantasy.team(league.id, league.myTeamId))
+      : Promise.resolve({ data: null, error: null }),
+    getFf(),
+  ]);
+
+  /**
+   * Cuántos jugadores míos hay en cada club de LaLiga.
+   *
+   * El club sale del cruce con futbolfantasy, que es quien tiene el id de
+   * equipo; cuando ese cruce falla se recurre al nombre que da LaLiga. Con eso
+   * se puede decir en cada partido cuántos míos se juegan los puntos.
+   */
+  const mine = new Map<string, number>();
+  if (teamRaw) {
+    for (const player of playersOfTeam(teamRaw)) {
+      const row = ff.byName(player.fullName || player.name) ?? ff.byName(player.name);
+      const team =
+        TEAMS.find((t) => t.ffId === row?.teamId) ?? findTeamByName(player.clubName ?? "");
+      if (team) mine.set(team.ffId, (mine.get(team.ffId) ?? 0) + 1);
+    }
+  }
+
+  // Cuántos tienen los demás managers, para saber contra quién te juegas cada
+  // partido: un partido donde nadie tiene a nadie da igual.
+  const total = new Map<string, number>();
+  if (league) {
+    const { data: teamsRaw } = await safe(fantasy.leagueTeams(league.id));
+    for (const raw of toList(teamsRaw)) {
+      for (const player of playersOfTeam(raw)) {
+        const row = ff.byName(player.fullName || player.name) ?? ff.byName(player.name);
+        const team =
+          TEAMS.find((t) => t.ffId === row?.teamId) ?? findTeamByName(player.clubName ?? "");
+        if (team) total.set(team.ffId, (total.get(team.ffId) ?? 0) + 1);
+      }
+    }
+  }
+
+  const countOf = (teamId: string) => ({
+    mine: mine.get(teamId) ?? 0,
+    total: total.get(teamId) ?? 0,
+  });
 
   return (
     <>
       <PageHeader
         eyebrow="Alineaciones probables"
         title={`Jornada ${round}`}
-        meta="Onces que futbolfantasy da como más probables. Entra en un partido para verlos."
+        meta="Onces que futbolfantasy da como más probables. El número junto a cada escudo son tus jugadores en ese club."
         action={
           <div className="flex items-center gap-2">
             <FfLink
@@ -43,33 +94,52 @@ export default async function AlineacionesPage({
           hint="futbolfantasy todavía no publica los onces de esta jornada."
         />
       ) : (
-        <div className="grid gap-2.5 p-2.5 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:p-6">
+        <div className="grid gap-2 p-2.5 sm:grid-cols-2 sm:p-4 lg:p-6">
           {matches.map((match, i) => {
-            const home = findTeamByName(match.home.name);
-            const away = findTeamByName(match.away.name);
+            const home = countOf(match.home.teamId);
+            const away = countOf(match.away.teamId);
+            const mineHere = home.mine + away.mine;
+
             return (
               <Link
                 key={match.id}
                 href={`/alineaciones/${match.id}?j=${round}`}
-                className="border-line hover:border-acid/50 rise overflow-hidden rounded-xl border bg-panel shadow-sm transition-all hover:shadow-md"
+                className={`border-line rise bg-panel overflow-hidden rounded-2xl border transition-colors ${
+                  mineHere > 0 ? "border-acid/40" : "hover:border-faint/60"
+                }`}
                 style={{ animationDelay: `${i * 40}ms` }}
               >
-                {/* Franja partida: mitad del color del local, mitad del
-                    visitante. Igual que dentro del partido. */}
-                <div className="flex h-1.5">
-                  <span className="flex-1" style={{ background: home?.color ?? "#cbd5e1" }} />
-                  <span className="flex-1" style={{ background: away?.color ?? "#cbd5e1" }} />
+                <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+                  <span className="text-faint text-[0.68rem]">{match.kickoff}</span>
+                  <span className="text-faint text-[0.68rem]">
+                    {mineHere > 0 ? (
+                      <span className="text-acid font-semibold">
+                        {mineHere} {mineHere === 1 ? "tuyo" : "tuyos"}
+                      </span>
+                    ) : (
+                      "ninguno tuyo"
+                    )}
+                    {" · "}
+                    {home.total + away.total} de la liga
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
-                  <Side name={match.home.name} badge={match.home.badge} align="right" />
-
-                  <div className="w-[84px] shrink-0 text-center sm:w-[92px]">
-                    <div className="text-faint text-[0.68rem] leading-tight">{match.kickoff}</div>
-                    <div className="display text-acid mt-1 text-sm">VS</div>
-                  </div>
-
-                  <Side name={match.away.name} badge={match.away.badge} align="left" />
+                <div className="flex items-center gap-2 p-3 sm:gap-3">
+                  <Side
+                    name={match.home.name}
+                    badge={match.home.badge}
+                    align="right"
+                    count={home}
+                    where="casa"
+                  />
+                  <span className="text-faint shrink-0 text-[0.7rem]">–</span>
+                  <Side
+                    name={match.away.name}
+                    badge={match.away.badge}
+                    align="left"
+                    count={away}
+                    where="fuera"
+                  />
                 </div>
               </Link>
             );
@@ -80,14 +150,23 @@ export default async function AlineacionesPage({
   );
 }
 
+/**
+ * Un equipo del partido: escudo, nombre, si juega en casa o fuera y cuántos
+ * jugadores tuyos tiene. El "fuera" va escrito porque de un vistazo no se sabe
+ * quién es el local en una tarjeta que cabe en media pantalla.
+ */
 function Side({
   name,
   badge,
   align,
+  count,
+  where,
 }: {
   name: string;
   badge: string | null;
   align: "left" | "right";
+  count: { mine: number; total: number };
+  where: "casa" | "fuera";
 }) {
   return (
     <div
@@ -95,11 +174,28 @@ function Side({
         align === "right" ? "flex-row-reverse text-right" : ""
       }`}
     >
-      {badge && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={badge} alt="" width={30} height={30} className="shrink-0 object-contain" />
-      )}
-      <span className="truncate text-[0.9rem] font-semibold">{name}</span>
+      <span className="relative shrink-0">
+        {badge && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={badge} alt="" width={32} height={32} className="object-contain" />
+        )}
+        {count.mine > 0 && (
+          <span
+            className="bg-acid tnum absolute -right-1.5 -bottom-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[0.6rem] font-bold text-white"
+            title={`Tienes ${count.mine} jugador${count.mine === 1 ? "" : "es"} de este equipo`}
+          >
+            {count.mine}
+          </span>
+        )}
+      </span>
+
+      <span className="min-w-0">
+        <span className="block truncate text-[0.9rem] font-semibold">{name}</span>
+        <span className={`text-faint text-[0.62rem] ${where === "fuera" ? "" : "opacity-60"}`}>
+          {where === "fuera" ? "✈ fuera" : "en casa"}
+          {count.total > 0 ? ` · ${count.total} en la liga` : ""}
+        </span>
+      </span>
     </div>
   );
 }

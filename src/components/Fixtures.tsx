@@ -365,6 +365,78 @@ export function FixtureStrip({ fixtures, limit = 5 }: { fixtures: Fixture[]; lim
   );
 }
 
+/**
+ * Los próximos partidos de liga en miniatura, para la tarjeta de jugador.
+ *
+ * A diferencia de la tira grande, el color no invade toda la pastilla: el
+ * escudo va sobre fondo neutro y la dificultad es una barra fina debajo. Con
+ * veinticuatro tarjetas en pantalla, pintarlas enteras de rojo y verde convertía
+ * la lista en un semáforo donde no se leía nada.
+ */
+export function MiniFixtures({
+  fixtures,
+  limit = 3,
+}: {
+  fixtures: Fixture[] | null | undefined;
+  limit?: number;
+}) {
+  const league = (fixtures ?? []).filter(isLeague).slice(0, limit);
+  if (league.length === 0) return null;
+
+  return (
+    <div className="flex gap-1">
+      {league.map((fixture) => {
+        const rival = fixture.atHome ? fixture.away : fixture.home;
+        const tone = difficultyTone(fixture.difficulty);
+        const href = clubHref(rival.name);
+        const title = `${fixture.phase} · ${fixture.atHome ? "en casa contra" : "fuera contra"} ${rival.name} · ${tone.label} · ${fixture.date}`;
+
+        const body = (
+          <>
+            <span className="flex items-center gap-[2px]">
+              {rival.badge ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={rival.badge} alt="" width={15} height={15} className="object-contain" />
+              ) : (
+                <span className="text-faint text-[0.5rem]">{rival.name.slice(0, 3)}</span>
+              )}
+              {!fixture.atHome && (
+                <span className="text-faint text-[0.5rem] leading-none" aria-hidden>
+                  ✈
+                </span>
+              )}
+            </span>
+            <span
+              className="h-[3px] w-full rounded-full"
+              style={{ background: tone.bg }}
+              aria-hidden
+            />
+          </>
+        );
+
+        const shared =
+          "bg-panel-2 flex w-[32px] shrink-0 flex-col items-center gap-1 rounded-lg px-1 pt-1 pb-[3px]";
+
+        // `relative z-10`: la tarjeta entera ya es un enlace al jugador.
+        return href ? (
+          <Link
+            key={fixture.id}
+            href={href}
+            className={`${shared} relative z-10 transition-transform hover:scale-105`}
+            title={title}
+          >
+            {body}
+          </Link>
+        ) : (
+          <span key={fixture.id} className={shared} title={title}>
+            {body}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function NextFixtures({ fixtures, limit }: { fixtures: Fixture[]; limit?: number }) {
   if (fixtures.length === 0) {
     return <p className="text-faint text-sm">Sin próximos partidos publicados.</p>;

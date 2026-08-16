@@ -154,10 +154,42 @@ export type Fixtures = { last: Fixture[]; next: Fixture[] };
 
 const cache = new Map<string, { at: number; fixtures: Fixtures }>();
 
+/** Descargas en curso, para no pedir veinte veces la misma página. */
+const inflight = new Map<string, Promise<Fixtures>>();
+
+/**
+ * Calendario de un club.
+ *
+ * Con copia en memoria y **refresco en segundo plano**: pasada la media hora se
+ * devuelve lo que hay y se pide lo nuevo sin bloquear. Cada página de estas
+ * ronda el megabyte y una plantilla toca hasta veinte clubes, así que esperar a
+ * que caduquen convertía una navegación normal en varios segundos de espera.
+ */
 export async function getFixtures(slug: string): Promise<Fixtures> {
   const hit = cache.get(slug);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.fixtures;
+  const fresh = hit && Date.now() - hit.at < TTL_MS;
 
+  if (hit) {
+    if (!fresh && !inflight.has(slug)) {
+      const job = load(slug).finally(() => inflight.delete(slug));
+      inflight.set(slug, job);
+      // El fallo del refresco no importa: seguimos con la copia anterior.
+      job.catch(() => {});
+    }
+    return hit.fixtures;
+  }
+
+  // Sin nada cacheado hay que esperar, pero una sola vez por club.
+  const pending = inflight.get(slug);
+  if (pending) return pending;
+
+  const job = load(slug).finally(() => inflight.delete(slug));
+  inflight.set(slug, job);
+  return job;
+}
+
+async function load(slug: string): Promise<Fixtures> {
+  const hit = cache.get(slug);
   const team = findTeam(slug);
   let fixtures: Fixtures | null = null;
 

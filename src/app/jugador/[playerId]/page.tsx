@@ -15,7 +15,7 @@ import {
 } from "@/lib/normalize";
 import { dateTime, money, num, signed } from "@/lib/format";
 import { PointsChart, ValueChart } from "@/components/charts";
-import { LastFixtures, NextFixtures } from "@/components/Fixtures";
+import { FixtureRow } from "@/components/Fixtures";
 import { TEAMS, getFixtures } from "@/lib/equipos";
 import { Countdown } from "@/components/Countdown";
 import { PlayerPhoto } from "@/components/PlayerPhoto";
@@ -91,19 +91,49 @@ export default async function JugadorPage({
       <SeasonStats odds={odds} />
 
       {club && (
-        <section className="border-line border-b px-6 py-5 lg:px-10">
-          <div className="mb-3 flex flex-wrap items-baseline gap-3">
-            <span className="label">Próximos partidos de {club.name}</span>
-            {/* El calendario entero son 38 tarjetas y aquí sólo estorban: se
+        <section className="border-line border-b px-3.5 py-4 sm:px-6 sm:py-5 lg:px-10">
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="label">Calendario de {club.name}</span>
+            {/* El calendario entero son 38 partidos y aquí sólo estorban: se
                 enseñan los siguientes y el resto se ve en la página del club. */}
-            <Link href={`/equipos/${club.slug}?tab=calendario`} className="text-acid text-xs hover:underline">
-              ver calendario completo →
+            <Link
+              href={`/equipos/${club.slug}?tab=calendario`}
+              className="text-acid text-xs hover:underline"
+            >
+              ver completo →
             </Link>
             <FfLink href={ffTeamUrl(club.slug)} label={`Ver ${club.name} en futbolfantasy`} compact />
           </div>
-          <NextFixtures fixtures={fixtures.next} limit={6} />
-          <div className="label mt-5 mb-3">Últimos partidos</div>
-          <LastFixtures fixtures={fixtures.last} limit={4} />
+
+          {/* Filas y no tarjetas: en el móvil una tarjeta por línea obligaba a
+              recorrer media pantalla por partido. Así entran seis de un vistazo
+              y las dos listas caben en paralelo en escritorio. */}
+          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+            <div>
+              <div className="label mb-2 text-[0.6rem]">Próximos</div>
+              {fixtures.next.length === 0 ? (
+                <p className="text-faint text-sm">Sin próximos partidos publicados.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {fixtures.next.slice(0, 6).map((fixture) => (
+                    <FixtureRow key={fixture.id} fixture={fixture} compact />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="label mb-2 text-[0.6rem]">Últimos</div>
+              {fixtures.last.length === 0 ? (
+                <p className="text-faint text-sm">Sin partidos jugados todavía.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {fixtures.last.slice(0, 4).map((fixture) => (
+                    <FixtureRow key={fixture.id} fixture={fixture} played compact />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 
@@ -140,93 +170,91 @@ function Header({
   const tone = odds?.probability != null ? oddsTone(odds.probability) : null;
 
   return (
-    <div className="border-line relative overflow-hidden border-b">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(18,138,79,0.10) 0%, rgba(18,138,79,0.03) 45%, transparent 72%)",
-        }}
-      />
-      <div className="relative flex flex-wrap items-center gap-5 px-6 py-7 lg:px-10">
-        <div className="border-line relative overflow-hidden rounded-xl border-2 bg-panel shadow-md">
-          <PlayerPhoto
-            src={player.image}
-            fallback={ffPhoto(odds?.ffId ?? null)}
-            name={player.name}
-            size={96}
-          />
-        </div>
-
-        <div className="rise min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <PositionTag position={player.position} />
-            <span className="label">{POSITION_LABEL[player.position]}</span>
-            <AlertBadge alerts={odds?.alerts} />
-            <FfLink href={ffPlayerUrl(odds?.slug)} label={`Ver a ${player.name} en futbolfantasy`} />
-          </div>
-
-          <h1 className="display mt-2 text-[clamp(1.9rem,4.5vw,3rem)]">{player.name}</h1>
-
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <ClubLink
-              name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
-              badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
-              size={20}
-              className="text-muted text-sm font-medium"
+    <div className="border-line border-b">
+      {/* En el móvil todo va en columna: la foto y el nombre arriba, y los
+          datos debajo en una fila de pastillas. Antes el nombre y la caja de
+          probabilidad se peleaban por el mismo hueco y acababan encima. */}
+      <div className="flex flex-col gap-3.5 px-3.5 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-7 lg:px-10">
+        <div className="flex items-center gap-3.5 sm:contents">
+          <div className="border-line bg-panel relative shrink-0 overflow-hidden rounded-2xl border">
+            <PlayerPhoto
+              src={player.image}
+              fallback={ffPhoto(odds?.ffId ?? null)}
+              name={player.name}
+              size={96}
+              className="h-[72px] w-[72px] sm:h-24 sm:w-24"
             />
+          </div>
 
-            {/* Lo que se ha movido hoy, en la cabecera: es lo primero que se
-                mira al abrir una ficha y estaba enterrado más abajo. */}
-            {odds?.diff ? (
-              <span
-                className={`tnum inline-flex items-baseline gap-1.5 rounded-lg px-3 py-1.5 text-[1.05rem] font-bold ${
-                  odds.diff > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"
-                }`}
-                title="Variación de valor respecto a ayer"
-              >
-                {odds.diff > 0 ? "▲" : "▼"} {signed(odds.diff)}
-                {odds.diffPct !== null && (
-                  <span className="text-[0.78rem] font-semibold opacity-80">
-                    {odds.diffPct > 0 ? "+" : "−"}
-                    {num(Math.abs(odds.diffPct), 1)}%
-                  </span>
-                )}
-              </span>
-            ) : (
-              <span className="text-faint text-[0.78rem]">sin cambio de valor hoy</span>
-            )}
-            <StatusTag status={player.status} />
-            {owner && (
-              <span
-                className={`rounded-md border px-2 py-1 text-[0.72rem] font-bold ${
-                  owner.isMe
-                    ? "border-acid bg-acid/15 text-acid"
-                    : "border-info/50 bg-info-soft text-info"
-                }`}
-              >
-                {owner.isMe ? "ES TUYO" : `De ${owner.manager}`}
-              </span>
-            )}
+          <div className="rise min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <PositionTag position={player.position} />
+              <span className="label">{POSITION_LABEL[player.position]}</span>
+              <AlertBadge alerts={odds?.alerts} />
+            </div>
+
+            {/* `break-all` como último recurso: un apellido largo desbordaba su
+                caja y se pintaba encima de lo que viniera detrás. */}
+            <h1 className="display mt-1.5 text-[clamp(1.6rem,7vw,3rem)] break-all">
+              {player.name}
+            </h1>
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <ClubLink
+                name={player.clubName !== "—" ? player.clubName : (odds?.teamName ?? null)}
+                badge={player.clubBadge ?? ffBadge(odds?.teamId ?? null)}
+                size={18}
+                className="text-muted text-[0.82rem] font-medium"
+              />
+              <StatusTag status={player.status} />
+              {owner && (
+                <span
+                  className={`text-[0.72rem] font-semibold ${owner.isMe ? "text-acid" : "text-info"}`}
+                >
+                  {owner.isMe ? "es tuyo" : `de ${owner.manager}`}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Probabilidad de ser titular: el dato que más se consulta */}
-        {tone && (
-          <div
-            className="rounded-2xl px-6 py-4 text-center shadow-md"
-            style={{ background: tone.color, color: tone.ink }}
-          >
-            <div className="text-[0.62rem] font-bold tracking-wider uppercase opacity-80">
-              Sale de titular
-            </div>
-            <div className="tnum mt-1 text-[2.4rem] leading-none font-bold">
-              {odds!.probability}%
-            </div>
-            <div className="text-[0.68rem] font-semibold">{tone.label}</div>
-          </div>
-        )}
+        {/* Probabilidad, valor del día y enlace a la fuente. En el móvil es una
+            fila propia debajo; en escritorio, la caja de siempre a la derecha. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+          {tone && (
+            <span
+              className="tnum inline-flex items-baseline gap-1.5 rounded-xl px-3 py-1.5 sm:flex-col sm:items-center sm:px-5 sm:py-3"
+              style={{ background: tone.color, color: tone.ink }}
+              title={`${tone.label} — ${odds!.probability}% de salir de titular`}
+            >
+              <span className="text-[1.3rem] leading-none font-bold sm:text-[2.2rem]">
+                {odds!.probability}%
+              </span>
+              <span className="text-[0.66rem] font-semibold opacity-85">de titular</span>
+            </span>
+          )}
+
+          {odds?.diff ? (
+            <span
+              className={`tnum inline-flex items-baseline gap-1.5 rounded-xl px-2.5 py-1.5 text-[0.95rem] font-bold ${
+                odds.diff > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"
+              }`}
+              title="Variación de valor respecto a ayer"
+            >
+              {odds.diff > 0 ? "▲" : "▼"} {signed(odds.diff)}
+              {odds.diffPct !== null && (
+                <span className="text-[0.72rem] font-semibold opacity-80">
+                  {odds.diffPct > 0 ? "+" : "−"}
+                  {num(Math.abs(odds.diffPct), 1)}%
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-faint text-[0.76rem]">sin cambio de valor hoy</span>
+          )}
+
+          <FfLink href={ffPlayerUrl(odds?.slug)} label={`Ver a ${player.name} en futbolfantasy`} />
+        </div>
       </div>
     </div>
   );

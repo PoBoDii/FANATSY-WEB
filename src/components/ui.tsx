@@ -1,10 +1,8 @@
 import Link from "next/link";
 import type { Player, PlayerStatus, Position } from "@/lib/normalize";
 import { type FfPlayer, type PlayerAlert, oddsTone, priceTone } from "@/lib/odds";
-import { dateTime, money, num, signed } from "@/lib/format";
-import { Countdown } from "./Countdown";
-import { FixtureStrip, NextRival } from "./Fixtures";
-import { clubHref, type Fixture } from "@/lib/equipos";
+import { money, signed } from "@/lib/format";
+import { clubHref } from "@/lib/equipos";
 
 /* -------------------------------------------------------------- cabecera */
 
@@ -19,26 +17,17 @@ export function PageHeader({
   meta?: React.ReactNode;
   action?: React.ReactNode;
 }) {
+  // Sin lavados de color ni pastillas: un antetítulo en gris, el título en
+  // grande y aire. La cabecera no tiene que competir con el contenido.
   return (
-    <div className="border-line relative overflow-hidden border-b">
-      {/* Un lavado de verde muy suave: da cuerpo a la cabecera sin ruido. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(900px 320px at 8% -30%, rgba(13,122,68,0.22), transparent 70%), radial-gradient(700px 280px at 85% -10%, rgba(56,189,248,0.16), transparent 65%)",
-        }}
-      />
-      <div className="relative flex flex-wrap items-end justify-between gap-3 px-3.5 pt-3.5 pb-3 sm:gap-4 sm:px-6 sm:pt-8 sm:pb-6 lg:px-10 lg:pt-11">
-        <div className="rise">
-          <span className="bg-acid inline-block rounded-full px-2.5 py-[3px] text-[0.6rem] font-bold tracking-wide text-white uppercase sm:px-3 sm:py-1 sm:text-[0.68rem]">
-            {eyebrow}
-          </span>
-          <h1 className="display text-ink mt-2 text-[clamp(1.6rem,6.5vw,3.8rem)] break-words">
+    <div className="border-line border-b">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-3.5 pt-4 pb-3.5 sm:gap-4 sm:px-6 sm:pt-8 sm:pb-6 lg:px-10">
+        <div className="rise min-w-0">
+          <span className="label">{eyebrow}</span>
+          <h1 className="display text-ink mt-1.5 text-[clamp(1.75rem,7vw,3.2rem)] break-words">
             {title}
           </h1>
-          {meta && <div className="text-muted mt-2 text-[0.82rem] sm:text-sm">{meta}</div>}
+          {meta && <div className="text-muted mt-1.5 text-[0.82rem] sm:text-sm">{meta}</div>}
         </div>
         {action}
       </div>
@@ -61,27 +50,24 @@ export function StatTile({
   tone?: "neutral" | "acid" | "up" | "down";
   delay?: number;
 }) {
-  // Cada tono trae su propio fondo y su franja lateral: el dato importante se
-  // reconoce por color antes de leerlo.
-  const styles = {
-    neutral: { text: "text-ink", bar: "bg-ink/25", bg: "bg-panel" },
-    acid: { text: "text-acid", bar: "bg-acid", bg: "bg-gradient-to-br from-up-soft to-panel" },
-    up: { text: "text-up", bar: "bg-up", bg: "bg-gradient-to-br from-up-soft to-panel" },
-    down: { text: "text-down", bar: "bg-down", bg: "bg-gradient-to-br from-down-soft to-panel" },
+  // El color va sólo en la cifra, y sólo cuando significa algo. Ni fondos
+  // degradados ni franjas: cuatro recuadros de colores seguidos convertían la
+  // cabecera en un tablero de luces.
+  const text = {
+    neutral: "text-ink",
+    acid: "text-acid",
+    up: "text-up",
+    down: "text-down",
   }[tone];
 
   return (
     <div
-      className={`border-line rise relative overflow-hidden border-r border-b px-3.5 py-3 last:border-r-0 sm:px-5 sm:py-4 ${styles.bg}`}
+      className="border-line rise border-r border-b px-3.5 py-3 last:border-r-0 sm:px-5 sm:py-4"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <span
-        aria-hidden
-        className={`absolute top-3 bottom-3 left-0 w-[4px] rounded-r-full ${styles.bar}`}
-      />
       <div className="label">{label}</div>
       <div
-        className={`tnum mt-2 text-[1.2rem] leading-none font-semibold whitespace-nowrap sm:text-[1.55rem] ${styles.text}`}
+        className={`tnum mt-1.5 text-[1.25rem] leading-none font-semibold whitespace-nowrap sm:text-[1.55rem] ${text}`}
       >
         {value}
       </div>
@@ -92,19 +78,23 @@ export function StatTile({
 
 /* ---------------------------------------------------------------- jugador */
 
+/**
+ * Etiqueta de puesto. Color de texto sobre un tinte muy suave, no un bloque
+ * saturado: en una lista de veinte, veinte rectángulos de colores son ruido.
+ */
 const POS_COLOR: Record<Position, string> = {
-  PT: "bg-amber-500 text-white border-amber-600",
-  DF: "bg-sky-600 text-white border-sky-700",
-  MC: "bg-emerald-600 text-white border-emerald-700",
-  DL: "bg-rose-600 text-white border-rose-700",
-  EN: "bg-violet-600 text-white border-violet-700",
-  "?": "bg-panel-2 text-faint border-line",
+  PT: "bg-amber-500/15 text-amber-500",
+  DF: "bg-sky-500/15 text-sky-400",
+  MC: "bg-emerald-500/15 text-emerald-400",
+  DL: "bg-rose-500/15 text-rose-400",
+  EN: "bg-violet-500/15 text-violet-400",
+  "?": "bg-panel-2 text-faint",
 };
 
 export function PositionTag({ position }: { position: Position }) {
   return (
     <span
-      className={`tnum inline-flex h-[22px] w-9 shrink-0 items-center justify-center rounded-lg border text-[0.62rem] font-semibold shadow-sm ${POS_COLOR[position]}`}
+      className={`tnum inline-flex h-[20px] w-8 shrink-0 items-center justify-center rounded-md text-[0.6rem] font-bold ${POS_COLOR[position]}`}
     >
       {position}
     </span>
@@ -467,354 +457,6 @@ export function OddsChip({
     >
       {probability}%
     </span>
-  );
-}
-
-/**
- * Fila de jugador. Densa a propósito: en vez de aire, cada franja lleva un
- * dato. La barra vertical de la izquierda repite el color de la probabilidad
- * para poder barrer la lista de un vistazo sin leer los números.
- */
-export function PlayerRow({
-  player,
-  leagueId,
-  odds,
-  role,
-  right,
-  highlight,
-  fixtures,
-  compact = false,
-  delay = 0,
-}: {
-  player: Player;
-  leagueId: string | null;
-  odds?: FfPlayer | null;
-  role?: LineupRole | null;
-  right?: React.ReactNode;
-  /** Criterio de ordenación activo: su dato se agranda en el centro. */
-  highlight?: string;
-  /** Próximos partidos de su club, para el calendario en miniatura. */
-  fixtures?: Fixture[] | null;
-  /** Para columnas estrechas: deja sólo lo imprescindible. */
-  compact?: boolean;
-  delay?: number;
-}) {
-  const tone = odds?.probability != null ? oddsTone(odds.probability) : null;
-
-  const body = (
-    <>
-      {/* Barra de probabilidad, a la izquierda del todo */}
-      <span
-        aria-hidden
-        className="absolute top-2 bottom-2 left-0 w-[4px] rounded-r-full"
-        style={{ background: tone?.color ?? "transparent" }}
-      />
-
-      <div className="relative shrink-0">
-        <PlayerAvatar player={player} size={52} className="h-11 w-11 sm:h-[52px] sm:w-[52px]" />
-        {player.status !== "ok" && (
-          <span className="absolute -top-1.5 -right-1.5">
-            <StatusIcon status={player.status} size={20} />
-          </span>
-        )}
-      </div>
-
-      <div className={`min-w-0 ${compact ? "flex-[2]" : "flex-1 sm:w-[190px] sm:flex-none sm:shrink-0"}`}>
-        <div className="flex items-center gap-2">
-          <PositionTag position={player.position} />
-          <span className="truncate text-[0.92rem] leading-tight font-bold sm:text-[1.02rem]">
-            {player.name}
-          </span>
-          <AlertBadge alerts={odds?.alerts} />
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <ClubLink
-            name={player.clubName}
-            badge={player.clubBadge}
-            className="text-muted text-[0.78rem] font-medium"
-          />
-          <RoleTag role={role} />
-          {compact && <StatusTag status={player.status} />}
-        </div>
-        {/* Contra quién juega: en la columna estrecha no cabe la tira de cinco,
-            pero el siguiente rival sí, que es el que decide la alineación. */}
-        {compact && fixtures && (
-          <div className="mt-1.5">
-            <NextRival fixtures={fixtures} size="sm" />
-          </div>
-        )}
-      </div>
-
-      {!compact && (
-        <>
-          {/* Estado, cuando lo hay: ocupa su sitio en vez de apretujarse */}
-          <div className="hidden w-[118px] shrink-0 xl:block">
-            <StatusTag status={player.status} />
-          </div>
-
-          {/* Calendario: los cinco próximos de liga con su dificultad */}
-          <div className="hidden w-[206px] shrink-0 xl:block">
-            {fixtures && fixtures.length > 0 && <FixtureStrip fixtures={fixtures} />}
-          </div>
-        </>
-      )}
-
-      {!compact && (
-        <div className="w-auto shrink-0 text-center sm:w-[74px]">
-          <div className="flex justify-center">
-            <OddsChip odds={odds} />
-          </div>
-        </div>
-      )}
-
-      {/* El dato por el que estás ordenando, en grande y en el hueco central */}
-      {!compact && <Highlighted player={player} odds={odds} sort={highlight} />}
-
-      {right ??
-        (compact ? (
-          /* En columna estrecha nada de `ml-auto`: los tres datos se reparten
-             el hueco que sobra en vez de amontonarse contra el borde. */
-          <div className="border-line flex w-full min-w-0 items-center gap-2 border-t pt-2.5 lg:contents lg:border-0 lg:pt-0">
-            <div className="flex min-w-0 flex-1 items-center justify-evenly gap-1.5 lg:flex-[3] lg:gap-2">
-              <div className="min-w-0 text-center">
-                <div className="label text-[0.55rem] leading-none">Juega</div>
-                <div className="mt-1.5 flex justify-center">
-                  <OddsChip odds={odds} />
-                </div>
-              </div>
-
-              <div className="min-w-0 text-center">
-                <div className="label text-[0.55rem] leading-none">Puntos</div>
-                <div className="tnum text-ink mt-1.5 text-[0.95rem] leading-none font-bold lg:text-[1.3rem]">
-                  {num(player.points)}
-                </div>
-                <div className="tnum text-faint mt-1.5 text-[0.62rem] leading-none">
-                  {num(player.averagePoints, 1)} media
-                </div>
-              </div>
-
-              <div className="min-w-0 text-center">
-                <div className="label text-[0.55rem] leading-none">Valor</div>
-                <div className="tnum text-ink mt-1.5 text-[0.95rem] leading-none font-bold lg:text-[1.3rem]">
-                  {money(player.marketValue)}
-                </div>
-                <div className="mt-1.5 flex justify-center">
-                  <PriceDelta diff={odds?.diff} size="sm" />
-                </div>
-              </div>
-            </div>
-            <ClauseBlock player={player} compact />
-          </div>
-        ) : (
-          <div className="border-line flex w-full min-w-0 items-center gap-2 border-t pt-2.5 sm:contents sm:gap-3 sm:border-0 sm:pt-0">
-            <div className="w-[54px] shrink-0 text-left sm:ml-auto sm:w-[84px] sm:text-right">
-              <span className="label text-[0.5rem] sm:hidden">Puntos</span>
-              <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
-                {num(player.points)}
-              </div>
-              <div className="tnum text-faint mt-1 text-[0.62rem] sm:mt-1.5 sm:text-[0.66rem]">
-                {num(player.averagePoints, 1)} media
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1 text-left sm:w-[136px] sm:flex-none sm:shrink-0 sm:text-right">
-              <span className="label text-[0.5rem] sm:hidden">Valor</span>
-              <div className="tnum text-ink text-[1.1rem] leading-none font-bold sm:text-[1.25rem]">
-                {money(player.marketValue)}
-              </div>
-              <div className="mt-1 flex justify-start sm:mt-1.5 sm:justify-end">
-                <PriceDelta diff={odds?.diff} pct={odds?.diffPct} size="sm" />
-              </div>
-            </div>
-            <ClauseBlock player={player} />
-          </div>
-        ))}
-    </>
-  );
-
-  return (
-    <div
-      className={`border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-panel py-3 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md lg:gap-4 lg:pl-5 ${
-        compact ? "lg:flex-nowrap" : "sm:flex-nowrap"
-      }`}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      {/* Enlace extendido: cubre la fila entera sin envolver su contenido, así
-          la insignia de aviso puede ser su propio enlace sin anidar <a>. */}
-      {leagueId && (
-        <Link
-          href={`/jugador/${player.id}`}
-          className="absolute inset-0"
-          aria-label={player.name}
-        />
-      )}
-      {body}
-    </div>
-  );
-}
-
-/**
- * El dato del criterio por el que estás ordenando, en grande y en el hueco
- * que queda entre el nombre y las columnas. Así la lista responde a lo que has
- * pedido en vez de enseñar siempre lo mismo.
- */
-function Highlighted({
-  player,
-  odds,
-  sort,
-}: {
-  player: Player;
-  odds?: FfPlayer | null;
-  sort?: string;
-}) {
-  if (!sort || sort === "posicion") return null;
-
-  const clause = player.buyoutClause ?? 0;
-  const block = (label: string, node: React.ReactNode) => (
-    <div className="hidden min-w-0 flex-1 flex-col items-center justify-center md:flex">
-      <span className="label text-[0.55rem] leading-none">{label}</span>
-      <div className="mt-1.5">{node}</div>
-    </div>
-  );
-
-  const big = "tnum text-[1.45rem] leading-none font-semibold";
-
-  switch (sort) {
-    case "cambio":
-      return block("Cambio de valor", <PriceDelta diff={odds?.diff} pct={odds?.diffPct} size="lg" />);
-    case "margen":
-      return block(
-        "Cláusula sobre valor",
-        <span className={`${big} text-warn`}>{clause ? signed(clause - player.marketValue) : "—"}</span>,
-      );
-    case "clausula": {
-      if (!clause) return block("Cláusula", <span className="text-faint text-sm">sin cláusula</span>);
-      const unlockAt = player.buyoutUnlockAt;
-      const open = !unlockAt || new Date(unlockAt).getTime() <= Date.now();
-      // Mismo código de color que la tarjeta de cláusula: verde cuando ya se
-      // puede pagar, rojo mientras siga blindada. En rojo las dos cosas no se
-      // distinguía lo abierto de lo que todavía no lo está.
-      return block(
-        open ? "Cláusula" : "Se abre en",
-        <div className="flex flex-col items-center gap-1.5">
-          <span className={`${big} ${open ? "text-up" : "text-down"}`}>{money(clause)}</span>
-          {unlockAt && !open ? (
-            <>
-              <Countdown until={unlockAt} />
-              <span className="tnum text-muted text-[0.68rem] whitespace-nowrap">
-                {dateTime(unlockAt)}
-              </span>
-            </>
-          ) : (
-            <span className="tnum text-up text-[0.72rem] font-semibold">
-              cualquiera puede pagarla
-            </span>
-          )}
-        </div>,
-      );
-    }
-    case "precio":
-      return block("Valor", <span className={`${big} text-ink`}>{money(player.marketValue)}</span>);
-    case "prob":
-      return block(
-        "Probabilidad",
-        odds?.probability != null ? (
-          <span
-            className={`${big} rounded-lg px-2.5 py-1`}
-            style={{
-              background: oddsTone(odds.probability).color,
-              color: oddsTone(odds.probability).ink,
-            }}
-          >
-            {odds.probability}%
-          </span>
-        ) : (
-          <span className="text-faint text-sm">s/d</span>
-        ),
-      );
-    case "puntos":
-      return block("Puntos", <span className={`${big} text-acid`}>{num(player.points)}</span>);
-    case "media":
-      return block(
-        "Media",
-        <span className={`${big} text-acid`}>{num(player.averagePoints, 1)}</span>,
-      );
-    default:
-      return null;
-  }
-}
-
-/**
- * La cláusula es el dato que más duele si se te pasa, así que va en su propio
- * bloque enmarcado, con la cuenta atrás hasta que el jugador queda expuesto.
- */
-export function ClauseBlock({ player, compact = false }: { player: Player; compact?: boolean }) {
-  if (!player.buyoutClause) return null;
-
-  const unlockAt = player.buyoutUnlockAt;
-  const urgent =
-    !unlockAt || new Date(unlockAt).getTime() - Date.now() < 24 * 3600 * 1000;
-
-  const open = !unlockAt || new Date(unlockAt).getTime() <= Date.now();
-
-  return (
-    <div
-      // El verde ya dice que está abierta: no hace falta repetirlo con una
-      // etiqueta que además roba el ancho que necesitan las cifras.
-      className={`${compact ? "w-[92px] lg:w-[132px]" : "w-[104px] sm:w-[152px]"} shrink-0 overflow-hidden rounded-xl border px-2 py-1.5 shadow-sm sm:px-2.5 sm:py-2 ${
-        open
-          ? "border-up bg-up/15"
-          : urgent
-            ? "border-down/60 bg-down/10"
-            : "border-line bg-panel-2/60"
-      }`}
-      title={open ? "Cláusula abierta: cualquiera puede pagarla" : undefined}
-    >
-      <span className={`label text-[0.55rem] leading-none ${open ? "text-up" : ""}`}>
-        Cláusula
-      </span>
-
-      <div
-        className={`tnum mt-1.5 text-[0.95rem] leading-none font-semibold sm:text-[1.25rem] ${
-          open ? "text-up" : urgent ? "text-down" : "text-ink"
-        }`}
-      >
-        {money(player.buyoutClause)}
-      </div>
-
-      {/* Lo que cuesta por encima de su valor: el sobreprecio real de robarlo.
-          Sin `nowrap`: en el móvil parte en dos líneas antes que salirse. */}
-      <div
-        className="tnum text-warn mt-1.5 text-[0.7rem] leading-tight font-semibold sm:text-[0.85rem]"
-        title="Diferencia entre la cláusula y el valor actual del jugador"
-      >
-        {signed(player.buyoutClause - player.marketValue)}
-        <span className="text-faint ml-1 text-[0.6rem] font-normal">s/ valor</span>
-      </div>
-
-      {open && (
-        // En el móvil no cabe y tampoco hace falta: el verde ya lo dice.
-        <div className="text-up mt-1.5 hidden text-[0.7rem] leading-tight font-semibold sm:block">
-          cualquiera puede pagarla
-        </div>
-      )}
-
-      {unlockAt && !open && (
-        <>
-          <div className="mt-1.5">
-            <Countdown until={unlockAt} />
-          </div>
-          <div
-            className={`tnum mt-1 text-[0.6rem] leading-tight ${
-              urgent ? "text-down" : "text-muted"
-            }`}
-            title="Momento exacto en que se desbloquea la cláusula"
-          >
-            libre {dateTime(unlockAt)}
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 

@@ -10,8 +10,10 @@ import {
   buildCandidate,
   needsDeal,
   scoreClause,
+  scoreSquad,
   scoreTarget,
 } from "@/lib/fichajes";
+import { ffBadge } from "@/lib/odds";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { FichajesList, type CandidateView } from "@/components/FichajesList";
 import { Empty, PageHeader, StatTile } from "@/components/ui";
@@ -76,15 +78,31 @@ export default async function FichajesPage() {
     c: (typeof all)[number],
     scored: { score: number; reasons: string[] },
   ): CandidateView => {
-    const next = (c.fixtures ?? []).find((f) => /liga/i.test(f.competition));
-    const rivalTeam = next ? (next.atHome ? next.away : next.home) : null;
-    const tone = next ? difficultyTone(next.difficulty) : null;
+    // Los tres siguientes de liga: es el calendario que decide un fichaje.
+    const next3 = (c.fixtures ?? [])
+      .filter((f) => /liga/i.test(f.competition))
+      .slice(0, 3)
+      .map((f) => {
+        const rival = f.atHome ? f.away : f.home;
+        const tone = difficultyTone(f.difficulty);
+        return {
+          name: rival.name,
+          badge: rival.badge,
+          atHome: f.atHome,
+          bg: tone.bg,
+          label: tone.label,
+        };
+      });
 
     return {
       id: c.player.id,
       name: c.player.name,
       position: c.player.position,
       photo: c.player.image,
+      badge: c.player.clubBadge ?? ffBadge(c.odds?.teamId ?? null),
+      status: c.player.status,
+      points: c.player.points,
+      average: c.player.averagePoints,
       ownerName: c.owner.name,
       ownerTeamId: c.owner.teamId,
       probability: c.odds?.probability ?? null,
@@ -108,31 +126,28 @@ export default async function FichajesPage() {
       affordable: c.affordable,
       score: scored.score,
       reasons: scored.reasons,
-      rival:
-        rivalTeam && tone && next
-          ? {
-              name: rivalTeam.name,
-              badge: rivalTeam.badge,
-              atHome: next.atHome,
-              bg: tone.bg,
-              ink: tone.ink,
-            }
-          : null,
+      next3,
     };
   };
 
   // Entran los abiertos y los que se abren en las próximas horas: si lo miras
   // un martes, quieres ver ya lo que podrás fichar el miércoles.
-  const clausulazos = all
-    .filter((c) => c.isOpen || c.opensSoon)
-    .map((c) => toView(c, scoreClause(c)));
+  const open = all.filter((c) => c.isOpen || c.opensSoon);
+
+  // Las mismas cláusulas, dos preguntas distintas: cuál deja dinero y cuál
+  // mejora el once. Casi nunca son el mismo jugador, así que van en listas
+  // separadas y cada una con su nota.
+  const negocio = open.map((c) => toView(c, scoreClause(c)));
+  const plantilla = open.map((c) => toView(c, scoreSquad(c)));
   const negociar = all.filter(needsDeal).map((c) => toView(c, scoreTarget(c)));
 
   // Los que dejan dinero: es el titular real de la sección.
-  const profitable = clausulazos.filter((c) => c.profit > 0).length;
-  const bestProfit = Math.max(0, ...clausulazos.map((c) => c.profit));
-  const affordable = clausulazos.filter((c) => c.affordable).length;
-  const soon = clausulazos.filter((c) => c.opensSoon).length;
+  const profitable = negocio.filter((c) => c.profit > 0).length;
+  const bestProfit = Math.max(0, ...negocio.map((c) => c.profit));
+  const starters = plantilla.filter(
+    (c) => c.affordable && (c.probability ?? 0) >= 70 && c.status === "ok",
+  ).length;
+  const soon = negocio.filter((c) => c.opensSoon).length;
 
   return (
     <>
@@ -141,7 +156,7 @@ export default async function FichajesPage() {
         title="Operaciones"
         meta={
           <>
-            {clausulazos.length} cláusulas abiertas · {negociar.length} a negociar · saldo{" "}
+            {negocio.length} cláusulas abiertas · {negociar.length} a negociar · saldo{" "}
             {money(budget.money)}
           </>
         }
@@ -152,13 +167,13 @@ export default async function FichajesPage() {
         <StatTile
           label="Dan dinero"
           value={num(profitable)}
-          sub={`de ${clausulazos.length} · hasta ${money(bestProfit)}`}
+          sub={`de ${negocio.length} · hasta ${money(bestProfit)}`}
           tone={profitable > 0 ? "up" : "neutral"}
         />
         <StatTile
-          label="Puedes pagarlas"
-          value={num(affordable)}
-          sub={`de ${clausulazos.length} abiertas`}
+          label="Titulares fichables"
+          value={num(starters)}
+          sub="70%+ de jugar y pagables"
           tone="acid"
           delay={60}
         />
@@ -167,7 +182,8 @@ export default async function FichajesPage() {
       </div>
 
       <FichajesList
-        clausulazos={clausulazos}
+        negocio={negocio}
+        plantilla={plantilla}
         negociar={negociar}
         protectionDays={PROTECTION_DAYS}
         tooExpensive={TOO_EXPENSIVE}

@@ -132,72 +132,6 @@ export default async function LigaPage({
         }
       />
 
-      {/* Podio */}
-      <div className="grid grid-cols-1 gap-3 px-3 py-4 sm:grid-cols-3 sm:gap-4 sm:px-4 sm:py-6 lg:px-6">
-        {managers.slice(0, 3).map((m, i) => (
-          <Link
-            key={m.teamId}
-            href={hrefOf(m)}
-            className="rise group border-line relative overflow-hidden rounded-3xl border bg-panel p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-            style={{ animationDelay: `${i * 80}ms` }}
-          >
-            {/* Halo del color del manager: da vida sin teñir la tarjeta entera,
-                que era lo que la dejaba plana. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -top-16 -right-12 h-40 w-40 rounded-full opacity-[0.14] blur-2xl transition-opacity group-hover:opacity-25"
-              style={{ background: m.color }}
-            />
-            <span
-              aria-hidden
-              className="absolute inset-x-0 top-0 h-1.5"
-              style={{ background: `linear-gradient(90deg, ${m.color}, ${m.color}55)` }}
-            />
-
-            <div className="relative flex items-center gap-3.5">
-              <span
-                className="display flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl text-white shadow-md"
-                style={{ background: `linear-gradient(140deg, ${m.color}, ${m.color}bb)` }}
-              >
-                {m.position}
-              </span>
-              <div className="min-w-0">
-                <div className="truncate text-[1.05rem] font-bold group-hover:underline">
-                  {m.name}
-                </div>
-                {m.isMe ? (
-                  <span
-                    className="mt-1 inline-block rounded-full px-2 py-[2px] text-[0.6rem] font-bold tracking-wide text-white uppercase"
-                    style={{ background: m.color }}
-                  >
-                    tú
-                  </span>
-                ) : (
-                  <span className="text-faint text-[0.72rem]">{m.openClauses} sin blindar</span>
-                )}
-              </div>
-            </div>
-
-            <div className="relative mt-5 flex items-end justify-between">
-              <div>
-                <div className="label text-[0.55rem]">Puntos</div>
-                <span className="tnum text-ink text-3xl leading-none font-bold">
-                  {num(m.points)}
-                </span>
-              </div>
-              <div className="text-right">
-                <div className="label text-[0.55rem]">Valor</div>
-                <span className="tnum text-muted text-sm font-semibold">{money(m.teamValue)}</span>
-              </div>
-            </div>
-
-            <div className="relative mt-3.5">
-              <NetChip net={m.swing.net} />
-            </div>
-          </Link>
-        ))}
-      </div>
-
       {/* Tabla completa */}
       <div className="border-line mx-3 mb-6 overflow-x-auto rounded-2xl border bg-panel shadow-sm sm:mx-4 lg:mx-6">
         <table className="w-full text-sm">
@@ -244,15 +178,20 @@ export default async function LigaPage({
                 style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
               >
                 <td className="relative px-3 py-3 text-left sm:px-5 lg:px-6">
-                  <span
-                    className="display inline-flex h-8 w-8 items-center justify-center rounded-xl text-[0.95rem] text-white shadow-sm"
-                    style={{ background: `linear-gradient(140deg, ${m.color}, ${m.color}bb)` }}
-                  >
-                    {m.position}
-                  </span>
+                  {/* La posición se lee mejor como número que dentro de una
+                      cápsula de color: el color ya lo lleva el punto del nombre. */}
+                  <span className="tnum text-muted text-[0.95rem] font-semibold">{m.position}</span>
                 </td>
                 <td className="px-2.5 py-3 text-left sm:px-3">
-                  <Link href={hrefOf(m)} className="hover:text-acid font-medium transition-colors">
+                  <Link
+                    href={hrefOf(m)}
+                    className="hover:text-acid inline-flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <span
+                      aria-hidden
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: m.color }}
+                    />
                     {m.name}
                   </Link>
                   {m.isMe && <span className="label text-acid ml-2">tú</span>}
