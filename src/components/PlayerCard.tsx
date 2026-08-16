@@ -3,10 +3,10 @@ import type { Player, PlayerStatus, Position } from "@/lib/normalize";
 import type { FfPlayer } from "@/lib/odds";
 import { ffBadge, oddsTone } from "@/lib/odds";
 import { difficultyTone, type Fixture } from "@/lib/equipos";
-import { money, num, signed } from "@/lib/format";
+import { dateTime, money, num, signed } from "@/lib/format";
 import { Countdown } from "./Countdown";
 import { PlayerPhoto } from "./PlayerPhoto";
-import { StatusIcon } from "./ui";
+import { PositionTag, StatusIcon } from "./ui";
 
 /**
  * Tarjeta de jugador.
@@ -52,6 +52,15 @@ export type CardData = {
   clause: number;
   clauseOpen: boolean;
   unlockAt: string | null;
+  /** "12 ago 20:01", para saber el momento exacto sin abrir nada. */
+  unlockLabel: string | null;
+
+  /**
+   * Días seguidos subiendo (+) o bajando (−) de valor, tal como los cuenta
+   * futbolfantasy. Es la única racha que se puede saber de toda la plantilla de
+   * golpe: los puntos por jornada sólo vienen en la ficha de cada jugador.
+   */
+  riseStreak: number;
 
   /** Los tres próximos de liga, con el color de su dificultad. */
   next3: { name: string; badge: string | null; atHome: boolean; bg: string; label: string }[];
@@ -60,6 +69,20 @@ export type CardData = {
   owner?: { name: string; teamId: string; isMe: boolean } | null;
   /** Una línea al pie: por qué está aquí, qué le pasa… */
   note?: string | null;
+
+  /**
+   * Si está en el mercado, lo suyo: el precio de salida sustituye a la cláusula
+   * en la línea de abajo, porque es lo que se paga aquí.
+   */
+  market?: {
+    price: number;
+    /** Lo que pide de más (o de menos) sobre su valor. */
+    overValue: number;
+    /** "3 h 20 m", ya formateado. */
+    timeLeft: string | null;
+    bids: number;
+    myBid: number | null;
+  } | null;
 };
 
 /** Aplana lo que hace falta para la tarjeta y descarta el resto. */
@@ -67,7 +90,7 @@ export function toCard(
   player: Player,
   odds: FfPlayer | null,
   fixtures: Fixture[] | null,
-  extra?: { owner?: CardData["owner"]; note?: string | null },
+  extra?: { owner?: CardData["owner"]; note?: string | null; market?: CardData["market"] },
 ): CardData {
   const unlockAt = player.buyoutUnlockAt ?? null;
   const clause = player.buyoutClause ?? 0;
@@ -89,6 +112,8 @@ export function toCard(
     clause,
     clauseOpen: clause > 0 && (!unlockAt || new Date(unlockAt).getTime() <= Date.now()),
     unlockAt,
+    unlockLabel: unlockAt ? dateTime(unlockAt) : null,
+    riseStreak: odds?.streak ?? 0,
 
     next3: (fixtures ?? [])
       .filter((f) => /liga/i.test(f.competition))
@@ -107,6 +132,7 @@ export function toCard(
 
     owner: extra?.owner ?? null,
     note: extra?.note ?? null,
+    market: extra?.market ?? null,
   };
 }
 
@@ -152,33 +178,32 @@ export function PlayerCard({
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-3 py-2.5">
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-2.5 py-2.5 sm:px-3.5">
         {/* Nombre y puntos */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
-            <h3 className="truncate text-[1.02rem] leading-tight font-semibold tracking-[-0.01em] sm:text-[1.1rem]">
+            <PositionTag position={card.position} size="sm" />
+            <h3 className="truncate text-[1rem] leading-tight font-semibold tracking-[-0.01em] sm:text-[1.15rem]">
               {card.name}
             </h3>
             <StatusIcon status={card.status} size={15} />
           </div>
 
           <div className="shrink-0 text-right leading-none">
-            <span className="tnum text-[1.35rem] font-semibold sm:text-[1.5rem]">
+            <span className="tnum text-[1.35rem] font-semibold sm:text-[1.65rem]">
               {num(card.points)}
             </span>
-            {card.average > 0 && (
-              <span className="text-faint mt-[3px] block text-[0.6rem]">
-                {num(card.average, 1)} media
-              </span>
-            )}
+            <span className="text-faint mt-[3px] block text-[0.6rem] sm:text-[0.68rem]">
+              {num(card.average, 1)} media
+            </span>
           </div>
         </div>
 
         {/* Probabilidad, valor y su variación del día */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {tone ? (
             <span
-              className="tnum rounded-md px-1.5 py-[2px] text-[0.72rem] leading-none font-semibold"
+              className="tnum rounded-md px-1.5 py-[3px] text-[0.72rem] leading-none font-semibold sm:text-[0.8rem]"
               style={{ background: tone.color, color: tone.ink }}
               title={`${tone.label} — ${card.probability}% de salir de titular`}
             >
@@ -188,14 +213,14 @@ export function PlayerCard({
             <span className="tnum text-faint text-[0.72rem]">s/d</span>
           )}
 
-          <span className="tnum text-[0.92rem] leading-none font-semibold">
+          <span className="tnum text-[0.92rem] leading-none font-semibold sm:text-[1.05rem]">
             {money(card.value)}
           </span>
 
           {card.diff ? (
             <span
-              className={`tnum text-[0.72rem] leading-none font-semibold ${
-                card.diff > 0 ? "text-up" : "text-down"
+              className={`tnum rounded-md px-1.5 py-[3px] text-[0.72rem] leading-none font-semibold sm:text-[0.82rem] ${
+                card.diff > 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"
               }`}
               title={`${card.diff > 0 ? "Sube" : "Baja"} ${money(Math.abs(card.diff))} respecto a ayer`}
             >
@@ -203,6 +228,19 @@ export function PlayerCard({
             </span>
           ) : (
             <span className="text-faint text-[0.7rem]">sin cambio</span>
+          )}
+
+          {/* Días seguidos en la misma dirección: dice si el cambio de hoy es
+              una racha o un rebote suelto. */}
+          {card.riseStreak !== 0 && (
+            <span
+              className={`hidden text-[0.68rem] font-medium sm:inline ${
+                card.riseStreak > 0 ? "text-up" : "text-down"
+              }`}
+            >
+              {Math.abs(card.riseStreak)} {Math.abs(card.riseStreak) === 1 ? "día" : "días"}{" "}
+              {card.riseStreak > 0 ? "subiendo" : "bajando"}
+            </span>
           )}
 
           {card.owner && (
@@ -217,15 +255,46 @@ export function PlayerCard({
           )}
         </div>
 
-        {/* Cláusula y calendario: los dos datos que deciden, en una línea */}
+        {/* Cláusula (o precio, si está en el mercado) y calendario */}
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0">
-            {card.clause > 0 ? (
+            {card.market ? (
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="tnum text-[0.88rem] leading-none font-semibold sm:text-[1rem]">
+                  {money(card.market.price)}
+                </span>
+                <span
+                  className={`tnum text-[0.68rem] leading-none ${
+                    card.market.overValue > 0 ? "text-down" : "text-up"
+                  }`}
+                  title="Diferencia entre lo que piden y su valor de mercado"
+                >
+                  {signed(card.market.overValue)}
+                </span>
+                {card.market.timeLeft && (
+                  <span className="text-faint text-[0.68rem] leading-none">
+                    cierra en {card.market.timeLeft}
+                  </span>
+                )}
+                {card.market.myBid ? (
+                  <span className="text-acid text-[0.68rem] leading-none font-semibold">
+                    pujaste {money(card.market.myBid)}
+                  </span>
+                ) : card.market.bids > 0 ? (
+                  <span className="text-faint text-[0.68rem] leading-none">
+                    {card.market.bids} {card.market.bids === 1 ? "puja" : "pujas"}
+                  </span>
+                ) : (
+                  <span className="text-faint text-[0.68rem] leading-none">sin pujas</span>
+                )}
+              </span>
+            ) : card.clause > 0 ? (
               <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                 <LockIcon open={card.clauseOpen} />
+                {/* Verde si se puede pagar ya, rojo mientras siga blindada. */}
                 <span
-                  className={`tnum text-[0.82rem] leading-none font-semibold ${
-                    card.clauseOpen ? "text-up" : "text-ink"
+                  className={`tnum text-[0.82rem] leading-none font-semibold sm:text-[0.95rem] ${
+                    card.clauseOpen ? "text-up" : "text-down"
                   }`}
                   title={card.clauseOpen ? "Cláusula abierta: cualquiera puede pagarla" : "Cláusula"}
                 >
@@ -238,6 +307,12 @@ export function PlayerCard({
                   {signed(card.clause - card.value)}
                 </span>
                 {!card.clauseOpen && card.unlockAt && <Countdown until={card.unlockAt} />}
+                {/* El momento exacto sólo cabe donde hay sitio. */}
+                {!card.clauseOpen && card.unlockLabel && (
+                  <span className="tnum text-faint hidden text-[0.66rem] lg:inline">
+                    {card.unlockLabel}
+                  </span>
+                )}
               </span>
             ) : (
               <span className="text-faint text-[0.7rem]">sin cláusula</span>
@@ -249,7 +324,7 @@ export function PlayerCard({
               {card.next3.map((f, i) => (
                 <span
                   key={`${f.name}-${i}`}
-                  className="bg-panel-2 flex w-[32px] flex-col items-center gap-1 rounded-lg px-1 pt-1 pb-[3px]"
+                  className="bg-panel-2 flex w-[30px] flex-col items-center gap-1 rounded-lg px-1 pt-1 pb-[3px] sm:w-[34px]"
                   title={`${f.atHome ? "En casa contra" : "Fuera contra"} ${f.name} · ${f.label}`}
                 >
                   <span className="flex items-center gap-[2px]">

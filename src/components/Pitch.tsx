@@ -207,13 +207,30 @@ function statLine(
         <span className="text-faint text-[0.65rem]">s/d</span>
       );
     default:
-      // El % ya va en grande sobre la foto; aquí basta el cambio del día, que
-      // es lo otro que se mira. El valor absoluto importa menos.
-      return odds?.diff ? (
-        <PricePill diff={odds.diff} />
-      ) : (
-        <span className="tnum text-muted text-[0.65rem] leading-none">
-          {money(player.marketValue)}
+      /**
+       * Valor y cambio, los dos. Antes se enseñaba uno u otro según el jugador
+       * tuviera movimiento ese día, y la línea de abajo del campo no decía lo
+       * mismo en dos fichas seguidas. Van sobre una pastilla oscura porque el
+       * césped se come cualquier texto fino.
+       */
+      return (
+        <span className="inline-flex flex-col items-center gap-[2px]">
+          <span className="tnum rounded bg-black/45 px-1.5 py-[2px] text-[0.66rem] leading-none font-bold text-white sm:text-[0.74rem]">
+            {money(player.marketValue)}
+          </span>
+          {odds?.diff ? (
+            <span
+              className="tnum rounded px-1 py-[1px] text-[0.6rem] leading-none font-bold"
+              style={{
+                background: odds.diff > 0 ? "rgba(43,196,106,0.9)" : "rgba(242,85,90,0.9)",
+                color: "#08130c",
+              }}
+            >
+              {odds.diff > 0 ? "▲" : "▼"} {money(Math.abs(odds.diff))}
+            </span>
+          ) : (
+            <span className="text-[0.58rem] leading-none text-white/60">sin cambio</span>
+          )}
         </span>
       );
   }

@@ -302,37 +302,36 @@ function TeamHeader({
         className="absolute inset-0"
         style={{ background: "linear-gradient(120deg, rgba(0,0,0,0.35), rgba(0,0,0,0.05))" }}
       />
-      <div className="relative px-6 pt-5 pb-6 lg:px-10">
-        <BackLink
-          href="/equipos"
-          label="Equipos"
-          className="text-white/80 hover:!text-white"
-        />
+      {/* Compacta: escudo, nombre y datos en una sola fila. Antes el volver, el
+          título y las pastillas ocupaban tres alturas antes de ver nada. */}
+      <div className="relative px-3.5 pt-3 pb-3.5 sm:px-6 sm:pt-4 sm:pb-4 lg:px-10">
+        <BackLink href="/equipos" label="Equipos" className="text-white/80 hover:!text-white" />
 
-        <div className="mt-4 flex flex-wrap items-center gap-4">
+        <div className="mt-2.5 flex items-center gap-3 sm:gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={ffBadge(team.ffId) ?? ""}
             alt=""
-            width={68}
-            height={68}
-            className="object-contain drop-shadow-lg"
+            width={54}
+            height={54}
+            className="h-11 w-11 shrink-0 object-contain drop-shadow-lg sm:h-[54px] sm:w-[54px]"
           />
-          <div>
-            <h1 className="display text-[clamp(2rem,5vw,3.2rem)] text-white drop-shadow">
+          <div className="min-w-0 flex-1">
+            <h1 className="display text-[clamp(1.5rem,5vw,2.6rem)] text-white drop-shadow">
               {team.name}
             </h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.72rem] font-semibold">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[0.7rem] font-semibold">
               <Pill>{squad} jugadores</Pill>
               {mine > 0 && <Pill highlight>{mine} tuyos</Pill>}
               {injured > 0 && <Pill danger>{injured} lesionados</Pill>}
-              <FfLink
-                href={ffTeamUrl(team.slug)}
-                label={`Ver ${team.name} en futbolfantasy`}
-                tone="sobre-color"
-              />
             </div>
           </div>
+          <FfLink
+            href={ffTeamUrl(team.slug)}
+            label={`Ver ${team.name} en futbolfantasy`}
+            tone="sobre-color"
+            compact
+          />
         </div>
       </div>
     </div>

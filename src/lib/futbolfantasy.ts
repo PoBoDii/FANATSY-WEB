@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import type { Player } from "./normalize";
 import { EMPTY_STATS, type FfPlayer, type PlayerAlert, type PlayerStats, type PricePoint } from "./odds";
 
@@ -496,7 +497,14 @@ const EMPTY: FfIndex = {
 let snapshot: FfIndex | null = null;
 let refreshing: Promise<FfIndex> | null = null;
 
-async function build(): Promise<FfIndex> {
+/**
+ * Lo que se puede guardar entre peticiones: filas y equipos, sin mapas ni
+ * funciones. El índice con sus cruces se reconstruye encima, que es coser y
+ * cantar comparado con volver a bajarse veintiuna páginas.
+ */
+type FfData = { rows: FfPlayer[]; teams: [string, string][] };
+
+async function scrape(): Promise<FfData> {
   // Ninguna de estas páginas cabe en el caché de datos de Next (la de mercado
   // pasa de 4 MB y el tope son 2), así que ni se intenta: el índice ya vive
   // memoizado aquí y eso es lo que evita rehacer el trabajo.
@@ -510,7 +518,7 @@ async function build(): Promise<FfIndex> {
     ),
   ]);
 
-  if (!marketHtml) return { ...EMPTY, builtAt: Date.now() };
+  if (!marketHtml) return { rows: [], teams: [] };
 
   const { rows, teams } = parsePrices(marketHtml);
 
@@ -556,6 +564,21 @@ async function build(): Promise<FfIndex> {
       rows.push(row);
     }
   });
+
+  /**
+   * El histórico se recorta a los últimos ocho días. Es lo único que se
+   * consulta (la subida de ayer, la de tres días y la de una semana) y guardar
+   * la serie entera de setecientos jugadores no cabía en el caché.
+   */
+  for (const row of rows) row.history = row.history.slice(0, 8);
+
+  return { rows, teams: [...teams] };
+}
+
+/** Reconstruye el índice de búsqueda a partir de los datos guardados. */
+function indexFrom(data: FfData): FfIndex {
+  const rows = data.rows;
+  const teams = new Map(data.teams);
 
   const index = new Map<string, FfPlayer[]>();
   const add = (key: string, row: FfPlayer) => {
@@ -690,9 +713,28 @@ async function build(): Promise<FfIndex> {
   };
 }
 
+/**
+ * Los datos, guardados donde sobreviven a la petición.
+ *
+ * En el servidor de casa bastaba con memorizarlos en una variable, pero en
+ * producción cada visita puede caer en un proceso recién arrancado: sin nada en
+ * memoria, había que volver a bajarse las veintiuna páginas antes de pintar
+ * nada. De ahí que a veces la página no llegara a cargar.
+ *
+ * `unstable_cache` los deja en el caché de datos de Next, que sí se comparte
+ * entre peticiones y entre procesos. Se guarda lo escueto —filas y equipos— y
+ * el índice de búsqueda se levanta encima en cada arranque, que cuesta
+ * milisegundos.
+ */
+const loadData = unstable_cache(scrape, ["futbolfantasy-index"], {
+  revalidate: TTL_MS / 1000,
+  tags: ["ff"],
+});
+
 function refresh(): Promise<FfIndex> {
-  refreshing ??= build()
-    .then((index) => {
+  refreshing ??= loadData()
+    .then((data) => {
+      const index = indexFrom(data);
       if (index.size > 0) snapshot = index;
       return snapshot ?? index;
     })

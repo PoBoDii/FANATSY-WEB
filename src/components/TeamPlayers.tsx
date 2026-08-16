@@ -147,18 +147,18 @@ export function TeamPlayers({
     return `/equipos/${slug}${params.size ? `?${params}` : ""}`;
   };
 
+  // Mismas pastillas que en el resto de listas: la activa invierte el
+  // contraste, sin bordes de colores.
   const chip = (active: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
-      active
-        ? "border-acid/60 bg-acid/15 text-acid"
-        : "border-line text-muted hover:border-faint hover:text-ink"
+    `inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.78rem] transition-colors ${
+      active ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
     }`;
 
   return (
-    <section className="border-line mx-auto max-w-5xl border-t">
-      <div className="border-line space-y-2.5 border-b px-5 py-3.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="label mr-1">Ordenar por</span>
+    <section className="border-line border-t">
+      <div className="border-line space-y-2 border-b px-3.5 py-2.5 sm:px-5">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <span className="label shrink-0 pr-1">Ordenar</span>
           {SORTS.map((option) => {
             const active = sort === option.key;
             return (
@@ -179,8 +179,8 @@ export function TeamPlayers({
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="label mr-1">Posición</span>
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <span className="label shrink-0 pr-1">Puesto</span>
           {POSITIONS.map((position) => {
             const on = selected.has(position);
             const next = new Set(selected);
@@ -200,16 +200,20 @@ export function TeamPlayers({
         </div>
       </div>
 
-      {visible.map((player, i) => (
-        <Row key={player.name} player={player} delay={Math.min(i * 14, 260)} />
-      ))}
+      <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+        {visible.map((player, i) => (
+          <Row key={player.name} player={player} delay={Math.min(i * 14, 260)} />
+        ))}
+      </div>
 
       {coaches.length > 0 && (
         <>
           <GroupTitle>Cuerpo técnico · {coaches.length}</GroupTitle>
-          {coaches.map((player) => (
-            <Row key={player.name} player={player} delay={0} />
-          ))}
+          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+            {coaches.map((player) => (
+              <Row key={player.name} player={player} delay={0} />
+            ))}
+          </div>
         </>
       )}
 
@@ -220,9 +224,11 @@ export function TeamPlayers({
             Canteranos y fichajes recién anunciados: ni futbolfantasy ni el juego publican todavía
             su valor, su probabilidad ni sus estadísticas.
           </p>
-          {unknown.map((player) => (
-            <Row key={player.name} player={player} delay={0} muted />
-          ))}
+          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+            {unknown.map((player) => (
+              <Row key={player.name} player={player} delay={0} muted />
+            ))}
+          </div>
         </>
       )}
     </section>
@@ -255,101 +261,14 @@ function Row({
     player.buyoutClause &&
     (!player.buyoutUnlockAt || new Date(player.buyoutUnlockAt).getTime() <= Date.now());
 
-  const body = (
-    <>
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-[4px]"
-        style={{ background: tone?.color ?? "transparent" }}
-      />
-
-      <div className="border-line bg-panel-2 shrink-0 overflow-hidden rounded-lg border">
-        <PlayerPhoto src={player.photo} name={player.displayName} size={50} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {player.position && <PositionTag position={POS_TAG[player.position] ?? "?"} />}
-          <span className="truncate text-[0.98rem] font-bold">{player.displayName}</span>
-          {player.status !== "ok" && <StatusIcon status={player.status} size={16} />}
-          <AlertBadge alerts={player.alerts} />
-        </div>
-        <div className="text-muted mt-1 flex flex-wrap items-center gap-x-2 text-[0.7rem]">
-          {[
-            player.goals != null ? `${player.goals} G` : null,
-            player.assists != null ? `${player.assists} A` : null,
-            player.hierarchy != null ? `jerarquía ${player.hierarchy}` : null,
-          ]
-            .filter(Boolean)
-            .map((bit, i) => (
-              <span key={bit}>
-                {i > 0 && "· "}
-                {bit}
-              </span>
-            ))}
-        </div>
-      </div>
-
-      {player.ownerName && (
-        <span
-          className={`hidden shrink-0 rounded-md border px-2 py-1 text-[0.68rem] font-semibold sm:block ${
-            player.ownerIsMe
-              ? "border-acid bg-acid/15 text-acid"
-              : "border-info/50 bg-info-soft text-info"
-          }`}
-        >
-          {player.ownerIsMe ? "TUYO" : player.ownerName}
-        </span>
-      )}
-
-      {player.buyoutClause ? (
-        <div className="hidden w-[104px] shrink-0 text-right md:block">
-          <div className="label text-[0.55rem] leading-none">Cláusula</div>
-          <div
-            className={`tnum mt-1 text-[0.95rem] leading-none font-semibold ${
-              open ? "text-up" : "text-ink"
-            }`}
-          >
-            {money(player.buyoutClause)}
-          </div>
-          <div className="mt-1 flex justify-end">
-            {player.buyoutUnlockAt && !open ? (
-              <Countdown until={player.buyoutUnlockAt} />
-            ) : (
-              <span className="text-up text-[0.62rem] font-semibold">abierta</span>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="hidden w-[104px] shrink-0 md:block" />
-      )}
-
-      <div className="w-[92px] shrink-0 text-right">
-        <div className="tnum text-ink text-[0.95rem] leading-none">{money(player.value)}</div>
-        <div className="mt-1 flex justify-end">
-          <PriceDelta diff={player.diff} size="sm" />
-        </div>
-        {player.points !== null && (
-          <div className="tnum text-faint mt-1 text-[0.65rem]">{num(player.points)} pts</div>
-        )}
-      </div>
-
-      <span
-        className="tnum w-[46px] shrink-0 rounded-lg py-1 text-center text-[0.78rem] font-bold"
-        style={{
-          background: tone?.color ?? "var(--color-panel-2)",
-          color: tone?.ink ?? "var(--color-faint)",
-        }}
-        title={player.probability !== null ? "Probabilidad de ser titular" : "Sin dato"}
-      >
-        {player.probability !== null ? `${player.probability}%` : "—"}
-      </span>
-    </>
-  );
-
+  /**
+   * Misma tarjeta que en el resto de la web: foto a sangre a la izquierda,
+   * nombre y puesto arriba, y a la derecha el dato que manda —aquí la
+   * probabilidad de jugar, que es a lo que se viene a la plantilla de un club—.
+   */
   return (
-    <div
-      className={`border-line rise hover:bg-panel-2 relative flex items-center gap-3 border-b px-5 py-3 transition-colors ${
+    <article
+      className={`rise bg-panel border-line hover:border-faint/60 relative flex min-h-[104px] overflow-hidden rounded-2xl border transition-colors ${
         muted ? "opacity-60" : ""
       }`}
       style={{ animationDelay: `${delay}ms` }}
@@ -361,7 +280,86 @@ function Row({
           aria-label={player.displayName}
         />
       )}
-      {body}
-    </div>
+
+      <div className="bg-panel-2 relative w-[72px] shrink-0 overflow-hidden sm:w-[84px]">
+        <PlayerPhoto src={player.photo} name={player.displayName} size={90} className="h-full w-full" />
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[3px]"
+          style={{ background: tone?.color ?? "transparent" }}
+        />
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-2.5 py-2.5 sm:px-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {player.position && (
+              <PositionTag position={POS_TAG[player.position] ?? "?"} size="sm" />
+            )}
+            <h3 className="truncate text-[1rem] leading-tight font-semibold sm:text-[1.1rem]">
+              {player.displayName}
+            </h3>
+            {player.status !== "ok" && <StatusIcon status={player.status} size={14} />}
+            <AlertBadge alerts={player.alerts} />
+          </div>
+
+          <span
+            className="tnum shrink-0 rounded-lg px-2 py-1 text-[0.9rem] font-bold"
+            style={{
+              background: tone?.color ?? "var(--color-panel-2)",
+              color: tone?.ink ?? "var(--color-faint)",
+            }}
+            title={player.probability !== null ? "Probabilidad de ser titular" : "Sin dato"}
+          >
+            {player.probability !== null ? `${player.probability}%` : "—"}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span className="tnum text-[0.95rem] leading-none font-semibold">
+            {money(player.value)}
+          </span>
+          <PriceDelta diff={player.diff} size="sm" />
+          {player.points !== null && (
+            <span className="tnum text-faint text-[0.7rem]">{num(player.points)} pts</span>
+          )}
+          <span className="text-faint text-[0.68rem]">
+            {[
+              player.goals != null ? `${player.goals} G` : null,
+              player.assists != null ? `${player.assists} A` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {player.ownerName ? (
+            <span
+              className={`text-[0.7rem] font-semibold ${
+                player.ownerIsMe ? "text-acid" : "text-info"
+              }`}
+            >
+              {player.ownerIsMe ? "tuyo" : player.ownerName}
+            </span>
+          ) : (
+            <span className="text-faint text-[0.7rem]">libre</span>
+          )}
+
+          {player.buyoutClause ? (
+            <>
+              <span
+                className={`tnum text-[0.8rem] leading-none font-semibold ${
+                  open ? "text-up" : "text-down"
+                }`}
+              >
+                🔒 {money(player.buyoutClause)}
+              </span>
+              {player.buyoutUnlockAt && !open && <Countdown until={player.buyoutUnlockAt} />}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </article>
   );
 }

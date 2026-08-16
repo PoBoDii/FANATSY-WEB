@@ -79,24 +79,40 @@ export function StatTile({
 /* ---------------------------------------------------------------- jugador */
 
 /**
- * Etiqueta de puesto. Color de texto sobre un tinte muy suave, no un bloque
- * saturado: en una lista de veinte, veinte rectángulos de colores son ruido.
+ * Etiqueta de puesto, con las siglas y los colores del juego: POR, DEF, MED,
+ * DEL. Van en plano y saturado, no en pastel, porque es la única marca de color
+ * que lleva la tarjeta y tiene que reconocerse sin leerla.
  */
 const POS_COLOR: Record<Position, string> = {
-  PT: "bg-amber-500/15 text-amber-500",
-  DF: "bg-sky-500/15 text-sky-400",
-  MC: "bg-emerald-500/15 text-emerald-400",
-  DL: "bg-rose-500/15 text-rose-400",
-  EN: "bg-violet-500/15 text-violet-400",
-  "?": "bg-panel-2 text-faint",
+  PT: "#f0a029",
+  DF: "#3b82f6",
+  MC: "#16a34a",
+  DL: "#e0362a",
+  EN: "#7c3aed",
+  "?": "#6b7280",
 };
 
-export function PositionTag({ position }: { position: Position }) {
+const POS_SHORT: Record<Position, string> = {
+  PT: "POR",
+  DF: "DEF",
+  MC: "MED",
+  DL: "DEL",
+  EN: "ENT",
+  "?": "—",
+};
+
+/** El mismo color, para puntos y separadores. */
+export const positionColor = (position: Position) => POS_COLOR[position];
+
+export function PositionTag({ position, size = "md" }: { position: Position; size?: "sm" | "md" }) {
   return (
     <span
-      className={`tnum inline-flex h-[20px] w-8 shrink-0 items-center justify-center rounded-md text-[0.6rem] font-bold ${POS_COLOR[position]}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-md font-bold tracking-wide text-white ${
+        size === "sm" ? "h-[17px] px-1.5 text-[0.55rem]" : "h-[20px] px-2 text-[0.62rem]"
+      }`}
+      style={{ background: POS_COLOR[position] }}
     >
-      {position}
+      {POS_SHORT[position]}
     </span>
   );
 }

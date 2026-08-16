@@ -9,20 +9,8 @@ import { FfLink } from "@/components/FfLink";
 import { toList, toMarketItem, type MarketItem } from "@/lib/normalize";
 import { money, num, signed, timeLeft } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { SortHeader, type SortColumn } from "@/components/SortHeader";
-import {
-  AlertBadge,
-  ClubLink,
-  Empty,
-  ErrorBox,
-  OddsChip,
-  PageHeader,
-  PlayerAvatar,
-  PositionTag,
-  PriceDelta,
-  StatTile,
-  StatusTag,
-} from "@/components/ui";
+import { PlayerCard, toCard } from "@/components/PlayerCard";
+import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -40,19 +28,15 @@ type Sort =
 /** Orden natural del once, para agrupar por línea. */
 const POSITION_RANK: Record<string, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 4, "?": 5 };
 
-/**
- * Columnas del mercado. Los anchos son los mismos que los de la fila, para
- * que cada título caiga sobre su dato.
- */
-const COLUMNS: SortColumn<Sort>[] = [
-  { key: "posicion", label: "Posición", width: "w-[190px]", align: "left", natural: "asc" },
-  { key: "prob", label: "Juega", width: "w-[86px]", align: "left", natural: "desc" },
-  { key: "pujas", label: "Pujas", width: "flex-1", align: "left", natural: "desc", hide: "hidden md:flex" },
-  { key: "hueco", label: "", width: "w-[124px]", hide: "hidden lg:flex", spacer: true },
-  { key: "puntos", label: "Puntos", width: "w-[74px]", align: "right", natural: "desc", hide: "hidden sm:flex" },
-  { key: "media", label: "Media", width: "w-[70px]", align: "right", natural: "desc", hide: "hidden sm:flex" },
-  { key: "dif", label: "Hoy", width: "w-[150px]", align: "right", natural: "desc" },
-  { key: "precio", label: "Precio", width: "w-[126px] pr-2.5", align: "right", natural: "desc" },
+/** Criterios de orden. Los primeros son los que más se usan. */
+const SORTS: { key: Sort; label: string; natural: "asc" | "desc" }[] = [
+  { key: "precio", label: "Precio", natural: "desc" },
+  { key: "prob", label: "Juega", natural: "desc" },
+  { key: "dif", label: "Cambio de valor", natural: "desc" },
+  { key: "pujas", label: "Pujas", natural: "desc" },
+  { key: "puntos", label: "Puntos", natural: "desc" },
+  { key: "media", label: "Media", natural: "desc" },
+  { key: "posicion", label: "Posición", natural: "asc" },
 ];
 
 export default async function MercadoPage({
@@ -61,7 +45,7 @@ export default async function MercadoPage({
   searchParams: Promise<{ orden?: string; dir?: string }>;
 }) {
   const { orden, dir: rawDir } = await searchParams;
-  const column = COLUMNS.find((c) => c.key === orden);
+  const column = SORTS.find((c) => c.key === orden);
   const sort: Sort = column?.key ?? "precio";
   const dir: "asc" | "desc" =
     rawDir === "asc" || rawDir === "desc" ? rawDir : (column?.natural ?? "desc");
@@ -138,6 +122,18 @@ export default async function MercadoPage({
     }
   };
 
+  /** Cada jugador del mercado, ya aplanado a lo que pinta la tarjeta. */
+  const cardOf = (item: MarketItem) =>
+    toCard(item.player, oddsOf(item), fixturesOf(item.player), {
+      market: {
+        price: item.price,
+        overValue: item.price - item.player.marketValue,
+        timeLeft: timeLeft(item.expiresAt),
+        bids: item.bids,
+        myBid: item.myBid,
+      },
+    });
+
   const ordered = [...players].sort(compare);
   const sorted = dir === "asc" ? ordered.reverse() : ordered;
 
@@ -182,28 +178,42 @@ export default async function MercadoPage({
         />
       </div>
 
-      <SortHeader
-        columns={COLUMNS}
-        sort={sort}
-        dir={dir}
-        leading="w-[52px]"
-        hrefOf={(key, next) => `/mercado?orden=${key}&dir=${next}`}
-      />
+      <div className="border-line flex gap-1.5 overflow-x-auto border-b px-3.5 py-2.5 sm:px-5 lg:px-6">
+        <span className="label shrink-0 self-center pr-1">Ordenar</span>
+        {SORTS.map((option) => {
+          const active = sort === option.key;
+          const nextDir = active ? (dir === "desc" ? "asc" : "desc") : option.natural;
+          return (
+            <Link
+              key={option.key}
+              href={`/mercado?orden=${option.key}&dir=${nextDir}`}
+              scroll={false}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.78rem] transition-colors ${
+                active ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
+              }`}
+            >
+              {option.label}
+              {active && (
+                <span className="text-[0.62rem] opacity-70">{dir === "desc" ? "▼" : "▲"}</span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
 
       {sorted.length === 0 ? (
         <Empty
           title="Mercado vacío"
-          hint="No hay jugadores pujables ahora mismo. Se renueva cada día."
+          hint="No hay jugadores libres ahora mismo. Se renueva cada día."
         />
       ) : (
-        <div className="space-y-2 p-2.5 sm:p-3 lg:p-4">
+        <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
           {sorted.map((item, i) => (
-            <MarketRow
+            <PlayerCard
               key={item.id || item.player.id}
-              item={item}
-              odds={oddsOf(item)}
-              fixtures={fixturesOf(item.player)}
-              delay={i * 22}
+              card={cardOf(item)}
+              leagueId={league.id}
+              delay={Math.min(i * 18, 280)}
             />
           ))}
         </div>
@@ -215,9 +225,14 @@ export default async function MercadoPage({
             <h2 className="display text-lg">Entrenadores</h2>
             <span className="tnum text-faint text-xs">{coaches.length}</span>
           </div>
-          <div className="space-y-2 p-2.5 sm:p-3 lg:p-4">
+          <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
             {coaches.map((item, i) => (
-              <MarketRow key={item.id || item.player.id} item={item} odds={null} delay={i * 22} />
+              <PlayerCard
+                key={item.id || item.player.id}
+                card={cardOf(item)}
+                leagueId={league.id}
+                delay={i * 22}
+              />
             ))}
           </div>
         </section>
@@ -226,142 +241,3 @@ export default async function MercadoPage({
   );
 }
 
-/* ------------------------------------------------------------------ fila */
-
-function MarketRow({
-  item,
-  odds,
-  fixtures,
-  delay,
-}: {
-  item: MarketItem;
-  odds: FfPlayer | null;
-  fixtures?: Fixture[] | null;
-  delay: number;
-}) {
-  const { player } = item;
-  const overValue = item.price - player.marketValue;
-  const left = timeLeft(item.expiresAt);
-  const diff = odds?.diff ?? null;
-  const tone = odds?.probability != null ? oddsTone(odds.probability) : null;
-
-  // El mercado de LaLiga no manda el club del jugador; futbolfantasy sí, y
-  // además trae el escudo por id de equipo.
-  const club = player.clubName !== "—" ? player.clubName : (odds?.teamName ?? "—");
-  const badge = player.clubBadge ?? ffBadge(odds?.teamId ?? null);
-
-  return (
-    <div
-      className="border-line rise hover:border-acid/40 relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-panel py-2.5 pr-3 pl-3.5 shadow-sm transition-all hover:shadow-md sm:flex-nowrap lg:gap-5 lg:pr-6 lg:pl-6"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <Link href={`/jugador/${player.id}`} className="absolute inset-0" aria-label={player.name} />
-      <span
-        aria-hidden
-        className="absolute top-2 bottom-2 left-0 w-[4px] rounded-r-full"
-        style={{ background: tone?.color ?? "transparent" }}
-      />
-
-      <PlayerAvatar player={player} size={52} className="h-11 w-11 sm:h-[52px] sm:w-[52px]" />
-
-      {/* Identidad */}
-      <div className="min-w-0 flex-1 sm:w-[190px] sm:flex-none sm:shrink-0">
-        <div className="flex items-center gap-2">
-          <PositionTag position={player.position} />
-          <span className="truncate text-[0.9rem] leading-tight font-medium sm:text-[0.95rem]">
-            {player.name}
-          </span>
-          <AlertBadge alerts={odds?.alerts} />
-        </div>
-        <ClubLink name={club} badge={badge} size={14} className="text-muted mt-1 text-xs" />
-        {fixtures && fixtures.length > 0 && (
-          <div className="mt-1.5 hidden sm:block lg:block">
-            <FixtureStrip fixtures={fixtures} limit={5} />
-          </div>
-        )}
-      </div>
-
-      {/* Probabilidad, con espacio propio en vez de pegada al nombre */}
-      {player.position !== "EN" ? (
-        <div className="w-auto shrink-0 sm:w-[86px]">
-          <OddsChip odds={odds} />
-        </div>
-      ) : (
-        <div className="hidden w-[86px] shrink-0 sm:block" />
-      )}
-
-      <div className="hidden min-w-0 flex-1 flex-col gap-1 md:flex">
-        <span
-          className={`tnum text-[0.85rem] font-semibold ${
-            item.bids > 0 ? "text-ink" : "text-faint"
-          }`}
-        >
-          {item.bids > 0 ? `${item.bids} ${item.bids === 1 ? "puja" : "pujas"}` : "sin pujas"}
-        </span>
-        <StatusTag status={player.status} />
-        {left && <span className="text-faint text-[0.68rem]">cierra en {left}</span>}
-      </div>
-
-      {/* Mi puja: al lado del estado, no encima del precio de venta */}
-      <div className="hidden w-[124px] shrink-0 lg:block">
-        {item.myBid ? (
-          <div className="border-acid/60 bg-acid/10 rounded-sm border px-2 py-1.5">
-            <div className="label text-acid text-[0.55rem] leading-none">Mi puja</div>
-            <div className="tnum text-acid mt-1 text-[1rem] leading-none font-semibold whitespace-nowrap">
-              {money(item.myBid)}
-            </div>
-            <div className="tnum text-faint mt-1 text-[0.62rem] whitespace-nowrap">
-              {item.myBid === player.marketValue ? "al valor" : signed(item.myBid - player.marketValue)}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="hidden w-[74px] shrink-0 text-right sm:block">
-        <div className="tnum text-ink text-[1.15rem] leading-none font-semibold">
-          {num(player.points)}
-        </div>
-      </div>
-
-      <div className="hidden w-[70px] shrink-0 text-right sm:block">
-        <div className="tnum text-muted text-[1rem] leading-none">
-          {num(player.averagePoints, 1)}
-        </div>
-      </div>
-
-      <div className="border-line flex w-full items-center gap-3 border-t pt-2.5 sm:contents sm:border-0 sm:pt-0">
-        {/* Calendario: en el móvil va aquí, que arriba no cabe */}
-        {fixtures && fixtures.length > 0 && (
-          <div className="shrink-0 sm:hidden">
-            <FixtureStrip fixtures={fixtures} limit={3} />
-          </div>
-        )}
-
-        {/* Variación del día: el dato que más se mira, en grande */}
-        <div className="border-line ml-auto shrink-0 text-right sm:ml-0 sm:w-[150px] sm:border-l sm:pl-3">
-          <div className="flex justify-end">
-            <span className="sm:hidden">
-              <PriceDelta diff={diff} size="sm" />
-            </span>
-            <span className="hidden sm:inline">
-              <PriceDelta diff={diff} pct={odds?.diffPct} size="md" />
-            </span>
-          </div>
-          <div className="tnum text-faint mt-1 text-[0.68rem]">
-            valor {money(player.marketValue)}
-          </div>
-        </div>
-
-        {/* Precio de venta */}
-        <div className="border-line bg-panel-2/60 w-[104px] shrink-0 rounded-lg border px-2.5 py-1.5 sm:w-[126px]">
-          <div className="tnum text-ink text-[1.05rem] leading-none font-semibold whitespace-nowrap sm:text-[1.15rem]">
-            {money(item.price)}
-          </div>
-          <div className="tnum text-faint mt-1.5 text-[0.65rem] whitespace-nowrap">
-            {overValue === 0 ? "al valor" : `${signed(overValue)} s/ valor`}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

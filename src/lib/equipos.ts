@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { normalizeName } from "./futbolfantasy";
 
 /**
@@ -188,8 +189,29 @@ export async function getFixtures(slug: string): Promise<Fixtures> {
   return job;
 }
 
+/**
+ * Igual que con el índice de futbolfantasy: el caché en memoria no sobrevive a
+ * un proceso recién arrancado, y sin él hay que volver a bajarse veinte páginas
+ * de un mega antes de pintar nada. El de datos de Next sí se comparte, y lo que
+ * se guarda aquí —unos cuantos partidos por club— es diminuto.
+ */
+const loadCached = unstable_cache(fetchFixtures, ["calendario-club"], {
+  revalidate: TTL_MS / 1000,
+  tags: ["calendario"],
+});
+
 async function load(slug: string): Promise<Fixtures> {
   const hit = cache.get(slug);
+  const fixtures = await loadCached(slug);
+
+  if (fixtures.last.length > 0 || fixtures.next.length > 0) {
+    cache.set(slug, { at: Date.now(), fixtures });
+    return fixtures;
+  }
+  return hit?.fixtures ?? { last: [], next: [] };
+}
+
+async function fetchFixtures(slug: string): Promise<Fixtures> {
   const team = findTeam(slug);
   let fixtures: Fixtures | null = null;
 
@@ -215,13 +237,9 @@ async function load(slug: string): Promise<Fixtures> {
     // Nos quedamos con lo que hubiera cacheado.
   }
 
-  // Igual que con las alineaciones: un fallo no debe guardarse como dato
-  // fresco, o el calendario se queda vacío hasta que expire el TTL.
-  if (fixtures && (fixtures.last.length > 0 || fixtures.next.length > 0)) {
-    cache.set(slug, { at: Date.now(), fixtures });
-    return fixtures;
-  }
-  return hit?.fixtures ?? { last: [], next: [] };
+  // Un fallo devuelve vacío y quien llama se queda con lo que ya tuviera: así
+  // un corte de red no se guarda como "este club no juega".
+  return fixtures ?? { last: [], next: [] };
 }
 
 /* --------------------------------------------- calendario por plantilla */

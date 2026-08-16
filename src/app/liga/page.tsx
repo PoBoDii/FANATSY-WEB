@@ -132,98 +132,102 @@ export default async function LigaPage({
         }
       />
 
-      {/* Tabla completa */}
-      <div className="border-line mx-3 mb-6 overflow-x-auto rounded-2xl border bg-panel shadow-sm sm:mx-4 lg:mx-6">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-line bg-panel-2/60 border-b">
-              {COLUMNS.map((col, i) => {
-                const active = sort === col.key;
-                const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
-                const edge = i === 0 ? "pl-5 lg:pl-6" : i === COLUMNS.length - 1 ? "pr-5 lg:pr-6" : "";
-                return (
-                  <th
-                    key={col.key}
-                    className={`px-2.5 py-2.5 sm:px-3 ${edge} ${col.hide ?? ""} ${
-                      col.align === "right" ? "text-right" : "text-left"
-                    }`}
+      {/* Una fila por manager. En vez de una tabla con siete columnas que en el
+          móvil hay que deslizar, cada manager es una tarjeta ancha con lo suyo
+          repartido: puesto y nombre a la izquierda, dinero y puntos a la
+          derecha. Cabe entera en cualquier pantalla. */}
+      <div className="border-line flex gap-1.5 overflow-x-auto border-b px-3.5 py-2.5 sm:px-5 lg:px-6">
+        <span className="label shrink-0 self-center pr-1">Ordenar</span>
+        {COLUMNS.filter((c) => c.key !== "puesto").map((col) => {
+          const active = sort === col.key;
+          const nextDir = active ? (dir === "desc" ? "asc" : "desc") : col.natural;
+          return (
+            <Link
+              key={col.key}
+              href={sortHref(col.key, nextDir)}
+              scroll={false}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.78rem] transition-colors ${
+                active ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
+              }`}
+            >
+              {col.label}
+              {active && <span className="text-[0.62rem] opacity-70">{dir === "desc" ? "▼" : "▲"}</span>}
+            </Link>
+          );
+        })}
+        <Link
+          href={sortHref("puesto", "asc")}
+          scroll={false}
+          className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[0.78rem] transition-colors ${
+            sort === "puesto" ? "bg-ink text-void font-semibold" : "bg-panel-2 text-muted hover:text-ink"
+          }`}
+        >
+          Puesto
+        </Link>
+      </div>
+
+      <div className="grid gap-2 p-2.5 sm:p-3 lg:p-4 2xl:grid-cols-2">
+        {rows.map((m, i) => (
+          <Link
+            key={m.teamId}
+            href={hrefOf(m)}
+            className={`rise bg-panel border-line hover:border-faint/60 relative flex items-center gap-3 overflow-hidden rounded-2xl border py-2.5 pr-3 pl-3.5 transition-colors sm:gap-4 sm:py-3 sm:pr-4 sm:pl-5 ${
+              m.isMe ? "border-acid/50" : ""
+            }`}
+            style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
+          >
+            {/* Franja del color del manager, a todo lo alto: es lo que hace
+                reconocible una fila sin leer el nombre. */}
+            <span
+              aria-hidden
+              className="absolute inset-y-0 left-0 w-[5px]"
+              style={{ background: m.color }}
+            />
+
+            <span className="tnum text-faint w-5 shrink-0 text-center text-[1rem] font-semibold sm:w-7 sm:text-[1.15rem]">
+              {m.position}
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="truncate text-[1.02rem] font-semibold sm:text-[1.15rem]">
+                  {m.name}
+                </span>
+                {m.isMe && (
+                  <span
+                    className="shrink-0 rounded-full px-1.5 py-[1px] text-[0.55rem] font-bold text-black"
+                    style={{ background: m.color }}
                   >
-                    <Link
-                      href={sortHref(col.key, nextDir)}
-                      scroll={false}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition-colors ${
-                        active ? "bg-acid/10 text-acid" : "text-faint hover:text-ink"
-                      }`}
-                      title={`Ordenar por ${col.label}`}
-                    >
-                      <span className="text-[0.62rem] font-bold tracking-wide uppercase">
-                        {col.label}
-                      </span>
-                      <span className={`text-[0.6rem] leading-none ${active ? "" : "opacity-30"}`}>
-                        {active ? (dir === "desc" ? "▼" : "▲") : "▼"}
-                      </span>
-                    </Link>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((m, i) => (
-              <tr
-                key={m.teamId}
-                className={`border-line rise hover:bg-panel-2 border-b transition-colors last:border-b-0 ${
-                  m.isMe ? "bg-acid/[0.04]" : ""
-                }`}
-                style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
-              >
-                <td className="relative px-3 py-3 text-left sm:px-5 lg:px-6">
-                  {/* La posición se lee mejor como número que dentro de una
-                      cápsula de color: el color ya lo lleva el punto del nombre. */}
-                  <span className="tnum text-muted text-[0.95rem] font-semibold">{m.position}</span>
-                </td>
-                <td className="px-2.5 py-3 text-left sm:px-3">
-                  <Link
-                    href={hrefOf(m)}
-                    className="hover:text-acid inline-flex items-center gap-2 font-medium transition-colors"
-                  >
-                    <span
-                      aria-hidden
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: m.color }}
-                    />
-                    {m.name}
-                  </Link>
-                  {m.isMe && <span className="label text-acid ml-2">tú</span>}
-                </td>
-                <td className="hidden px-2.5 py-3 text-right sm:table-cell sm:px-3">
-                  {m.openClauses > 0 ? (
-                    <span className="tnum border-down/50 bg-down/15 text-down rounded-sm border px-2 py-[3px] text-sm font-semibold">
-                      {m.openClauses}
-                    </span>
-                  ) : (
-                    <span className="tnum text-faint text-sm">0</span>
-                  )}
-                </td>
-                <td className="px-2.5 py-3 text-right sm:px-3">
-                  <div className="flex justify-end">
-                    <NetChip net={m.swing.net} />
-                  </div>
-                  <div className="text-faint mt-1 text-[0.62rem]">
-                    {m.swing.risers} suben · {m.swing.fallers} bajan
-                  </div>
-                </td>
-                <td className="tnum text-muted hidden px-3 py-3 text-right md:table-cell">
-                  {m.weekPoints === null ? "—" : num(m.weekPoints)}
-                </td>
-                <td className="tnum text-muted hidden px-3 py-3 text-right sm:table-cell">
-                  {money(m.teamValue)}
-                </td>
-                <td className="tnum px-3 py-3 text-right sm:px-5 lg:px-6">{num(m.points)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    TÚ
+                  </span>
+                )}
+              </span>
+              <span className="text-faint mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.7rem]">
+                <span className="tnum">{money(m.teamValue)}</span>
+                {m.openClauses > 0 && (
+                  <span className="text-down">{m.openClauses} sin blindar</span>
+                )}
+                {m.weekPoints !== null && (
+                  <span className="tnum hidden sm:inline">{num(m.weekPoints)} esta jornada</span>
+                )}
+              </span>
+            </span>
+
+            <span className="shrink-0 text-right">
+              <NetChip net={m.swing.net} />
+              <span className="text-faint mt-1 block text-[0.62rem]">
+                {m.swing.risers} suben · {m.swing.fallers} bajan
+              </span>
+            </span>
+
+            <span className="w-[46px] shrink-0 text-right sm:w-[56px]">
+              <span className="tnum block text-[1.35rem] leading-none font-semibold sm:text-[1.6rem]">
+                {num(m.points)}
+              </span>
+              <span className="label text-[0.5rem]">puntos</span>
+            </span>
+          </Link>
+        ))}
       </div>
 
       <p className="text-faint px-5 pb-8 text-xs lg:px-6">

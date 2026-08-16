@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { PlayerCard, type CardData } from "./PlayerCard";
-import type { Position } from "@/lib/normalize";
+import { positionColor } from "./ui";
+import { POSITION_LABEL, type Position } from "@/lib/normalize";
 
 /**
  * Lista de plantilla con sus filtros y su orden **en el navegador**.
@@ -18,14 +19,15 @@ import type { Position } from "@/lib/normalize";
 
 type Sort = "posicion" | "prob" | "puntos" | "media" | "valor" | "cambio" | "clausula" | "margen";
 
+/** Los dos primeros son los que más se usan; el resto, detrás. */
 const SORTS: { key: Sort; label: string }[] = [
+  { key: "clausula", label: "Cláusula" },
+  { key: "cambio", label: "Cambio de valor" },
   { key: "posicion", label: "Posición" },
   { key: "prob", label: "Juega" },
   { key: "puntos", label: "Puntos" },
   { key: "media", label: "Media" },
   { key: "valor", label: "Valor" },
-  { key: "cambio", label: "Cambio" },
-  { key: "clausula", label: "Cláusula" },
   { key: "margen", label: "Dif. valor-cláusula" },
 ];
 
@@ -49,6 +51,7 @@ export function SquadBrowser({
   emptyHint?: string;
 }) {
   const [sort, setSort] = useState<Sort>("posicion");
+  // Ordenar por puesto agrupa; el resto de criterios sale en una lista seguida.
   const [desc, setDesc] = useState(true);
   const [positions, setPositions] = useState<Set<string>>(new Set());
   const [openOnly, setOpenOnly] = useState(false);
@@ -155,6 +158,49 @@ export function SquadBrowser({
         <p className="text-faint px-5 py-12 text-center text-sm">
           {emptyHint ?? "Ningún jugador encaja con este filtro."}
         </p>
+      ) : sort === "posicion" ? (
+        // Ordenando por puesto, cada línea es un bloque con su rótulo. Veinte
+        // tarjetas seguidas sin cortes no dejan ver dónde acaba la defensa.
+        <div className="p-2.5 sm:p-3 lg:p-4">
+          {POSITIONS.map((position) => {
+            const group = rows.filter((c) => c.position === position);
+            if (group.length === 0) return null;
+            return (
+              <section key={position} className="mb-4 last:mb-0">
+                <div className="mb-2 flex items-center gap-2 px-0.5">
+                  <span
+                    aria-hidden
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: positionColor(position) }}
+                  />
+                  <h3 className="text-[0.82rem] font-semibold">{POSITION_LABEL[position]}</h3>
+                  <span className="tnum text-faint text-[0.78rem]">{group.length}</span>
+                  <span className="bg-line h-px flex-1" />
+                </div>
+                <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+                  {group.map((card, i) => (
+                    <PlayerCard
+                      key={card.id}
+                      card={card}
+                      leagueId={leagueId}
+                      delay={Math.min(i * 18, 200)}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+          {/* Entrenadores y los que no encajan en ninguna línea. */}
+          {rows.filter((c) => !POSITIONS.includes(c.position as Position)).length > 0 && (
+            <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+              {rows
+                .filter((c) => !POSITIONS.includes(c.position as Position))
+                .map((card) => (
+                  <PlayerCard key={card.id} card={card} leagueId={leagueId} />
+                ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
           {rows.map((card, i) => (

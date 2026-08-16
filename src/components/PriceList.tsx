@@ -6,7 +6,17 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { money, num } from "@/lib/format";
 import { oddsTone, type PlayerAlert } from "@/lib/odds";
 import { Countdown } from "./Countdown";
-import { AlertBadge, PriceDelta } from "./ui";
+import { AlertBadge, PositionTag, PriceDelta } from "./ui";
+import type { Position } from "@/lib/normalize";
+
+/** Nombre largo de futbolfantasy → etiqueta de puesto del resto de la web. */
+const POS_TAG: Record<string, Position> = {
+  Portero: "PT",
+  Defensa: "DF",
+  Mediocampista: "MC",
+  Delantero: "DL",
+  Entrenador: "EN",
+};
 
 export type PriceEntry = {
   /** Nombre normalizado; es la clave del cruce. */
@@ -270,112 +280,14 @@ function PriceRow({
   const width = `${Math.max(4, (Math.abs(entry.diff) / top) * 100)}%`;
   const prob = entry.probability !== null ? oddsTone(entry.probability) : null;
 
-  const body = (
-    <>
-      {/* Barra vertical con el color de la probabilidad de jugar */}
-      <span
-        aria-hidden
-        className="absolute top-2 bottom-2 left-0 w-[4px] rounded-r-full"
-        style={{ background: prob?.color ?? "transparent" }}
-      />
-      {/* Barra horizontal proporcional a la variación del día */}
-      <span
-        aria-hidden
-        className={`absolute bottom-0 left-0 h-[2px] opacity-40 ${bar}`}
-        style={{ width }}
-      />
-
-      <div className="border-line bg-panel-2 relative h-[44px] w-[44px] shrink-0 overflow-hidden rounded-xl border-2 sm:h-[52px] sm:w-[52px]">
-        {entry.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={entry.image}
-            alt=""
-            className="h-full w-full object-cover object-top"
-            loading="lazy"
-          />
-        ) : (
-          <span className="display text-faint flex h-full w-full items-center justify-center text-[0.6rem]">
-            {entry.displayName.slice(0, 2)}
-          </span>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-[0.88rem] leading-tight font-bold sm:text-[1rem]">
-            {entry.displayName}
-          </span>
-          <AlertBadge alerts={entry.alerts} />
-          {entry.probability !== null && (
-            <span
-              className="tnum shrink-0 rounded-sm px-1.5 py-[2px] text-[0.62rem] leading-none font-semibold"
-              style={{
-                background: oddsTone(entry.probability).color,
-                color: oddsTone(entry.probability).ink,
-              }}
-            >
-              {entry.probability}%
-            </span>
-          )}
-          {entry.ownerName && (
-            <span
-              className={`shrink-0 rounded-sm border px-1.5 py-[2px] text-[0.68rem] leading-none font-semibold ${
-                entry.ownerIsMe
-                  ? "border-acid bg-acid/20 text-acid"
-                  : "border-info/50/50 bg-sky-400/15 text-info"
-              }`}
-            >
-              {entry.ownerIsMe ? "TUYO" : entry.ownerName}
-            </span>
-          )}
-        </div>
-
-        <div className="text-faint mt-1 flex flex-wrap items-center gap-x-2 text-[0.68rem]">
-          <span className="text-muted inline-flex items-center gap-1.5 text-[0.75rem] font-medium">
-            {entry.clubBadge && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={entry.clubBadge} alt="" width={16} height={16} className="object-contain" />
-            )}
-            {entry.club}
-          </span>
-          {entry.position && (
-            <span className="border-line text-muted rounded-sm border px-1.5 py-[1px] text-[0.62rem]">
-              {entry.position}
-            </span>
-          )}
-          {entry.streak !== 0 && (
-            <span className={tone}>
-              · {Math.abs(entry.streak)} {Math.abs(entry.streak) === 1 ? "día" : "días"}{" "}
-              {entry.streak > 0 ? "subiendo" : "bajando"}
-            </span>
-          )}
-          {entry.buyoutClause ? (
-            <>
-              <span>· cláusula {money(entry.buyoutClause)}</span>
-              {entry.buyoutUnlockAt ? (
-                <Countdown until={entry.buyoutUnlockAt} />
-              ) : (
-                <span className="text-up font-semibold">· ABIERTA</span>
-              )}
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="shrink-0 text-right">
-        <PriceDelta diff={entry.diff} pct={entry.diffPct} size="md" />
-        <div className="tnum text-ink mt-1 text-[0.75rem]">{money(entry.value)}</div>
-        {entry.previousValue !== null && (
-          <div className="tnum text-faint text-[0.65rem]">antes {money(entry.previousValue)}</div>
-        )}
-      </div>
-    </>
-  );
-
+  /**
+   * Misma anatomía que la tarjeta de plantilla: foto a sangre, nombre y puesto
+   * arriba, y el dato que manda —aquí la variación del día— en grande a la
+   * derecha. Las tres listas de la web se leen igual.
+   */
   return (
-    <div
-      className="border-line rise hover:border-acid/40 relative mx-auto flex max-w-4xl items-center gap-2.5 overflow-hidden rounded-2xl border bg-panel px-3 py-2.5 shadow-sm transition-all hover:shadow-md sm:gap-3.5 sm:px-4 sm:py-3"
+    <article
+      className="rise bg-panel border-line hover:border-faint/60 relative mx-auto flex min-h-[104px] w-full max-w-4xl overflow-hidden rounded-2xl border transition-colors"
       style={{ animationDelay: `${delay}ms` }}
     >
       {entry.playerId && (
@@ -385,7 +297,106 @@ function PriceRow({
           aria-label={entry.displayName}
         />
       )}
-      {body}
-    </div>
+
+      <div className="bg-panel-2 relative w-[72px] shrink-0 overflow-hidden sm:w-[84px]">
+        {entry.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.image}
+            alt=""
+            className="h-full w-full object-cover object-top"
+            loading="lazy"
+          />
+        ) : (
+          <span className="display text-faint flex h-full w-full items-center justify-center text-[0.7rem]">
+            {entry.displayName.slice(0, 2)}
+          </span>
+        )}
+        {entry.clubBadge && (
+          <span className="absolute bottom-1 left-1 rounded-md bg-black/55 p-[3px] backdrop-blur-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={entry.clubBadge} alt="" width={16} height={16} className="block object-contain" />
+          </span>
+        )}
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[3px]"
+          style={{ background: prob?.color ?? "transparent" }}
+        />
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-2.5 py-2.5 sm:px-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {entry.position && <PositionTag position={POS_TAG[entry.position] ?? "?"} size="sm" />}
+            <h3 className="truncate text-[1rem] leading-tight font-semibold sm:text-[1.1rem]">
+              {entry.displayName}
+            </h3>
+            <AlertBadge alerts={entry.alerts} />
+          </div>
+
+          <div className="shrink-0 text-right">
+            <PriceDelta diff={entry.diff} pct={entry.diffPct} size="md" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {prob && (
+            <span
+              className="tnum rounded-md px-1.5 py-[3px] text-[0.72rem] leading-none font-semibold"
+              style={{ background: prob.color, color: prob.ink }}
+            >
+              {entry.probability}%
+            </span>
+          )}
+          <span className="tnum text-[0.95rem] leading-none font-semibold">
+            {money(entry.value)}
+          </span>
+          {entry.previousValue !== null && (
+            <span className="tnum text-faint text-[0.68rem]">
+              antes {money(entry.previousValue)}
+            </span>
+          )}
+          {entry.streak !== 0 && (
+            <span className={`text-[0.68rem] font-medium ${tone}`}>
+              {Math.abs(entry.streak)} {Math.abs(entry.streak) === 1 ? "día" : "días"}{" "}
+              {entry.streak > 0 ? "subiendo" : "bajando"}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {entry.ownerName ? (
+            <span
+              className={`text-[0.7rem] font-semibold ${entry.ownerIsMe ? "text-acid" : "text-info"}`}
+            >
+              {entry.ownerIsMe ? "tuyo" : entry.ownerName}
+            </span>
+          ) : (
+            <span className="text-faint text-[0.7rem]">libre</span>
+          )}
+
+          {entry.buyoutClause ? (
+            <>
+              <span
+                className={`tnum text-[0.8rem] leading-none font-semibold ${
+                  entry.buyoutUnlockAt ? "text-down" : "text-up"
+                }`}
+              >
+                🔒 {money(entry.buyoutClause)}
+              </span>
+              {entry.buyoutUnlockAt && <Countdown until={entry.buyoutUnlockAt} />}
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Barra proporcional a lo que se ha movido hoy, al pie de la tarjeta. */}
+      <span
+        aria-hidden
+        className={`absolute bottom-0 left-0 h-[2px] opacity-50 ${bar}`}
+        style={{ width }}
+      />
+    </article>
   );
 }

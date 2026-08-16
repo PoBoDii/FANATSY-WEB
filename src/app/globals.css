@@ -160,6 +160,20 @@ body {
 /* Las listas van sobre blanco, no sobre el gris de fondo. */
 main {
   background: var(--color-panel);
+
+  /* Nada puede ensanchar la página.
+     `min-width: 0` porque en escritorio `main` es una columna de rejilla, y una
+     celda de rejilla se estira hasta el contenido más ancho que tenga dentro.
+     `overflow-x: clip` en vez de `hidden` porque `hidden` crearía un contenedor
+     de scroll y las barras de filtros dejarían de quedarse pegadas arriba. */
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* Y que el documento tampoco se pueda deslizar de lado en el móvil. */
+html,
+body {
+  overflow-x: clip;
 }
 
 @keyframes rise {

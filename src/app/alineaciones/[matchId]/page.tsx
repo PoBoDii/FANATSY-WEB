@@ -328,19 +328,21 @@ function TeamPitch({
 
   return (
     <section className="border-line bg-panel flex h-full flex-col overflow-hidden rounded-xl border shadow-sm">
+      {/* Sin "11 titulares": son once, se ven, y ocupaba el sitio del nombre. */}
       <header
-        className="flex h-[62px] shrink-0 items-center gap-2.5 border-b-4 px-3 sm:h-[68px] sm:gap-3 sm:px-4"
+        className="flex h-[52px] shrink-0 items-center gap-2.5 border-b-4 px-3 sm:h-[58px] sm:gap-3 sm:px-4"
         style={{ borderColor: club?.color ?? "var(--color-line)" }}
       >
         {side.badge && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={side.badge} alt="" width={30} height={30} className="object-contain" />
+          <img src={side.badge} alt="" width={28} height={28} className="object-contain" />
         )}
-        <div className="min-w-0">
-          <div className="display truncate text-base">{side.name}</div>
-          <div className="label">{local ? "Local" : "Visitante"}</div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[1rem] font-semibold" style={{ color: club?.color }}>
+            {side.name}
+          </div>
         </div>
-        <span className="tnum text-faint ml-auto text-xs">{starters.length} titulares</span>
+        <span className="label shrink-0">{local ? "Local" : "✈ Visitante"}</span>
       </header>
 
       {/* Campo */}
@@ -430,7 +432,8 @@ function SlotToken({
   const owner = ownerOf(lineupKey(main));
   const playerId = idOf(main, ffTeamId);
   const photo = ffPhoto(main.ffId || slot.ffId);
-  const size = compact ? 36 : 46;
+  // Del tamaño de las fichas de "mi once": a 46 px no se reconocía a nadie.
+  const size = compact ? 44 : 62;
 
   return (
     <div
@@ -448,7 +451,7 @@ function SlotToken({
       )}
       <div className={`relative ${playerId ? "transition-transform hover:-translate-y-1" : ""}`}>
         <div
-          className="overflow-hidden rounded-lg border-[3px] bg-white shadow-md"
+          className="overflow-hidden rounded-xl border-[3px] bg-white shadow-md"
           style={{
             width: size,
             height: size,
@@ -480,7 +483,7 @@ function SlotToken({
         {/* Sin recuadro blanco: el nombre cabe entero y se lee igual gracias a
             la sombra. Dentro de la burbuja se cortaba casi siempre. */}
         <div
-          className="text-[0.66rem] leading-tight font-bold text-white"
+          className="text-[0.72rem] leading-tight font-bold text-white"
           style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
         >
           {main.name}

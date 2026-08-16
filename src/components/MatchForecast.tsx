@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { Forecast } from "@/lib/pronostico";
 
 /**
@@ -22,20 +25,19 @@ export function MatchForecast({
     { key: "away", value: forecast.away, color: "#1d4ed8", name: away.name, badge: away.badge },
   ];
 
+  const [how, setHow] = useState(false);
+
   return (
-    <section className="border-line border-b bg-panel px-6 py-5 lg:px-10">
-      <div className="mb-3 flex flex-wrap items-baseline gap-3">
-        <h2 className="flex items-center gap-2.5 text-[0.95rem] font-bold">
-          <span className="bg-ink h-5 w-[4px] rounded-full" />
-          Pronóstico
-        </h2>
-        <span className="bg-ink rounded-full px-2.5 py-1 text-[0.72rem] font-bold text-white">
+    <section className="border-line border-b bg-panel px-3.5 py-4 sm:px-6 sm:py-5 lg:px-10">
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <h2 className="text-[0.95rem] font-semibold">Pronóstico</h2>
+        <span className="bg-panel-2 text-muted rounded-full px-2.5 py-1 text-[0.72rem] font-semibold">
           {label}
         </span>
       </div>
 
       {/* Barra proporcional */}
-      <div className="border-line flex h-11 overflow-hidden rounded-lg border">
+      <div className="flex h-10 overflow-hidden rounded-xl">
         {parts.map((part) => (
           <div
             key={part.key}
@@ -80,18 +82,30 @@ export function MatchForecast({
         </Box>
       </div>
 
-      <p className="text-faint mt-3 text-[0.68rem] leading-relaxed">
-        Modelo propio de Poisson con corrección de Dixon-Coles, a partir de{" "}
-        {forecast.basis.join("; ")}. <strong>No son cuotas de apuestas</strong>: ninguna casa
-        publica sus probabilidades en abierto de forma fiable.
-      </p>
+      {/* La explicación del modelo ocupaba cuatro líneas en el móvil delante de
+          lo que se venía a ver. Queda a un toque. */}
+      <button
+        type="button"
+        onClick={() => setHow((v) => !v)}
+        className="text-faint hover:text-muted mt-2.5 cursor-pointer text-[0.7rem] underline underline-offset-2"
+      >
+        {how ? "Ocultar cómo se calcula" : "Cómo se calcula"}
+      </button>
+
+      {how && (
+        <p className="text-faint mt-2 text-[0.7rem] leading-relaxed">
+          Modelo propio de Poisson con corrección de Dixon-Coles, a partir de{" "}
+          {forecast.basis.join("; ")}. <strong>No son cuotas de apuestas</strong>: ninguna casa
+          publica sus probabilidades en abierto de forma fiable.
+        </p>
+      )}
     </section>
   );
 }
 
 function Box({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-line min-w-[150px] flex-1 rounded-lg border bg-panel px-3 py-2">
+    <div className="bg-panel-2 min-w-[140px] flex-1 rounded-xl px-3 py-2">
       <div className="label text-[0.55rem]">{label}</div>
       <div className="mt-1">{children}</div>
     </div>
