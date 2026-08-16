@@ -96,7 +96,7 @@ function FixtureCard({ fixture, played }: { fixture: Fixture; played: boolean })
       <div className="flex items-stretch">
         <span
           className={`px-2.5 py-1.5 text-[0.72rem] font-bold ${
-            league ? "bg-ink text-white" : "text-faint bg-transparent"
+            league ? "bg-panel-2 text-ink" : "text-faint bg-transparent"
           }`}
         >
           {league ? fixture.phase.replace("Jornada ", "J") : "Amistoso"}

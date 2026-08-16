@@ -263,8 +263,23 @@ function myBidOf(root: Any, myTeamId: string | null): number | null {
  * Los `activityTypeId` no están documentados; sólo se mapean los que se han
  * podido observar y el resto cae en un rótulo genérico en vez de inventarse.
  */
+/**
+ * Los tipos observados en el feed real de la liga:
+ *
+ *  ·  9 — sin jugador ni importe: alguien se une a la liga.
+ *  · 31 — con jugador e importe, y **varios a la vez a las 22:01**, que es
+ *         cuando el juego resuelve las pujas del día: son fichajes del mercado.
+ *  · 33 — con jugador e importe pero sueltos, a cualquier hora del día: es lo
+ *         que se puede hacer en cualquier momento, vender a la liga.
+ *
+ * La API no los documenta, así que la lectura sale del patrón de horas y de
+ * qué campos trae cada uno. Si algún día aparece un tipo nuevo cae en "other" y
+ * se enseña el número, que es preferible a etiquetarlo mal.
+ */
 const ACTIVITY_KINDS: Record<number, ActivityEntry["kind"]> = {
   9: "join",
+  31: "signing",
+  33: "sale",
 };
 
 export function toActivity(raw: unknown, index: number): ActivityEntry {
@@ -288,7 +303,15 @@ export function toActivity(raw: unknown, index: number): ActivityEntry {
     kind: fromText ?? ACTIVITY_KINDS[typeId] ?? "other",
     typeId,
     playerName: pick<string | null>(player, ["nickname", "name"], null),
-    playerId: pick<string | null>(player, ["id"], null),
+    /**
+     * El feed no anida el jugador: manda un `playerMasterId` suelto, que es el
+     * mismo id con el que se abre su ficha. Quien pinta la lista lo cruza con
+     * el listado de jugadores para poner el nombre.
+     */
+    playerId: (() => {
+      const v = pick<unknown>(root, ["playerMasterId"], null);
+      return v !== null ? String(v) : pick<string | null>(player, ["id"], null);
+    })(),
     fromUserId: (() => {
       const v = pick<unknown>(root, ["user1Id", "fromUserId"], null);
       return v === null ? null : String(v);

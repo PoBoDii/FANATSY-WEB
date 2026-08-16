@@ -84,18 +84,28 @@ export function StatTile({
  * que lleva la tarjeta y tiene que reconocerse sin leerla.
  */
 const POS_COLOR: Record<Position, string> = {
-  PT: "#f0a029",
-  DF: "#3b82f6",
-  MC: "#16a34a",
-  DL: "#e0362a",
-  EN: "#7c3aed",
+  PT: "#f2952b",
+  DF: "#a855f7",
+  MC: "#3b82f6",
+  DL: "#eab308",
+  EN: "#64748b",
   "?": "#6b7280",
+};
+
+/** Texto que va encima: el amarillo y el naranja no aguantan letra blanca. */
+const POS_INK: Record<Position, string> = {
+  PT: "#2a1600",
+  DF: "#ffffff",
+  MC: "#ffffff",
+  DL: "#2a2200",
+  EN: "#ffffff",
+  "?": "#ffffff",
 };
 
 const POS_SHORT: Record<Position, string> = {
   PT: "POR",
   DF: "DEF",
-  MC: "MED",
+  MC: "CEN",
   DL: "DEL",
   EN: "ENT",
   "?": "—",
@@ -107,10 +117,10 @@ export const positionColor = (position: Position) => POS_COLOR[position];
 export function PositionTag({ position, size = "md" }: { position: Position; size?: "sm" | "md" }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-md font-bold tracking-wide text-white ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-md font-bold tracking-wide ${
         size === "sm" ? "h-[17px] px-1.5 text-[0.55rem]" : "h-[20px] px-2 text-[0.62rem]"
       }`}
-      style={{ background: POS_COLOR[position] }}
+      style={{ background: POS_COLOR[position], color: POS_INK[position] }}
     >
       {POS_SHORT[position]}
     </span>

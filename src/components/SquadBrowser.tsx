@@ -19,11 +19,15 @@ import { POSITION_LABEL, type Position } from "@/lib/normalize";
 
 type Sort = "posicion" | "prob" | "puntos" | "media" | "valor" | "cambio" | "clausula" | "margen";
 
-/** Los dos primeros son los que más se usan; el resto, detrás. */
+/**
+ * Puesto primero por ser el orden de entrada —es raro que la opción activa por
+ * defecto salga la tercera—, y detrás cláusula y cambio de valor, que son las
+ * dos que más se pulsan.
+ */
 const SORTS: { key: Sort; label: string }[] = [
+  { key: "posicion", label: "Posición" },
   { key: "clausula", label: "Cláusula" },
   { key: "cambio", label: "Cambio de valor" },
-  { key: "posicion", label: "Posición" },
   { key: "prob", label: "Juega" },
   { key: "puntos", label: "Puntos" },
   { key: "media", label: "Media" },
@@ -32,6 +36,14 @@ const SORTS: { key: Sort; label: string }[] = [
 ];
 
 const POSITIONS: Position[] = ["PT", "DF", "MC", "DL"];
+
+/** Las siglas del juego, para que el filtro diga lo mismo que las etiquetas. */
+const POSITION_SHORT: Record<string, string> = {
+  PT: "POR",
+  DF: "DEF",
+  MC: "CEN",
+  DL: "DEL",
+};
 
 /** Orden natural de un once: portería, defensa, medio, delantera. */
 const RANK: Record<string, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 4, "?": 5 };
@@ -100,6 +112,13 @@ export function SquadBrowser({
     return desc === natural ? sorted : sorted.reverse();
   }, [cards, sort, desc, positions, openOnly]);
 
+  /**
+   * Se agrupa por línea mientras no haya nada elegido. En cuanto se filtra o se
+   * ordena por otra cosa, la lista pasa a una columna: lo que se busca entonces
+   * es un ranking, y los bloques por puesto lo romperían.
+   */
+  const grouped = sort === "posicion" && positions.size === 0 && !openOnly;
+
   const toggle = (position: string) => {
     const next = new Set(positions);
     if (next.has(position)) next.delete(position);
@@ -110,16 +129,22 @@ export function SquadBrowser({
   return (
     <>
       <div className="border-line flex gap-1.5 overflow-x-auto border-b px-3.5 py-2.5 sm:px-5 lg:px-6">
-        {POSITIONS.map((position) => (
-          <button
-            key={position}
-            type="button"
-            onClick={() => toggle(position)}
-            className={`tnum ${chip(positions.has(position))}`}
-          >
-            {position}
-          </button>
-        ))}
+        {POSITIONS.map((position) => {
+          const on = positions.has(position);
+          return (
+            <button
+              key={position}
+              type="button"
+              onClick={() => toggle(position)}
+              className={`shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-[0.78rem] font-semibold transition-colors ${
+                on ? "text-black" : "bg-panel-2 text-muted hover:text-ink"
+              }`}
+              style={on ? { background: positionColor(position) } : undefined}
+            >
+              {POSITION_SHORT[position]}
+            </button>
+          );
+        })}
         <span className="bg-line mx-1 w-px shrink-0 self-stretch" />
         <button
           type="button"
@@ -158,9 +183,9 @@ export function SquadBrowser({
         <p className="text-faint px-5 py-12 text-center text-sm">
           {emptyHint ?? "Ningún jugador encaja con este filtro."}
         </p>
-      ) : sort === "posicion" ? (
-        // Ordenando por puesto, cada línea es un bloque con su rótulo. Veinte
-        // tarjetas seguidas sin cortes no dejan ver dónde acaba la defensa.
+      ) : grouped ? (
+        // Sin filtros, cada línea es un bloque con su rótulo: veinte tarjetas
+        // seguidas sin cortes no dejan ver dónde acaba la defensa.
         <div className="p-2.5 sm:p-3 lg:p-4">
           {POSITIONS.map((position) => {
             const group = rows.filter((c) => c.position === position);
@@ -202,7 +227,12 @@ export function SquadBrowser({
           )}
         </div>
       ) : (
-        <div className="grid gap-2 p-2.5 sm:p-3 lg:grid-cols-2 lg:p-4 2xl:grid-cols-3">
+        /**
+         * Con un criterio elegido, una sola columna centrada: el orden es el
+         * mensaje, y repartir en dos o tres columnas obliga a leer en zigzag
+         * para saber quién va antes que quién.
+         */
+        <div className="mx-auto grid max-w-2xl gap-2 p-2.5 sm:p-3 lg:p-4">
           {rows.map((card, i) => (
             <PlayerCard
               key={card.id}

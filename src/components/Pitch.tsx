@@ -214,13 +214,13 @@ function statLine(
        * césped se come cualquier texto fino.
        */
       return (
-        <span className="inline-flex flex-col items-center gap-[2px]">
-          <span className="tnum rounded bg-black/45 px-1.5 py-[2px] text-[0.66rem] leading-none font-bold text-white sm:text-[0.74rem]">
+        <span className="flex w-full min-w-0 flex-col items-center gap-[2px]">
+          <span className="tnum max-w-full truncate rounded bg-black/45 px-1 py-[2px] text-[0.6rem] leading-none font-bold text-white sm:px-1.5 sm:text-[0.74rem]">
             {money(player.marketValue)}
           </span>
           {odds?.diff ? (
             <span
-              className="tnum rounded px-1 py-[1px] text-[0.6rem] leading-none font-bold"
+              className="tnum max-w-full truncate rounded px-1 py-[1px] text-[0.55rem] leading-none font-bold sm:text-[0.62rem]"
               style={{
                 background: odds.diff > 0 ? "rgba(43,196,106,0.9)" : "rgba(242,85,90,0.9)",
                 color: "#08130c",
@@ -229,7 +229,7 @@ function statLine(
               {odds.diff > 0 ? "▲" : "▼"} {money(Math.abs(odds.diff))}
             </span>
           ) : (
-            <span className="text-[0.58rem] leading-none text-white/60">sin cambio</span>
+            <span className="text-[0.55rem] leading-none text-white/60">sin cambio</span>
           )}
         </span>
       );
@@ -283,8 +283,10 @@ function PitchToken({
       <div className="relative">
         <PlayerAvatar
           player={player}
-          size={72}
-          className={`h-12 w-12 sm:h-[72px] sm:w-[72px] ${out ? "ring-down ring-2" : ""}`}
+          size={80}
+          className={`h-[46px] w-[46px] sm:h-[76px] sm:w-[76px] lg:h-[88px] lg:w-[88px] ${
+            out ? "ring-down ring-2" : ""
+          }`}
         />
 
         {/* La probabilidad es el dato que se busca al mirar el once: va grande
@@ -326,16 +328,18 @@ function PitchToken({
         </span>
       </div>
 
-      <div className="mt-2 w-full px-0.5 sm:px-1">
+      <div className="mt-2 w-full min-w-0 px-0.5 sm:px-1">
         {/* Sin recuadro: el nombre se lee sobre el césped con su sombra, y así
-            cabe entero en vez de cortarse dentro de una burbuja estrecha. */}
+            cabe entero en vez de cortarse dentro de una burbuja estrecha.
+            `break-words` para que un apellido largo parta en dos líneas en vez
+            de ensanchar la ficha y sacar el campo de la pantalla. */}
         <div
-          className="text-center text-[0.66rem] leading-tight font-bold text-white sm:text-[0.76rem]"
+          className="text-center text-[0.62rem] leading-tight font-bold break-words text-white sm:text-[0.76rem]"
           style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
         >
           {player.name}
         </div>
-        <div className="mt-1 flex min-w-0 items-center justify-center gap-1 sm:gap-2">
+        <div className="mt-1 flex w-full min-w-0 items-center justify-center gap-1 sm:gap-2">
           {out ? (
             <span
               className="bg-down rounded px-1.5 py-[2px] text-center text-[0.55rem] leading-tight font-bold text-white uppercase"
@@ -356,11 +360,17 @@ function PitchToken({
     </>
   );
 
-  // Ancho elástico con tope: en el móvil las cinco fichas de una línea de cinco
-  // tienen que repartirse lo que haya sin salirse de la pantalla.
+  /**
+   * Ancho elástico con tope: en el móvil las cinco fichas de una línea de cinco
+   * tienen que repartirse lo que haya sin salirse de la pantalla.
+   *
+   * `basis-0` es lo que lo garantiza: sin él, el tamaño de partida de cada
+   * ficha es el de su contenido —el nombre, el precio— y cinco nombres largos
+   * ensanchaban el campo hasta sacarlo de la pantalla.
+   */
   return (
     <div
-      className="rise relative flex max-w-[64px] min-w-0 flex-1 flex-col items-center transition-transform hover:-translate-y-1 sm:max-w-[84px] lg:max-w-[104px]"
+      className="rise relative flex max-w-[64px] min-w-0 flex-1 basis-0 flex-col items-center transition-transform hover:-translate-y-1 sm:max-w-[92px] lg:max-w-[112px]"
       style={{ animationDelay: `${delay}ms` }}
     >
       {leagueId && (

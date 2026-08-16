@@ -174,7 +174,7 @@ function Header({
       {/* En el móvil todo va en columna: la foto y el nombre arriba, y los
           datos debajo en una fila de pastillas. Antes el nombre y la caja de
           probabilidad se peleaban por el mismo hueco y acababan encima. */}
-      <div className="flex flex-col gap-3.5 px-3.5 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-7 lg:px-10">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3.5 px-3.5 py-4 sm:flex-row sm:items-center sm:gap-5 sm:px-6 sm:py-7 lg:px-10">
         <div className="flex items-center gap-3.5 sm:contents">
           <div className="border-line bg-panel relative shrink-0 overflow-hidden rounded-2xl border">
             <PlayerPhoto
@@ -285,8 +285,8 @@ function Ownership({
 
   return (
     <div
-      className={`border-line grid gap-px border-b sm:grid-cols-2 lg:grid-cols-4 ${
-        open ? "bg-up-soft/60" : "bg-panel-2/40"
+      className={`border-line mx-auto flex max-w-5xl flex-wrap items-center gap-x-8 gap-y-4 border-b px-3.5 py-4 sm:px-6 sm:py-5 lg:px-10 ${
+        open ? "bg-up-soft/40" : ""
       }`}
     >
       <Cell label="Lo tiene">
@@ -295,28 +295,30 @@ function Ownership({
         </span>
       </Cell>
 
+      {/* La cláusula y lo que cuesta de más van juntas: son una sola idea, y
+          separadas en dos recuadros había que sumarlas mentalmente. */}
       <Cell label="Cláusula">
-        {/* Verde = se puede pagar ya, aquí y en el resto de la web. */}
-        <span className={`tnum text-[1.35rem] font-semibold ${open ? "text-up" : "text-ink"}`}>
-          {clause ? money(clause) : "—"}
-        </span>
-      </Cell>
-
-      <Cell label="Sobre su valor">
-        <span className="tnum text-warn text-[1.15rem] font-semibold">
-          {clause ? signed(over) : "—"}
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span className={`tnum text-[1.5rem] font-semibold ${open ? "text-up" : "text-down"}`}>
+            {clause ? money(clause) : "—"}
+          </span>
+          {clause > 0 && (
+            <span className="tnum text-warn text-[0.85rem] font-semibold">
+              {signed(over)} sobre su valor
+            </span>
+          )}
         </span>
       </Cell>
 
       <Cell label={open ? "Estado" : "Se abre"}>
         {clause ? (
           open ? (
-            <span className="text-up text-[0.95rem] font-bold">ABIERTA</span>
+            <span className="text-up text-[1.05rem] font-bold">Abierta</span>
           ) : (
-            <div className="flex flex-col items-start gap-1">
+            <span className="flex flex-wrap items-baseline gap-2">
               <Countdown until={unlockAt!} />
-              <span className="tnum text-muted text-[0.68rem]">{dateTime(unlockAt)}</span>
-            </div>
+              <span className="tnum text-muted text-[0.75rem]">{dateTime(unlockAt)}</span>
+            </span>
           )
         ) : (
           <span className="text-faint text-sm">—</span>
@@ -328,9 +330,9 @@ function Ownership({
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="bg-panel px-6 py-4 lg:px-8">
+    <div className="min-w-0">
       <div className="label">{label}</div>
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
@@ -430,8 +432,8 @@ function PriceTrend({ odds }: { odds: FfPlayer | null }) {
   ];
 
   return (
-    <div className="border-line border-b px-6 py-5 lg:px-10">
-      <div className="mb-3 flex flex-wrap items-baseline gap-3">
+    <div className="border-line mx-auto max-w-5xl border-b px-3.5 py-4 sm:px-6 sm:py-5 lg:px-10">
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-3">
         <span className="label">Evolución del valor</span>
         {odds.streak !== 0 && (
           <span
@@ -443,24 +445,21 @@ function PriceTrend({ odds }: { odds: FfPlayer | null }) {
         )}
       </div>
 
-      {/* Los tres últimos días, uno a uno */}
-      <div className="mb-3 flex flex-wrap gap-2">
+      {/* Los tres últimos días, uno a uno. Antes cada uno era una tarjeta que
+          se estiraba a un tercio del ancho: tres cajas enormes con un número
+          pequeño dentro y mucho verde de fondo. Ahora ocupan lo que miden. */}
+      <div className="mb-3 flex flex-wrap gap-x-6 gap-y-3">
         {recent.map((day) => (
-          <div
-            key={day.days}
-            className={`min-w-[136px] flex-1 rounded-xl border px-4 py-3 ${
-              day.diff === 0
-                ? "border-line bg-panel"
-                : day.diff > 0
-                  ? "border-up/40 bg-up-soft"
-                  : "border-down/40 bg-down-soft"
-            }`}
-          >
-            <div className="label">{day.label}</div>
-            <div className="mt-1.5">
-              <PriceDelta diff={day.diff} size="lg" />
+          <div key={day.days}>
+            <div className="label text-[0.58rem]">{day.label}</div>
+            <div
+              className={`tnum mt-1 text-[1.25rem] leading-none font-semibold ${
+                day.diff === 0 ? "text-faint" : day.diff > 0 ? "text-up" : "text-down"
+              }`}
+            >
+              {day.diff === 0 ? "sin cambio" : signed(day.diff)}
             </div>
-            <div className="tnum text-faint mt-1.5 text-[0.68rem]">
+            <div className="tnum text-faint mt-1 text-[0.66rem]">
               cerró en {money(day.value)}
             </div>
           </div>
@@ -476,28 +475,19 @@ function PriceTrend({ odds }: { odds: FfPlayer | null }) {
           const up = diff > 0;
 
           return (
-            <div
-              key={days}
-              className={`min-w-[104px] flex-1 rounded-lg border px-3 py-2.5 ${
-                diff === 0
-                  ? "border-line bg-panel"
-                  : up
-                    ? "border-up/40 bg-up-soft"
-                    : "border-down/40 bg-down-soft"
-              }`}
-            >
-              <div className="text-faint text-[0.62rem] font-semibold uppercase">{label}</div>
+            <div key={days} className="bg-panel-2 min-w-[96px] flex-1 rounded-xl px-3 py-2">
+              <div className="text-faint text-[0.6rem] font-semibold uppercase">{label}</div>
               <div
-                className={`tnum mt-1 text-[1.05rem] leading-none font-semibold ${
+                className={`tnum mt-1 text-[1rem] leading-none font-semibold ${
                   diff === 0 ? "text-faint" : up ? "text-up" : "text-down"
                 }`}
               >
                 {diff === 0 ? "sin cambio" : signed(diff)}
               </div>
               {diff !== 0 && (
-                <div className={`tnum mt-1 text-[0.66rem] ${up ? "text-up" : "text-down"}`}>
+                <div className="tnum text-faint mt-1 text-[0.64rem]">
                   {up ? "+" : "−"}
-                  {Math.abs(pct).toFixed(1).replace(".", ",")}% · antes {money(before)}
+                  {Math.abs(pct).toFixed(1).replace(".", ",")}%
                 </div>
               )}
             </div>

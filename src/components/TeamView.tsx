@@ -151,25 +151,30 @@ export async function TeamView({
         }
       />
 
-      <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
-        <StatTile label="Puntos" value={num(header.points)} tone="acid" />
-        <StatTile label="Valor del equipo" value={money(totalValue)} delay={60} />
-        <StatTile
-          label="Saldo"
-          value={header.teamMoney ? money(header.teamMoney) : "—"}
-          sub={header.teamMoney ? "para fichar" : "no disponible"}
-          delay={120}
-        />
-        <StatTile
-          label="Alertas"
-          value={num(alerts)}
-          sub="lesionados, dudas y sanciones"
-          tone={alerts > 0 ? "down" : "neutral"}
-          delay={180}
-        />
-      </div>
+      {/* Resumen del equipo. En el móvil sólo acompaña al once titular: en las
+          otras dos pestañas hay que bajar media pantalla antes de ver nada, y
+          lo que se viene a mirar allí es la lista, no el saldo. */}
+      <div className={view === "once" ? "" : "hidden lg:block"}>
+        <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
+          <StatTile label="Puntos" value={num(header.points)} tone="acid" />
+          <StatTile label="Valor del equipo" value={money(totalValue)} delay={60} />
+          <StatTile
+            label="Saldo"
+            value={header.teamMoney ? money(header.teamMoney) : "—"}
+            sub={header.teamMoney ? "para fichar" : "no disponible"}
+            delay={120}
+          />
+          <StatTile
+            label="Alertas"
+            value={num(alerts)}
+            sub="lesionados, dudas y sanciones"
+            tone={alerts > 0 ? "down" : "neutral"}
+            delay={180}
+          />
+        </div>
 
-      <SwingBand swing={swing} mine />
+        <SwingBand swing={swing} mine />
+      </div>
 
       <Tabs view={view} />
 
@@ -429,6 +434,9 @@ function IdealView({
     return pick ?? null;
   });
 
+  /** Los que hay que sacar, para marcarlos también en el banquillo. */
+  const dropped = taken;
+
   return (
     <>
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
@@ -522,9 +530,20 @@ function IdealView({
               <div
                 key={r.player.id}
                 className={`relative rounded-xl border p-2 text-center sm:w-[104px] ${
-                  r.unavailable ? "border-down/50 bg-down-soft" : "border-line bg-panel"
+                  dropped.has(r.player.id)
+                    ? "border-down bg-down/10"
+                    : r.unavailable
+                      ? "border-down/50 bg-down-soft"
+                      : "border-line bg-panel"
                 }`}
               >
+                {/* Al que baja se le marca igual que al que sube: si arriba
+                    pone ENTRA, aquí tiene que poner SALE. */}
+                {dropped.has(r.player.id) && (
+                  <span className="bg-down absolute -top-2 left-1/2 z-10 -translate-x-1/2 rounded-full px-1.5 py-[1px] text-[0.5rem] font-bold text-white shadow">
+                    SALE
+                  </span>
+                )}
                 <Link
                   href={`/jugador/${r.player.id}`}
                   className="absolute inset-0"

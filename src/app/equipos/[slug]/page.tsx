@@ -442,7 +442,9 @@ function Lineup({
     <section className="mx-auto max-w-6xl p-2.5 sm:p-4 lg:p-6">
       {nextLeague && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="bg-ink rounded px-2 py-1 text-[0.68rem] font-bold text-white">
+          {/* `bg-ink` con `text-white` en tema oscuro es blanco sobre blanco:
+              se leía sólo por el contorno. */}
+          <span className="bg-panel-2 text-ink rounded-md px-2 py-1 text-[0.68rem] font-bold">
             {nextLeague.phase}
           </span>
           <span className="text-lg">{nextLeague.atHome ? "🏠" : "✈️"}</span>
@@ -480,7 +482,7 @@ function Lineup({
 
         <div className="relative flex flex-col gap-5 px-1.5 py-6 sm:gap-7 sm:px-3 sm:py-8 lg:gap-10 lg:py-12">
           {lines.map((line, i) => (
-            <div key={i} className="flex justify-center gap-1 sm:gap-2 lg:gap-4">
+            <div key={i} className="flex justify-center gap-1.5 sm:gap-3 lg:gap-5">
               {line.map((slot) => {
                 const main = slot.players[0];
                 const tone = slot.probability !== null ? oddsTone(slot.probability) : null;
@@ -489,7 +491,7 @@ function Lineup({
                 return (
                   <div
                     key={slot.ffId}
-                    className="relative flex w-[58px] flex-col items-center sm:w-[68px] lg:w-[84px]"
+                    className="relative flex max-w-[72px] min-w-0 flex-1 basis-0 flex-col items-center sm:max-w-[96px] lg:max-w-[116px]"
                   >
                     {playerId && (
                       <Link
@@ -501,17 +503,21 @@ function Lineup({
                     <div
                       className={`relative ${playerId ? "transition-transform hover:-translate-y-1" : ""}`}
                     >
+                      {/* Marco oscuro, no blanco: sobre el césped una tarjeta
+                          blanca pesa más que la propia foto, y era lo primero
+                          que se veía del campo. */}
                       <div
-                        className="overflow-hidden rounded-xl border-[3px] bg-white shadow-lg"
+                        className="overflow-hidden rounded-xl border-2 bg-[#12161c] shadow-lg"
                         style={{
-                          borderColor: owner?.color ?? "#ffffff",
-                          boxShadow: owner ? `0 0 0 4px ${owner.color}55` : undefined,
+                          borderColor: owner?.color ?? "rgba(255,255,255,0.25)",
+                          boxShadow: owner ? `0 0 0 3px ${owner.color}66` : undefined,
                         }}
                       >
                         <PlayerPhoto
                           src={ffPhoto(main.ffId || slot.ffId)}
                           name={main.name}
-                          size={50}
+                          size={88}
+                          className="h-[58px] w-[58px] sm:h-[78px] sm:w-[78px] lg:h-[94px] lg:w-[94px]"
                         />
                       </div>
                       {tone && (
@@ -523,9 +529,9 @@ function Lineup({
                         </span>
                       )}
                     </div>
-                    <div className="mt-3 w-full px-0.5 text-center">
+                    <div className="mt-3 w-full min-w-0 px-0.5 text-center">
                       <div
-                        className="text-[0.68rem] leading-tight font-bold text-white"
+                        className="text-[0.7rem] leading-tight font-bold break-words text-white sm:text-[0.8rem]"
                         style={{ textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)" }}
                       >
                         {main.name}
@@ -567,7 +573,7 @@ function Lineup({
               const tone = slot.probability !== null ? oddsTone(slot.probability) : null;
               const playerId = idOf(main.name);
               return (
-                <div key={slot.ffId} className="relative w-[62px] text-center">
+                <div key={slot.ffId} className="relative w-[68px] text-center sm:w-[80px]">
                   {playerId && (
                     <Link
                       href={`/jugador/${playerId}`}
@@ -575,8 +581,13 @@ function Lineup({
                       aria-label={main.name}
                     />
                   )}
-                  <div className="border-line bg-panel relative overflow-hidden rounded-lg border-2">
-                    <PlayerPhoto src={ffPhoto(main.ffId || slot.ffId)} name={main.name} size={54} />
+                  <div className="border-line relative overflow-hidden rounded-xl border-2 bg-[#12161c]">
+                    <PlayerPhoto
+                      src={ffPhoto(main.ffId || slot.ffId)}
+                      name={main.name}
+                      size={78}
+                      className="h-[64px] w-[64px] sm:h-[76px] sm:w-[76px]"
+                    />
                   </div>
                   {tone && (
                     <span

@@ -26,20 +26,20 @@ const TTL_MS = 30 * 60 * 1000;
 export const TEAMS = [
   { slug: "alaves", name: "Alavés", ffId: "28", color: "#0761af" },
   { slug: "athletic", name: "Athletic", ffId: "1", color: "#ee2523" },
-  { slug: "atletico", name: "Atlético", ffId: "2", color: "#cb3524" },
+  { slug: "atletico", name: "Atlético", ffId: "2", color: "#c8102e" },
   { slug: "barcelona", name: "Barcelona", ffId: "3", color: "#a50044" },
   { slug: "betis", name: "Betis", ffId: "4", color: "#00954c" },
   { slug: "celta", name: "Celta", ffId: "5", color: "#8ac3ee" },
-  { slug: "deportivo", name: "Deportivo", ffId: "6", color: "#0075c9" },
+  { slug: "deportivo", name: "Deportivo", ffId: "6", color: "#2a7fd4" },
   { slug: "elche", name: "Elche", ffId: "21", color: "#00754a" },
   { slug: "espanyol", name: "Espanyol", ffId: "7", color: "#0071ce" },
-  { slug: "getafe", name: "Getafe", ffId: "8", color: "#005999" },
-  { slug: "levante", name: "Levante", ffId: "10", color: "#005999" },
-  { slug: "malaga", name: "Málaga", ffId: "11", color: "#0d6cb9" },
-  { slug: "osasuna", name: "Osasuna", ffId: "13", color: "#d81920" },
-  { slug: "racing", name: "Racing", ffId: "42", color: "#00954c" },
+  { slug: "getafe", name: "Getafe", ffId: "8", color: "#124a8c" },
+  { slug: "levante", name: "Levante", ffId: "10", color: "#8b1d3f" },
+  { slug: "malaga", name: "Málaga", ffId: "11", color: "#3aa3e3" },
+  { slug: "osasuna", name: "Osasuna", ffId: "13", color: "#0a346f" },
+  { slug: "racing", name: "Racing", ffId: "42", color: "#12a04a" },
   { slug: "rayo-vallecano", name: "Rayo", ffId: "14", color: "#e53027" },
-  { slug: "real-madrid", name: "Real Madrid", ffId: "15", color: "#00529f" },
+  { slug: "real-madrid", name: "Real Madrid", ffId: "15", color: "#dfe2e6" },
   { slug: "real-sociedad", name: "Real Sociedad", ffId: "16", color: "#0067b1" },
   { slug: "sevilla", name: "Sevilla", ffId: "17", color: "#d81920" },
   { slug: "valencia", name: "Valencia", ffId: "18", color: "#f18e00" },
@@ -202,13 +202,37 @@ const loadCached = unstable_cache(fetchFixtures, ["calendario-club"], {
 
 async function load(slug: string): Promise<Fixtures> {
   const hit = cache.get(slug);
-  const fixtures = await loadCached(slug);
-
-  if (fixtures.last.length > 0 || fixtures.next.length > 0) {
+  try {
+    const fixtures = await loadCached(slug);
     cache.set(slug, { at: Date.now(), fixtures });
     return fixtures;
+  } catch {
+    // El fallo lo lanza `fetchFixtures` a propósito para que no se guarde como
+    // dato bueno. Aquí se traga y se sigue con lo que hubiera.
+    return hit?.fixtures ?? { last: [], next: [] };
   }
-  return hit?.fixtures ?? { last: [], next: [] };
+}
+
+/**
+ * Cuántas páginas se piden a la vez.
+ *
+ * La pantalla de equipos pedía los veinte calendarios de golpe, y la fuente
+ * respondía a unos cuantos con un corte: de ahí los "sin próximo partido" en
+ * clubes que sí tienen partido. De cuatro en cuatro llegan todos.
+ */
+const MAX_PARALLEL = 4;
+let running = 0;
+const queue: (() => void)[] = [];
+
+async function gate<T>(job: () => Promise<T>): Promise<T> {
+  if (running >= MAX_PARALLEL) await new Promise<void>((resolve) => queue.push(resolve));
+  running++;
+  try {
+    return await job();
+  } finally {
+    running--;
+    queue.shift()?.();
+  }
 }
 
 async function fetchFixtures(slug: string): Promise<Fixtures> {
@@ -216,11 +240,13 @@ async function fetchFixtures(slug: string): Promise<Fixtures> {
   let fixtures: Fixtures | null = null;
 
   try {
-    const res = await fetch(`${HOST}/laliga/equipos/${slug}/partidos`, {
-      headers: { "User-Agent": UA, Accept: "text/html" },
-      signal: AbortSignal.timeout(20_000),
-      cache: "no-store",
-    });
+    const res = await gate(() =>
+      fetch(`${HOST}/laliga/equipos/${slug}/partidos`, {
+        headers: { "User-Agent": UA, Accept: "text/html" },
+        signal: AbortSignal.timeout(25_000),
+        cache: "no-store",
+      }),
+    );
     if (res.ok) {
       const html = await res.text();
       // La página trae dos secciones seguidas: jugados y próximos.
@@ -237,9 +263,18 @@ async function fetchFixtures(slug: string): Promise<Fixtures> {
     // Nos quedamos con lo que hubiera cacheado.
   }
 
-  // Un fallo devuelve vacío y quien llama se queda con lo que ya tuviera: así
-  // un corte de red no se guarda como "este club no juega".
-  return fixtures ?? { last: [], next: [] };
+  /**
+   * Si no ha salido nada se lanza en vez de devolver vacío.
+   *
+   * Es la única forma de que el caché de datos no guarde el fallo: si aquí se
+   * devolviera `{last: [], next: []}`, ese vacío quedaría cacheado media hora y
+   * el club aparecería "sin próximo partido" aunque sí lo tenga. Lanzando, el
+   * caché no guarda nada y el siguiente render lo vuelve a intentar.
+   */
+  if (!fixtures || (fixtures.last.length === 0 && fixtures.next.length === 0)) {
+    throw new Error(`sin calendario para ${slug}`);
+  }
+  return fixtures;
 }
 
 /* --------------------------------------------- calendario por plantilla */

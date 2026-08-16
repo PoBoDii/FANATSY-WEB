@@ -213,27 +213,27 @@ export default async function PartidoPage({
             </div>
           </>
         }
+        // La hora al lado del título y no en una caja debajo: en el móvil
+        // había que bajar media pantalla antes de ver el primer once.
         action={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className="tnum text-ink text-[1rem] leading-none font-semibold">
+              {match.kickoff}
+            </span>
+            {order > 0 && (
+              <span className="text-faint text-[0.7rem]">
+                {order === 1
+                  ? "abre la jornada"
+                  : order === matches.length
+                    ? "cierra la jornada"
+                    : `${order}º de ${matches.length}`}
+              </span>
+            )}
             <FfLink
               href={ffMatchUrl(match.id, match.slug)}
               label={`Ver ${match.home.name} - ${match.away.name} en futbolfantasy`}
+              compact
             />
-            <div className="border-line bg-panel rounded-xl border px-4 py-2.5 text-center shadow-sm">
-              <div className="label">Se juega</div>
-              <div className="tnum text-ink mt-1 text-[1.15rem] leading-none font-semibold">
-                {match.kickoff}
-              </div>
-              {order > 0 && (
-                <div className="text-faint mt-1 text-[0.68rem] font-semibold">
-                  {order === 1
-                    ? "Abre la jornada"
-                    : order === matches.length
-                      ? "Cierra la jornada"
-                      : `${order}º de ${matches.length} partidos`}
-                </div>
-              )}
-            </div>
           </div>
         }
       />

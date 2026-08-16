@@ -213,8 +213,10 @@ export function PlayerCard({
             <span className="tnum text-faint text-[0.72rem]">s/d</span>
           )}
 
-          <span className="tnum text-[0.92rem] leading-none font-semibold sm:text-[1.05rem]">
-            {money(card.value)}
+          {/* En el mercado la cifra que manda es lo que cuesta, no lo que vale:
+              enseñar las dos, casi iguales, sólo hacía dudar de cuál era cuál. */}
+          <span className="tnum text-[1rem] leading-none font-semibold sm:text-[1.15rem]">
+            {money(card.market ? card.market.price : card.value)}
           </span>
 
           {card.diff ? (
@@ -260,28 +262,26 @@ export function PlayerCard({
           <div className="min-w-0">
             {card.market ? (
               <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <span className="tnum text-[0.88rem] leading-none font-semibold sm:text-[1rem]">
-                  {money(card.market.price)}
-                </span>
                 <span
                   className={`tnum text-[0.68rem] leading-none ${
                     card.market.overValue > 0 ? "text-down" : "text-up"
                   }`}
                   title="Diferencia entre lo que piden y su valor de mercado"
                 >
-                  {signed(card.market.overValue)}
+                  {signed(card.market.overValue)} s/ valor
                 </span>
                 {card.market.timeLeft && (
                   <span className="text-faint text-[0.68rem] leading-none">
                     cierra en {card.market.timeLeft}
                   </span>
                 )}
+                {/* Las pujas son la señal de si hay pelea por él. */}
                 {card.market.myBid ? (
-                  <span className="text-acid text-[0.68rem] leading-none font-semibold">
+                  <span className="text-acid text-[0.7rem] leading-none font-bold">
                     pujaste {money(card.market.myBid)}
                   </span>
                 ) : card.market.bids > 0 ? (
-                  <span className="text-faint text-[0.68rem] leading-none">
+                  <span className="text-warn text-[0.7rem] leading-none font-semibold">
                     {card.market.bids} {card.market.bids === 1 ? "puja" : "pujas"}
                   </span>
                 ) : (

@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
-import { fixturesByClub, type Fixture } from "@/lib/equipos";
-import { FixtureStrip } from "@/components/Fixtures";
+import { fixturesByClub } from "@/lib/equipos";
 import { enrichOdds, getFf } from "@/lib/futbolfantasy";
-import { FF_MARKET_URL, ffBadge, oddsTone, type FfPlayer } from "@/lib/odds";
+import { FF_MARKET_URL, type FfPlayer } from "@/lib/odds";
 import { FfLink } from "@/components/FfLink";
 import { toList, toMarketItem, type MarketItem } from "@/lib/normalize";
-import { money, num, signed, timeLeft } from "@/lib/format";
+import { money, num, timeLeft } from "@/lib/format";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { PlayerCard, toCard } from "@/components/PlayerCard";
 import { Empty, ErrorBox, PageHeader, StatTile } from "@/components/ui";
@@ -28,15 +27,15 @@ type Sort =
 /** Orden natural del once, para agrupar por línea. */
 const POSITION_RANK: Record<string, number> = { PT: 0, DF: 1, MC: 2, DL: 3, EN: 4, "?": 5 };
 
-/** Criterios de orden. Los primeros son los que más se usan. */
+/** Criterios de orden. Sin elegir nada manda el puesto, como en el juego. */
 const SORTS: { key: Sort; label: string; natural: "asc" | "desc" }[] = [
+  { key: "posicion", label: "Posición", natural: "asc" },
   { key: "precio", label: "Precio", natural: "desc" },
   { key: "prob", label: "Juega", natural: "desc" },
   { key: "dif", label: "Cambio de valor", natural: "desc" },
   { key: "pujas", label: "Pujas", natural: "desc" },
   { key: "puntos", label: "Puntos", natural: "desc" },
   { key: "media", label: "Media", natural: "desc" },
-  { key: "posicion", label: "Posición", natural: "asc" },
 ];
 
 export default async function MercadoPage({
@@ -46,7 +45,7 @@ export default async function MercadoPage({
 }) {
   const { orden, dir: rawDir } = await searchParams;
   const column = SORTS.find((c) => c.key === orden);
-  const sort: Sort = column?.key ?? "precio";
+  const sort: Sort = column?.key ?? "posicion";
   const dir: "asc" | "desc" =
     rawDir === "asc" || rawDir === "desc" ? rawDir : (column?.natural ?? "desc");
 
@@ -137,7 +136,6 @@ export default async function MercadoPage({
   const ordered = [...players].sort(compare);
   const sorted = dir === "asc" ? ordered.reverse() : ordered;
 
-  const hidden = all.length - items.length;
   const withBid = items.filter((i) => i.myBid).length;
   const total = players.reduce((s, i) => s + i.price, 0);
 
@@ -146,13 +144,8 @@ export default async function MercadoPage({
       <PageHeader
         eyebrow={league.name}
         title="Mercado"
-        meta={
-          <>
-            {players.length} jugadores libres
-            {coaches.length > 0 ? ` · ${coaches.length} entrenadores` : ""}
-            {hidden > 0 ? ` · ${hidden} fuera (los vende un manager)` : ""}
-          </>
-        }
+        // Sin subtítulo: son siempre doce libres y decir cuántos hay
+        // escondidos no cambia ninguna decisión.
         action={
           <div className="flex items-center gap-2">
             <FfLink href={FF_MARKET_URL} label="Ver el mercado en futbolfantasy" />
@@ -161,20 +154,19 @@ export default async function MercadoPage({
         }
       />
 
-      <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
-        <StatTile label="En venta" value={num(players.length)} tone="acid" />
-        <StatTile label="Valor total" value={money(total)} delay={60} />
+      <div className="border-line grid grid-cols-3 border-b">
+        <StatTile label="Valor total" value={money(total)} />
         <StatTile
           label="Más caro"
           value={sorted.length ? money(Math.max(...players.map((i) => i.price))) : "—"}
-          delay={120}
+          delay={60}
         />
         <StatTile
           label="Mis pujas"
           value={num(withBid)}
           sub={withBid ? "en curso" : "ninguna"}
           tone={withBid ? "acid" : "neutral"}
-          delay={180}
+          delay={120}
         />
       </div>
 

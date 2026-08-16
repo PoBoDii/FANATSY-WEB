@@ -166,7 +166,9 @@ export default async function LigaPage({
         </Link>
       </div>
 
-      <div className="grid gap-2 p-2.5 sm:p-3 lg:p-4 2xl:grid-cols-2">
+      {/* Siempre en una columna: una clasificación se lee 1, 2, 3… y en dos
+          columnas el cuarto queda a la derecha del primero. */}
+      <div className="mx-auto grid max-w-3xl gap-2 p-2.5 sm:p-3 lg:p-4">
         {rows.map((m, i) => (
           <Link
             key={m.teamId}
