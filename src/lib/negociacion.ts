@@ -59,6 +59,14 @@ export type Trato = {
   ofrece: number;
   /** Cuántas veces ha subido su oferta. Se usa para ceder despacio. */
   rondas: number;
+  /**
+   * Lo que ya se cerró por este jugador, si se cerró algo.
+   *
+   * Un acuerdo no se deshace: una vez que se dice que sí a una cifra, esa cifra
+   * pasa a ser el suelo. Sin esto, el listo de turno decía "vale, 121" y acto
+   * seguido "120,5" para arañar medio millón a un bot que ya había aceptado.
+   */
+  acordado: number;
   precio: Precio | null;
   /** Momento del último mensaje, para caducar conversaciones olvidadas. */
   at: number;
@@ -72,6 +80,7 @@ export const tratoNuevo = (quien: string): Trato => ({
   pide: 0,
   ofrece: 0,
   rondas: 0,
+  acordado: 0,
   precio: null,
   at: Date.now(),
 });
@@ -211,7 +220,17 @@ export function precioDe(
  * millones —nadie ofrece 50 euros— y por encima, euros contados.
  */
 export function leerCifra(texto: string): number | null {
-  const limpio = texto.toLowerCase().replace(/\./g, "").replace(/,/g, ".");
+  /**
+   * El punto es de millar o decimal según lo que venga detrás.
+   *
+   * "1.200.000" son puntos de millar; "120.5" es ciento veinte y medio. Antes
+   * se borraban todos por igual y "120.5" acababa leyéndose como 1.205 euros,
+   * así que una oferta de 120,5 M€ se contestaba con un "¿1 k€?".
+   */
+  const limpio = texto
+    .toLowerCase()
+    .replace(/(\d)\.(?=\d{3}(?!\d))/g, "$1")
+    .replace(/,/g, ".");
   const match = /(\d+(?:\.\d+)?)\s*(m|mill[oó]n(?:es)?|kilos?|k)?/.exec(limpio);
   if (!match) return null;
 
@@ -317,11 +336,22 @@ const money = (v: number): string => {
  * después. Bajar de millón en millón estando a cuarenta de distancia no es ser
  * duro, es hacer perder el tiempo a los dos.
  */
-function cede(pide: number, objetivo: number, ronda: number): number {
+function cede(pide: number, objetivo: number, ronda: number, ofrece: number): number {
   const margen = pide - objetivo;
   if (margen <= 0) return objetivo;
-  const paso = ronda <= 1 ? 0.55 : ronda === 2 ? 0.35 : 0.2;
-  return Math.max(objetivo, redondea(pide - margen * paso));
+
+  // Lo que se suelta por el simple hecho de ir avanzando la conversación.
+  const porMargen = margen * (ronda <= 1 ? 0.55 : ronda === 2 ? 0.45 : 0.35);
+
+  /**
+   * Y lo que se suelta por cortesía: si el otro pega un salto de siete, bajar
+   * medio millón es una tomadura de pelo y se nota. Se responde a la mitad del
+   * hueco que queda hasta su oferta, sin bajar nunca del objetivo.
+   */
+  const hueco = Math.max(0, pide - Math.max(ofrece, objetivo));
+  const porHueco = hueco * 0.5;
+
+  return Math.max(objetivo, redondea(pide - Math.max(porMargen, porHueco)));
 }
 
 /**
@@ -394,16 +424,23 @@ const LEJOS = [
   "Casi me convences. Casi. {r}. {n}.",
 ];
 
-/** Cuando repiten la misma cifra o bajan la oferta. */
+/** Cuando repiten la misma cifra. */
 const FIRME = [
   "Ya me habías dicho {o}. Sigo en {n}, que no soy una máquina expendedora.",
   "Puedes repetirlo las veces que quieras: {n}.",
   "Insistir no me baja el precio. {n}.",
-  "Me acabas de ofrecer menos que antes. Así vamos para atrás: {n}.",
   "Mi número no se mueve porque tú escribas más rápido: {n}.",
   "{o} otra vez no. {n}, y van tres.",
   "Que no, pesado. {n}.",
   "Copiar y pegar no es negociar. {n}.",
+];
+
+/** Cuando bajan la oferta, que es de una cara enorme. */
+const BAJA = [
+  "Acabas de ofrecerme menos que antes. Así vamos para atrás: {n}.",
+  "¿De {o} para abajo? Se negocia subiendo, campeón. {n}.",
+  "Vas en dirección contraria. {n}.",
+  "Cada vez que escribes me ofreces menos. A este paso me lo quedo gratis. {n}.",
 ];
 
 /**
@@ -448,19 +485,20 @@ const SIN_JUGADOR = [
  * cambio no se inventa nada y no cuesta un céntimo.
  */
 const CHISTES = [
-  "Chiste: el médico me dio seis meses de vida. Como no le pagué, me dio seis más.",
-  "Va uno: mi abuelo murió tranquilo, mientras dormía. No como los pasajeros de su autobús.",
-  "Chiste del día: —Doctor, ¿me va a doler? —A mí no.",
-  "Un clásico: mi mujer y yo fuimos felices veinte años. Luego nos conocimos.",
-  "Toma chiste: —Papá, ¿por qué me llamo Rosa? —Porque te cayó una rosa en la cabeza. —Gracias, papá. —De nada, Ladrillo.",
+  "Chiste: —Doctor, ¿me va a doler? —A mí no.",
+  "El médico me dio seis meses de vida. Como no le pagué, me dio seis más.",
+  "Mi abuelo murió durmiendo, tan tranquilo. Los pasajeros de su autobús no tuvieron tanta suerte.",
+  "Mi mujer y yo fuimos felices veinte años. Luego nos conocimos.",
+  "—Papá, ¿por qué me llamo Rosa? —Porque te cayó una rosa en la cabeza. —Gracias, papá. —De nada, Ladrillo.",
+  "Mi abuela decía que la vida es como una caja de bombones. Murió atragantada.",
+  "—¿Y tu hermano? —Salió a por tabaco. —¿Y cuándo vuelve? —Nunca: no fumaba.",
   "Mi psicólogo dice que tengo problemas con la venganza. Ya veremos quién ríe el último.",
   "Dicen que el dinero no da la felicidad, pero llorando en un yate se llora mejor.",
-  "Chiste: ¿qué hace un cadáver en un cementerio? Nada, está muerto.",
-  "Me dijeron que bebiendo se me olvidarían los problemas. Mentira: ahora tengo uno más.",
-  "El otro día me robaron el calendario. Le van a caer doce meses.",
-  "De pequeño mi padre me llevaba al parque. Luego aprendí a salir del saco yo solo.",
-  "Mi tío se cayó de una escalera de veinte metros. Menos mal que iba por el primer escalón.",
+  "—Camarero, hay una mosca en mi sopa. —Tranquilo, la araña del pan se la come.",
+  "Me apunté a un grupo de gente con mala memoria. No me acuerdo de cuándo era la reunión.",
+  "Un ateo en un ataúd es un tío muy bien vestido y sin ningún sitio al que ir.",
 ];
+
 
 const elige = (frases: string[], semilla: number) => frases[Math.abs(semilla) % frases.length];
 
@@ -499,8 +537,38 @@ const rellena = (
 const conChiste = (texto: string, semilla: number) =>
   Math.abs(semilla) % 4 === 0 ? `${texto} ${elige(CHISTES, semilla + 5)}` : texto;
 
-/** ¿Está preguntando el precio, o sólo dando palique? */
-const PREGUNTA_PRECIO = /(cu[aá]nt|precio|pides|vale|cuesta|cifra|c[oó]mo va)/i;
+/**
+ * Lo que la gente dice de verdad en estas conversaciones.
+ *
+ * No es entender castellano —para eso haría falta un modelo—, pero cubre lo que
+ * sale una y otra vez en el grupo: preguntar el precio, quejarse de que es caro,
+ * jurar que es su última oferta, pedir tiempo, saludar o proponer un cambio.
+ * Cada una tiene su respuesta, que es lo que separa a un bot que conversa de uno
+ * que contesta lo mismo a todo.
+ */
+const PREGUNTA_PRECIO = /(cu[aá]nt|precio|pides|vale|cuesta|cifra|c[oó]mo va|en qu[eé] te quedas)/i;
+const CARO = /(mucho|muy car|car[ií]simo|te pasas|pasando|barbaridad|locura|exager|una pasada|abusiv|atraco|robo)/i;
+const ULTIMA = /([uú]ltima (oferta|palabra)|no llego a m[aá]s|no puedo m[aá]s|es todo lo que|no tengo m[aá]s|lo tomas o lo dejas|m[aá]ximo que)/i;
+const PIENSO = /(me lo pienso|lo pienso|d[eé]jame pensar|ahora te digo|luego te digo|te digo algo|lo consulto)/i;
+const SALUDO = /^\s*(hola|buenas|hey|ey|qu[eé] tal|buenos d[ií]as|buenas tardes|buenas noches|saludos)/i;
+const CAMBIO = /(cambio|intercambi|trueque|te doy a |m[aá]s un jugador|te meto a )/i;
+
+/** Cuando dicen que el precio es un atraco. */
+const ES_CARO = [
+  "Claro que es caro, es que es bueno. {r}. {p}",
+  "Caro es pagar por uno que no juega. Este {r}. {p}",
+  "Si fuera barato ya no lo tendría yo. {r}. {p}",
+  "Lo caro es quedarse sin él. {r}. {p}",
+  "Pues no lo compres, nadie te obliga. {p}",
+];
+
+/** Cuando juran que es su última oferta. */
+const ES_ULTIMA = [
+  "«Última oferta» me han dicho ocho personas esta semana. {p}",
+  "Si es la última, la mía también: {p}",
+  "Pues nos hemos quedado sin trato, porque {p}",
+  "Vale. Entonces se queda conmigo y tan amigos. {p}",
+];
 
 export function responder(
   trato: Trato,
@@ -563,6 +631,7 @@ export function responder(
     ahora.pide = precio.salida;
     ahora.ofrece = 0;
     ahora.rondas = 0;
+    ahora.acordado = 0;
     ahora.fase = "regateo";
 
     if (cifra === null) {
@@ -600,6 +669,23 @@ export function responder(
 
   const precio = ahora.precio;
 
+  /**
+   * Los cambios se cortan de raíz, traigan cifra o no.
+   *
+   * "Te doy 115 y te meto a Lewandowski" llevaba un número dentro, así que el
+   * bot lo leía como una oferta limpia de 115 y contestaba sin enterarse de que
+   * le estaban colando un jugador.
+   */
+  if (CAMBIO.test(mensaje)) {
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto:
+        `Cambios no hago: bastante lío tengo ya con mi plantilla. Dinero y nos entendemos. ` +
+        `Por ${ahora.playerName} estoy en ${money(ahora.pide)}.`,
+    };
+  }
+
   /* ---------------------------------------------------- ¿acepta o rompe? */
 
   if (intencion === "rechaza" && cifra === null) {
@@ -621,6 +707,7 @@ export function responder(
   if (intencion === "acepta" && cifra === null && ahora.pide > 0 && !PREGUNTA_PRECIO.test(mensaje)) {
     ahora.fase = "acuerdo";
     ahora.ofrece = ahora.pide;
+    ahora.acordado = ahora.pide;
     return {
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
@@ -641,19 +728,24 @@ export function responder(
   if (cifra === null) {
     const linea = `Por ${ahora.playerName} estoy en ${money(ahora.pide)}.`;
 
-    if (PREGUNTA_PRECIO.test(mensaje)) {
-      return {
-        trato: ahora,
-        avisoAlDueno: null,
-        texto: `${linea} ¿Tú qué pones?`,
-      };
-    }
+    const di = (texto: string) => ({ trato: ahora, avisoAlDueno: null, texto });
 
-    return {
-      trato: ahora,
-      avisoAlDueno: null,
-      texto: conChiste(rellena(elige(BRUSCO, chispa), { p: linea }), chispa),
-    };
+    if (PREGUNTA_PRECIO.test(mensaje)) return di(`${linea} ¿Tú qué pones?`);
+
+    if (CARO.test(mensaje))
+      return di(rellena(elige(ES_CARO, chispa), { p: linea, r: precio.razon }));
+
+    if (ULTIMA.test(mensaje)) return di(rellena(elige(ES_ULTIMA, chispa), { p: linea }));
+
+    if (PIENSO.test(mensaje))
+      return di(
+        `Piénsatelo, pero no tardes: sube cada día y mañana este precio ya no está. ${linea}`,
+      );
+
+    if (SALUDO.test(mensaje))
+      return di(`Buenas. Al grano, que tengo veinticuatro jugadores que atender. ${linea}`);
+
+    return di(conChiste(rellena(elige(BRUSCO, chispa), { p: linea }), chispa));
   }
 
   /**
@@ -684,7 +776,24 @@ export function responder(
     };
   }
 
-  const objetivo = precio.minimo;
+  /**
+   * El suelo de la conversación.
+   *
+   * Normalmente es el mínimo del jugador, pero si ya se cerró un trato pasa a
+   * ser esa cifra: lo aceptado, aceptado está, y de ahí no se baja por mucho
+   * que el otro lo intente después.
+   */
+  const objetivo = Math.max(precio.minimo, ahora.acordado ?? 0);
+
+  if (ahora.acordado && cifra < ahora.acordado) {
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto:
+        `Ya habíamos cerrado en ${money(ahora.acordado)} y ahora me vienes con ` +
+        `${money(cifra)}. Por ahí no paso: ${money(ahora.acordado)} o nada.`,
+    };
+  }
 
   /**
    * Nunca se acepta a la primera, aunque el número esté bien: quien abre
@@ -705,6 +814,7 @@ export function responder(
 
   if (cifra >= objetivo) {
     ahora.fase = "acuerdo";
+    ahora.acordado = cifra;
     return {
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
@@ -714,12 +824,31 @@ export function responder(
 
   const semilla = ahora.rondas + Math.round(cifra / 1_000_000) + mensaje.length;
 
+  /**
+   * "Es mi última oferta" y no llega.
+   *
+   * Es un farol clásico y merece su respuesta, no una rebaja: si de verdad es
+   * la última, ceder ahora sólo enseña que el farol funciona.
+   */
+  if (ULTIMA.test(mensaje)) {
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto: rellena(elige(ES_ULTIMA, semilla), {
+        p: `Por ${ahora.playerName} estoy en ${money(ahora.pide)}.`,
+      }),
+    };
+  }
+
   if (!mejora) {
     return {
       trato: ahora,
       avisoAlDueno: null,
       texto: conChiste(
-        rellena(elige(FIRME, semilla), { n: money(ahora.pide), o: money(anterior) }),
+        rellena(elige(cifra < anterior ? BAJA : FIRME, semilla), {
+          n: money(ahora.pide),
+          o: money(anterior),
+        }),
         chispa,
       ),
     };
@@ -746,7 +875,7 @@ export function responder(
     };
   }
 
-  const nuevo = cede(ahora.pide, objetivo, ahora.rondas);
+  const nuevo = cede(ahora.pide, objetivo, ahora.rondas, cifra);
   ahora.pide = nuevo;
 
   const distancia = (nuevo - cifra) / nuevo;

@@ -10,19 +10,21 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/", label: "Mi plantilla", num: "01" },
-  { href: "/fichajes", label: "Fichajes", num: "02" },
-  { href: "/liga", label: "La liga", num: "03" },
-  { href: "/mercado", label: "Mercado", num: "04" },
-  { href: "/precios", label: "Precios", num: "05" },
+  { href: "/liga", label: "La liga", num: "02" },
+  { href: "/mercado", label: "Mercado", num: "03" },
+  { href: "/precios", label: "Precios", num: "04" },
+  { href: "/fichajes", label: "Fichajes", num: "05" },
   { href: "/alineaciones", label: "Alineaciones", num: "06" },
   { href: "/equipos", label: "Equipos", num: "07" },
-  { href: "/actividad", label: "Actividad", num: "08" },
-  { href: "/historial", label: "Compraventa", num: "09" },
-  { href: "/informe", label: "Informe de hoy", num: "10" },
-  { href: "/negociaciones", label: "Negociaciones", num: "11" },
-  { href: "/enlaces", label: "Enlaces del bot", num: "12" },
-  { href: "/debug", label: "Diagnóstico", num: "13" },
+  { href: "/lesionados", label: "Lesionados", num: "08" },
+  { href: "/negociaciones", label: "Negociaciones", num: "09" },
+  { href: "/historial", label: "Compraventa", num: "10" },
+  { href: "/actividad", label: "Actividad", num: "11" },
+  { href: "/informe", label: "Informe de hoy", num: "12" },
+  { href: "/enlaces", label: "Enlaces del bot", num: "13" },
+  { href: "/debug", label: "Diagnóstico", num: "14" },
 ];
+
 
 /**
  * Menú lateral en pantalla grande y cajón desplegable en el móvil.

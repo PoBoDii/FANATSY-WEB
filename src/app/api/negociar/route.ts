@@ -6,6 +6,7 @@ import { buscarJugador, precioDe, responder, tratoNuevo, type Trato } from "@/li
 import { sendTelegram } from "@/lib/telegram";
 import { openLedger } from "@/lib/estado";
 import { leerPrecios } from "@/lib/precios-manuales";
+import { cerradoPara, leerEstado } from "@/lib/bot-estado";
 import { apilar } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,20 @@ export async function POST(request: Request) {
 
   if (!mensaje) {
     return Response.json({ error: "Sin mensaje" }, { status: 400 });
+  }
+
+  /**
+   * El interruptor, lo primero de todo.
+   *
+   * Se mira antes que la liga y antes que la plantilla: si el chat está cerrado
+   * no hay ninguna razón para gastar cuatro peticiones a LaLiga en contestar
+   * que no. `cerrado` viaja en la respuesta para que el navegador bloquee la
+   * casilla de escribir y no haya que insistir con cada mensaje.
+   */
+  const estado = await leerEstado();
+  const cerrado = cerradoPara(estado, quien);
+  if (cerrado) {
+    return Response.json({ texto: cerrado, cerrado: true });
   }
 
   const session = await getSession();
@@ -149,7 +164,7 @@ export async function POST(request: Request) {
     if (!ledger.has(key)) {
       ledger.add(key);
       await ledger.flush();
-      await sendTelegram(salida.avisoAlDueno);
+      await sendTelegram(salida.avisoAlDueno, "negociador");
     }
   }
 

@@ -223,6 +223,64 @@ function attr(tag: string, name: string): number | null {
 }
 
 /**
+ * Los lesionados y sancionados de un club, con lo que dura la baja.
+ *
+ * La página de cada equipo tiene una sección aparte —`mod lesionados` y `mod
+ * sancionados`— mucho mejor que los avisos sueltos: además de decir quién está
+ * fuera, dice de qué, desde cuándo y hasta cuándo. Eso último es justo lo que
+ * no había forma de saber desde la API del juego, que sólo marca "lesionado" y
+ * te deja adivinando si vuelve el domingo o en marzo.
+ *
+ * Ojo con `mercado-box`: hay una sección de sancionados que en realidad son
+ * rumores, y colarla mezclaba bajas de verdad con fichajes que no existen.
+ */
+const BAJAS_SECTION =
+  /<section class="mod (lesionados|sancionados)(?![^"]*mercado-box)[^"]*"[\s\S]*?(?=<section|$)/g;
+
+const BAJA_ENTRY =
+  /\/jugadores\/([a-z0-9-]+)"\s+class="jugador">([^<]+)<\/a>\s*<div class="comentario">([\s\S]*?)<\/div>/g;
+
+export type Baja = {
+  slug: string;
+  name: string;
+  tipo: "lesion" | "sancion";
+  /** "Rotura de lig. cruzado anterior". */
+  motivo: string | null;
+  /** "10/08", el día que empezó. */
+  desde: string | null;
+  /** Días que lleva fuera. */
+  dias: number | null;
+  /** "Baja hasta marzo" — cuándo se le espera de vuelta. */
+  hasta: string | null;
+};
+
+function parseBajas(html: string): Baja[] {
+  const out: Baja[] = [];
+
+  for (const section of html.matchAll(BAJAS_SECTION)) {
+    const tipo = section[1] === "lesionados" ? "lesion" : "sancion";
+
+    for (const entry of section[0].matchAll(BAJA_ENTRY)) {
+      const comentario = entry[3];
+      const desde = /Desde\s+(\d{1,2}\/\d{1,2})/.exec(comentario);
+      const dias = /\((\d+)\s+d[ií]as?\)/.exec(comentario);
+
+      out.push({
+        slug: entry[1],
+        name: entry[2].trim(),
+        tipo,
+        motivo: /<span class="lesion">([^<]+)</.exec(comentario)?.[1].trim() ?? null,
+        desde: desde?.[1] ?? null,
+        dias: dias ? Number(dias[1]) : null,
+        hasta: /<span class="gravedad-\d+">([^<]+)</.exec(comentario)?.[1].trim() ?? null,
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
  * Avisos de futbolfantasy: partes médicos, noticias de fichajes y etiquetas de
  * mercado. Van en bloques `.elemento` aparte del once, con el enlace a la
  * noticia original.
@@ -482,6 +540,8 @@ export type FfIndex = {
   all: FfPlayer[];
   /** id de equipo de futbolfantasy → nombre. */
   teams: Map<string, string>;
+  /** Lesionados y sancionados de toda la liga, por slug de jugador. */
+  bajas: Map<string, Baja>;
   get(player: Player): FfPlayer | null;
   /** Busca por nombre suelto (para cruzar sin un Player de LaLiga). */
   byName(name: string): FfPlayer | null;
@@ -493,6 +553,7 @@ const EMPTY: FfIndex = {
   builtAt: 0,
   all: [],
   teams: new Map(),
+  bajas: new Map(),
   get: () => null,
   byName: () => null,
 };
@@ -505,7 +566,7 @@ let refreshing: Promise<FfIndex> | null = null;
  * funciones. El índice con sus cruces se reconstruye encima, que es coser y
  * cantar comparado con volver a bajarse veintiuna páginas.
  */
-type FfData = { rows: FfPlayer[]; teams: [string, string][] };
+type FfData = { rows: FfPlayer[]; teams: [string, string][]; bajas: Baja[] };
 
 async function scrape(): Promise<FfData> {
   // Ninguna de estas páginas cabe en el caché de datos de Next (la de mercado
@@ -521,7 +582,7 @@ async function scrape(): Promise<FfData> {
     ),
   ]);
 
-  if (!marketHtml) return { rows: [], teams: [] };
+  if (!marketHtml) return { rows: [], teams: [], bajas: [] };
 
   const { rows, teams } = parsePrices(marketHtml);
 
@@ -552,9 +613,12 @@ async function scrape(): Promise<FfData> {
 
   const teamIdOfSlug = new Map([...slugOfTeamId].map(([id, slug]) => [slug, id]));
 
+  const bajas: Baja[] = [];
+
   TEAMS.forEach((slug, i) => {
     const html = teamHtmls[i];
     if (!html) return;
+    bajas.push(...parseBajas(html));
     const teamId = teamIdOfSlug.get(slug) ?? "";
     const extra = joinClub(
       parseTeamPage(html),
@@ -575,7 +639,7 @@ async function scrape(): Promise<FfData> {
    */
   for (const row of rows) row.history = row.history.slice(0, 8);
 
-  return { rows, teams: [...teams] };
+  return { rows, teams: [...teams], bajas };
 }
 
 /** Reconstruye el índice de búsqueda a partir de los datos guardados. */
@@ -711,6 +775,7 @@ function indexFrom(data: FfData): FfIndex {
     builtAt: Date.now(),
     all: rows,
     teams,
+    bajas: new Map(data.bajas.map((b) => [b.slug, b])),
     get: (player) => lookup(player.fullName, player.name, player.slug, player.clubName),
     byName: (name) => lookup(name, name, "", ""),
   };

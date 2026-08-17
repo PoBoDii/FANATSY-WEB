@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Trato } from "@/lib/negociacion";
+import { cerradoPara, type EstadoBot } from "@/lib/bot-estado";
 
 /**
  * El chat del bot negociador.
@@ -20,16 +21,39 @@ const BIENVENIDA =
   "Buenas. Soy quien lleva los fichajes de este equipo. Dime a quién quieres y " +
   "cuánto sueltas. Te aviso ya: de regalar, nada.";
 
-export function Chat({ managers, fijo }: { managers: string[]; fijo?: string }) {
+export function Chat({
+  managers,
+  fijo,
+  /** Ya sabemos que a esta persona le han cerrado el chat: no entra ni a mirar. */
+  cerradoDeEntrada,
+  /** Para decidirlo en cuanto elige su nombre, cuando el enlace no es personal. */
+  estado,
+}: {
+  managers: string[];
+  fijo?: string;
+  cerradoDeEntrada?: string | null;
+  estado?: EstadoBot;
+}) {
   // Con enlace personal no hay nada que elegir: se entra directo.
   const [quien, setQuien] = useState(fijo ?? "");
   const [entrado, setEntrado] = useState(Boolean(fijo));
   const [lineas, setLineas] = useState<Linea[]>(
-    fijo ? [{ de: "bot", texto: `Hombre, ${fijo}. ${BIENVENIDA}` }] : [],
+    fijo
+      ? [{ de: "bot", texto: cerradoDeEntrada ?? `Hombre, ${fijo}. ${BIENVENIDA}` }]
+      : [],
   );
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const [trato, setTrato] = useState<Trato | null>(null);
+
+  /**
+   * Cuando el dueño chapa el chat.
+   *
+   * No se echa a nadie ni se borra lo hablado: se deja la conversación a la
+   * vista y se bloquea la casilla, con el motivo debajo. Volver a abrirlo es
+   * recargar la página.
+   */
+  const [cerrado, setCerrado] = useState<string | null>(cerradoDeEntrada ?? null);
 
   const finRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -37,14 +61,20 @@ export function Chat({ managers, fijo }: { managers: string[]; fijo?: string }) 
   }, [lineas, pensando]);
 
   const entrar = () => {
-    if (quien.trim().length < 1) return;
+    const nombre = quien.trim();
+    if (nombre.length < 1) return;
+
+    // Si tiene el chat cerrado se entera al entrar, no al escribir: no llega a
+    // mandar nada y el servidor no se entera de que ha pasado por aquí.
+    const veto = estado ? cerradoPara(estado, nombre) : null;
     setEntrado(true);
-    setLineas([{ de: "bot", texto: BIENVENIDA }]);
+    setCerrado(veto);
+    setLineas([{ de: "bot", texto: veto ?? BIENVENIDA }]);
   };
 
   const enviar = async () => {
     const mensaje = texto.trim();
-    if (!mensaje || pensando) return;
+    if (!mensaje || pensando || cerrado) return;
 
     setLineas((l) => [...l, { de: "yo", texto: mensaje }]);
     setTexto("");
@@ -56,12 +86,16 @@ export function Chat({ managers, fijo }: { managers: string[]; fijo?: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensaje, quien, trato }),
       });
-      const data = (await res.json()) as { texto?: string; trato?: Trato; error?: string };
+      const data = (await res.json()) as {
+        texto?: string;
+        trato?: Trato;
+        error?: string;
+        cerrado?: boolean;
+      };
 
-      setLineas((l) => [
-        ...l,
-        { de: "bot", texto: data.texto ?? data.error ?? "Ahora mismo no puedo responder." },
-      ]);
+      const respuesta = data.texto ?? data.error ?? "Ahora mismo no puedo responder.";
+      setLineas((l) => [...l, { de: "bot", texto: respuesta }]);
+      if (data.cerrado) setCerrado(respuesta);
       if (data.trato) setTrato(data.trato);
     } catch {
       setLineas((l) => [...l, { de: "bot", texto: "Se ha cortado la conexión. Repítemelo." }]);
@@ -154,23 +188,29 @@ export function Chat({ managers, fijo }: { managers: string[]; fijo?: string }) 
         <div ref={finRef} />
       </div>
 
-      <div className="border-line flex gap-2 border-t py-3">
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && enviar()}
-          placeholder="Me interesa X, te doy 50"
-          className="border-line bg-panel min-w-0 flex-1 rounded-xl border px-3.5 py-2.5 outline-none focus:border-acid"
-        />
-        <button
-          type="button"
-          onClick={enviar}
-          disabled={pensando || !texto.trim()}
-          className="bg-acid shrink-0 cursor-pointer rounded-xl px-4 py-2.5 font-semibold text-white disabled:opacity-40"
-        >
-          Enviar
-        </button>
-      </div>
+      {cerrado ? (
+        <div className="border-line border-t py-4 text-center">
+          <p className="text-muted text-[0.9rem]">🔒 {cerrado}</p>
+        </div>
+      ) : (
+        <div className="border-line flex gap-2 border-t py-3">
+          <input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && enviar()}
+            placeholder="Me interesa X, te doy 50"
+            className="border-line bg-panel focus:border-acid min-w-0 flex-1 rounded-xl border px-3.5 py-2.5 outline-none"
+          />
+          <button
+            type="button"
+            onClick={enviar}
+            disabled={pensando || !texto.trim()}
+            className="bg-acid shrink-0 cursor-pointer rounded-xl px-4 py-2.5 font-semibold text-white disabled:opacity-40"
+          >
+            Enviar
+          </button>
+        </div>
+      )}
     </div>
   );
 }

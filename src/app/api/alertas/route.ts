@@ -60,7 +60,7 @@ export async function GET(request: Request) {
    * veces que haga falta sin gastar los avisos del día.
    */
   if (dryRun) {
-    const preview = await checkAlerts(league.id, league.myTeamId, Date.now());
+    const preview = await checkAlerts(league.id, league.myTeamId, Date.now(), true);
     return new Response(preview.messages.join("\n\n———\n\n") || "Nada que avisar ahora mismo", {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });

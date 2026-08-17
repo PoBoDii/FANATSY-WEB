@@ -76,6 +76,14 @@ export async function checkAlerts(
   leagueId: string,
   myTeamId: string | null,
   now = Date.now(),
+  /**
+   * Mirar sin gastar.
+   *
+   * Con esto puesto se calcula todo igual pero no se apunta nada como enviado,
+   * que es lo que promete `?probar=1`. Antes lo apuntaba de todas formas: abrir
+   * la previsualización una vez te dejaba sin los avisos de ese día.
+   */
+  soloMirar = false,
 ): Promise<AlertReport> {
   const ledger = await openLedger(now);
   const alerts: Alerta[] = [];
@@ -183,38 +191,93 @@ export async function checkAlerts(
     }
   }
 
+  /**
+   * El parte médico va entero, no sólo lo nuevo.
+   *
+   * Antes llegaba un aviso por cada lesionado nuevo y nada más, así que para
+   * saber cómo estaba la enfermería había que ir rebuscando mensajes viejos.
+   * Ahora basta con que aparezca **uno** nuevo para que llegue la lista
+   * completa de bajas de la liga, con el motivo y hasta cuándo. Lo nuevo va
+   * marcado, que es lo que se mira primero.
+   */
+  const enfermeria: { key: string; texto: string; mio: boolean; nuevo: boolean }[] = [];
+
   for (const { player, who } of watched.values()) {
+    // Del mercado no se informa aquí: son jugadores de nadie y la enfermería
+    // es para saber quién tiene un roto en su plantilla.
+    if (who === "en el mercado") continue;
+
     const odds = oddsOf(player);
+    const baja = odds?.slug ? ff.bajas.get(odds.slug) : null;
 
     /**
      * Sólo partes médicos y bajas confirmadas.
      *
      * futbolfantasy marca como aviso muchas cosas que no son una lesión —un
      * rumor de fichaje, una entrevista— y avisar de todas convertiría el canal
-     * en ruido. Se pide o un parte médico explícito, o que el propio juego lo
-     * dé por lesionado o sancionado.
+     * en ruido. Se pide o estar en la enfermería del club, o un parte médico
+     * explícito, o que el propio juego lo dé por lesionado o sancionado.
      */
     const medical = odds?.alerts.find(
       (a) => a.kind === "injury" && /m[ée]dico|lesi|sanci/i.test(a.label),
     );
     const benched = player.status === "injured" || player.status === "suspended";
-    if (!medical && !benched) continue;
+    if (!baja && !medical && !benched) continue;
 
-    const what = medical
-      ? `${esc(medical.label)}${medical.tags.length ? ` (${esc(medical.tags.join(", "))})` : ""}`
-      : player.status === "injured"
-        ? "lesionado"
-        : "sancionado";
+    const que =
+      baja?.motivo ??
+      (medical
+        ? `${medical.label}${medical.tags.length ? ` (${medical.tags.join(", ")})` : ""}`
+        : player.status === "injured"
+          ? "lesionado"
+          : "sancionado");
 
-    alerts.push({
-      key: `parte-${player.id}-${what}`,
-      kind: "lesion",
-      priority: who === "TUYO" ? 300 : 40,
-      text: `<b>${esc(player.name)}</b> · ${what} · ${
-        who === "TUYO" ? "<b>es tuyo</b>" : esc(who)
-      }`,
+    // Lo que más falta hacía: cuándo vuelve. Si futbolfantasy no lo dice, al
+    // menos se cuenta desde cuándo lleva fuera.
+    const cuando = baja?.hasta
+      ? ` · ${esc(baja.hasta.replace(/^Baja /, ""))}`
+      : baja?.dias
+        ? ` · ${baja.dias} días fuera`
+        : "";
+
+    const key = `parte-${player.id}-${que}`;
+    enfermeria.push({
+      key,
+      mio: who === "TUYO",
+      nuevo: !ledger.has(key),
+      texto:
+        `<b>${esc(player.name)}</b> · ${esc(que)}${cuando} · ` +
+        `${who === "TUYO" ? "<b>es tuyo</b>" : esc(who)}`,
     });
   }
+
+  const nuevasBajas = enfermeria.filter((b) => b.nuevo);
+
+  /**
+   * Sin ninguna baja nueva no se manda nada.
+   *
+   * La lista completa es útil cuando algo ha cambiado; recibirla cada diez
+   * minutos sin novedades sería exactamente el ruido que se quiere evitar.
+   */
+  const parteMedico =
+    nuevasBajas.length === 0
+      ? null
+      : [
+          `<b>🚑 Parte médico</b> · ${nuevasBajas.length} nuevo${
+            nuevasBajas.length === 1 ? "" : "s"
+          } de ${enfermeria.length} bajas`,
+          "",
+          ...enfermeria
+            // Lo mío primero, lo nuevo por delante dentro de cada grupo.
+            .sort(
+              (a, b) =>
+                Number(b.mio) - Number(a.mio) ||
+                Number(b.nuevo) - Number(a.nuevo) ||
+                a.texto.localeCompare(b.texto),
+            )
+            .slice(0, 30)
+            .map((b) => `${b.nuevo ? "🆕" : "•"} ${b.texto}`),
+        ].join("\n");
 
   /* ---------------------------------------------------- caídas de golpe */
 
@@ -270,13 +333,17 @@ export async function checkAlerts(
   /* ------------------------------------------------------- a enviar */
 
   const fresh = alerts.filter((a) => !ledger.has(a.key));
-  for (const a of fresh) ledger.add(a.key);
-  await ledger.flush();
+
+  if (!soloMirar) {
+    for (const b of nuevasBajas) ledger.add(b.key);
+    for (const a of fresh) ledger.add(a.key);
+    await ledger.flush();
+  }
 
   return {
     checkedAt: new Date(now).toISOString(),
-    messages: groupMessages(fresh),
-    count: fresh.length,
+    messages: groupMessages(fresh, parteMedico),
+    count: fresh.length + nuevasBajas.length,
   };
 }
 
@@ -306,10 +373,17 @@ const ORDER: Alerta["kind"][] = [
  * Cuando se abren quince cláusulas a la vez llega un solo aviso con las quince,
  * ordenadas por interés, en vez de quince notificaciones seguidas.
  */
-function groupMessages(alerts: Alerta[]): string[] {
+function groupMessages(alerts: Alerta[], parteMedico: string | null): string[] {
   const messages: string[] = [];
 
   for (const kind of ORDER) {
+    // El parte médico llega montado de fuera: es el único que enseña también lo
+    // que ya se había avisado, así que no puede salir del reparto normal.
+    if (kind === "lesion") {
+      if (parteMedico) messages.push(parteMedico);
+      continue;
+    }
+
     const group = alerts.filter((a) => a.kind === kind).sort((a, b) => b.priority - a.priority);
     if (group.length === 0) continue;
 

@@ -289,7 +289,12 @@ export function PlayerCard({
               {card.probability}%
             </span>
           ) : (
-            <span className="tnum text-faint text-[0.72rem]">s/d</span>
+            <span
+              className="tnum text-faint text-[0.72rem]"
+              title="futbolfantasy todavía no ha publicado el once probable de su equipo"
+            >
+              s/d
+            </span>
           )}
 
           {/* En el mercado la cifra que manda es lo que cuesta, no lo que vale:

@@ -122,6 +122,18 @@ export const fantasy = {
   /** VERIFICADO — alineación de la jornada en curso. */
   lineup: (teamId: string) => call<unknown>(`/v3/teams/${teamId}/lineup`, { revalidate: LIVE_SECONDS }),
 
+  /**
+   * VERIFICADO — la alineación de una jornada concreta.
+   *
+   * Ojo con la forma: es `?weekNumber=`, no `/week/1` ni `/1`, que devuelven
+   * 404. Es lo que permite saber a quién puse de titular y, con eso, cuántos
+   * puntos me ha dado de verdad cada jugador.
+   *
+   * Una jornada pasada ya no cambia, así que se guarda un día entero.
+   */
+  lineupWeek: (teamId: string, week: number) =>
+    call<unknown>(`/v3/teams/${teamId}/lineup?weekNumber=${week}`, { revalidate: 86400 }),
+
   /** VERIFICADO */
   money: (teamId: string) => call<unknown>(`/v3/teams/${teamId}/money`, { revalidate: 60 }),
 

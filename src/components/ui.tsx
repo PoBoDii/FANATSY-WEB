@@ -463,12 +463,18 @@ export function OddsChip({
 }) {
   const probability = odds?.probability;
   if (probability == null) {
-    // Mejor decir "no hay dato" que no enseñar nada: así se distingue de un
-    // fallo de la web.
+    /**
+     * Mejor decir "no hay dato" que no enseñar nada: así se distingue de un
+     * fallo de la web.
+     *
+     * Y casi siempre es un "todavía no": futbolfantasy publica el once probable
+     * de cada club a lo largo del día, unos antes que otros, así que un jugador
+     * sin porcentaje por la mañana suele tenerlo por la tarde.
+     */
     return (
       <span
         className={`tnum border-line text-faint shrink-0 rounded-sm border px-2 py-[3px] text-[0.7rem] leading-none ${className}`}
-        title="futbolfantasy no publica probabilidad para este jugador"
+        title="futbolfantasy todavía no ha publicado el once probable de su equipo"
       >
         s/d
       </span>

@@ -2,6 +2,7 @@ import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { toList, toManager } from "@/lib/normalize";
 import { Chat } from "@/components/Chat";
+import { leerEstado } from "@/lib/bot-estado";
 
 export const dynamic = "force-dynamic";
 
@@ -27,5 +28,10 @@ export default async function NegociarPage() {
     .map((m) => m.name)
     .sort((a, b) => a.localeCompare(b, "es"));
 
-  return <Chat managers={managers} />;
+  /**
+   * Aquí no se sabe quién entra hasta que elige, así que viaja el estado entero
+   * y el navegador decide en cuanto pulsa "Empezar". Es una lista de nombres,
+   * nada que no salga ya en el desplegable de al lado.
+   */
+  return <Chat managers={managers} estado={await leerEstado()} />;
 }

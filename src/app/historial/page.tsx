@@ -2,11 +2,17 @@ import Link from "next/link";
 import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { playersOfTeam, toActivity, toList, toManager, toPlayer } from "@/lib/normalize";
-import { leerBlindajes, resumir, sincronizar, type Ficha } from "@/lib/historial";
+import {
+  resumir,
+  seguirClausulas,
+  seguirPuntos,
+  sincronizar,
+  totales,
+  type Etapa,
+} from "@/lib/historial";
 import { hayAlmacen } from "@/lib/db";
 import { money, shortDate } from "@/lib/format";
 import { Empty, PageHeader, Section, StatTile } from "@/components/ui";
-import { Blindaje } from "@/components/Blindaje";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +20,9 @@ export const dynamic = "force-dynamic";
  * Cuánto he ganado con cada jugador que ha pasado por mi equipo.
  *
  * El feed de la liga no guarda memoria: a los pocos días los fichajes viejos
- * desaparecen. Cada visita a esta página copia lo que haya en el feed al
- * almacén, así que basta con entrar de vez en cuando para no perder nada.
+ * desaparecen. Cada visita a esta página copia lo que haya al almacén y mira si
+ * alguna cláusula ha subido, así que basta con entrar de vez en cuando para no
+ * perder nada.
  */
 export default async function HistorialPage() {
   const session = await getSession();
@@ -38,9 +45,7 @@ export default async function HistorialPage() {
   const nombres = new Map<string, string>();
   for (const m of managers) if (m.userId) nombres.set(String(m.userId), m.name);
 
-  // Mi plantilla de hoy: da los puntos y el valor actual de los que sigo
-  // teniendo, que es lo que decide si voy ganando o perdiendo con ellos.
-  const mios = new Map(playersOfTeam(teamRaw).map((p) => [p.id, p]));
+  const mios = playersOfTeam(teamRaw);
 
   // El listado de LaLiga pone nombre a los que ya vendí y no están en mi equipo.
   const catalogo = new Map<string, string>();
@@ -49,32 +54,24 @@ export default async function HistorialPage() {
     if (p.id) catalogo.set(p.id, p.name);
   }
 
-  /* ------------------------------------------------------- copiar y resumir */
+  /* -------------------------------------------------------- copiar y resumir */
 
   const movimientos = await sincronizar(
     toList(activityRaw).map(toActivity),
     yo?.userId ?? null,
     (userId) => (userId ? (nombres.get(String(userId)) ?? null) : null),
-    (playerId) => mios.get(playerId)?.points ?? 0,
     (playerId) => catalogo.get(playerId) ?? null,
   );
 
-  const blindajes = await leerBlindajes();
+  const [subidas, semanas] = await Promise.all([
+    seguirClausulas(mios, movimientos),
+    league.myTeamId
+      ? seguirPuntos(league.myTeamId, mios)
+      : Promise.resolve({} as Awaited<ReturnType<typeof seguirPuntos>>),
+  ]);
 
-  const fichas = resumir(
-    movimientos,
-    blindajes,
-    (playerId) => mios.get(playerId)?.marketValue ?? null,
-    (playerId) => mios.get(playerId)?.points ?? null,
-  );
-
-  const abiertas = fichas.filter((f) => !f.cerrado);
-  const cerradas = fichas.filter((f) => f.cerrado);
-
-  const realizado = cerradas.reduce((total, f) => total + f.balance, 0);
-  const latente = abiertas.reduce((total, f) => total + f.balance, 0);
-  const enBlindajes = fichas.reduce((total, f) => total + f.blindaje, 0);
-  const puntos = fichas.reduce((total, f) => total + f.puntos, 0);
+  const etapas = resumir(movimientos, subidas, semanas);
+  const { cerradas, abiertas, realizado, invertido, blindajes, puntos } = totales(etapas);
 
   return (
     <>
@@ -89,23 +86,24 @@ export default async function HistorialPage() {
       />
 
       <div className="border-line grid grid-cols-2 border-b lg:grid-cols-4">
+        {/* Sólo cuenta lo vendido: mientras un jugador siga en la plantilla no
+            he ganado ni perdido nada con él, por mucho que su valor se mueva. */}
         <StatTile
-          label="Ganado vendiendo"
+          label="Balance"
           value={money(realizado)}
-          sub={`${cerradas.length} ventas`}
-          tone={realizado >= 0 ? "up" : "down"}
+          sub={`${cerradas.length} operaciones cerradas`}
+          tone={realizado > 0 ? "up" : realizado < 0 ? "down" : undefined}
         />
         <StatTile
-          label="Plusvalía en plantilla"
-          value={money(latente)}
-          sub="si vendiera hoy a precio de mercado"
-          tone={latente >= 0 ? "up" : "down"}
+          label="Invertido ahora"
+          value={money(invertido)}
+          sub="fichajes y blindajes en curso"
           delay={60}
         />
         <StatTile
           label="Gastado en blindajes"
-          value={money(enBlindajes)}
-          sub={`${money(enBlindajes * 2)} de cláusula`}
+          value={money(blindajes)}
+          sub={`${money(blindajes * 2)} de cláusula`}
           delay={120}
         />
         <StatTile label="Puntos generados" value={String(puntos)} tone="acid" delay={180} />
@@ -119,8 +117,8 @@ export default async function HistorialPage() {
           />
         ) : (
           <ol>
-            {abiertas.map((ficha) => (
-              <FilaFicha key={ficha.playerId} ficha={ficha} />
+            {abiertas.map((etapa) => (
+              <Fila key={etapa.id} etapa={etapa} />
             ))}
           </ol>
         )}
@@ -129,8 +127,8 @@ export default async function HistorialPage() {
       {cerradas.length > 0 && (
         <Section title="Vendidos" count={cerradas.length}>
           <ol>
-            {cerradas.map((ficha) => (
-              <FilaFicha key={ficha.playerId} ficha={ficha} />
+            {cerradas.map((etapa) => (
+              <Fila key={etapa.id} etapa={etapa} />
             ))}
           </ol>
         </Section>
@@ -139,57 +137,60 @@ export default async function HistorialPage() {
   );
 }
 
-function FilaFicha({ ficha }: { ficha: Ficha }) {
-  const bien = ficha.balance >= 0;
+function Fila({ etapa }: { etapa: Etapa }) {
+  const bien = etapa.balance >= 0;
 
   return (
     <li className="border-line border-b px-3.5 py-3 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Link href={`/jugador/${ficha.playerId}`} className="hover:text-acid font-semibold">
-          {ficha.playerName}
+        <Link href={`/jugador/${etapa.playerId}`} className="hover:text-acid font-semibold">
+          {etapa.playerName}
         </Link>
+
+        {etapa.puntos > 0 && (
+          <span className="text-acid tnum text-[0.78rem] font-semibold">
+            {etapa.puntos} pts conmigo
+          </span>
+        )}
 
         <span className={`tnum ml-auto font-semibold ${bien ? "text-up" : "text-down"}`}>
           {bien ? "+" : ""}
-          {money(ficha.balance)}
+          {money(etapa.balance)}
         </span>
-        {!ficha.cerrado && <span className="text-faint text-[0.7rem]">estimado</span>}
       </div>
 
-      <p className="text-muted mt-1 text-[0.82rem]">
-        {ficha.fichado ? (
-          <>
-            Fichado por <strong className="text-ink">{money(ficha.fichado.amount)}</strong>
-            {ficha.fichado.contraparte ? ` a ${ficha.fichado.contraparte}` : ""} el{" "}
-            {shortDate(ficha.fichado.date)}
-          </>
-        ) : (
-          "Sin fichaje apuntado"
-        )}
-        {ficha.vendido && (
-          <>
-            {" · vendido por "}
-            <strong className="text-ink">{money(ficha.vendido.amount)}</strong>
-            {ficha.vendido.contraparte ? ` a ${ficha.vendido.contraparte}` : ""} el{" "}
-            {shortDate(ficha.vendido.date)}
-          </>
-        )}
-        {ficha.puntos > 0 && ` · ${ficha.puntos} puntos conmigo`}
-      </p>
+      {/* La operación contada por orden: lo que pagué, lo que puse después y lo
+          que cobré. Cada línea es dinero que ha salido o entrado. */}
+      <ul className="text-muted mt-1.5 space-y-0.5 text-[0.82rem]">
+        <li>
+          Fichado por <strong className="text-ink">{money(etapa.fichado.amount)}</strong>
+          {etapa.fichado.contraparte ? ` a ${etapa.fichado.contraparte}` : ""} el{" "}
+          {shortDate(etapa.fichado.date)}
+        </li>
 
-      {/* Los blindajes sólo se apuntan mientras el jugador es mío; una vez
-          vendido el gasto ya está metido en el balance y no se toca. */}
-      <div className="mt-2">
-        {ficha.cerrado ? (
-          ficha.blindaje > 0 && (
-            <p className="text-faint text-[0.75rem]">
-              {money(ficha.blindaje)} en blindajes ({money(ficha.clausulaGanada)} de cláusula)
-            </p>
-          )
-        ) : (
-          <Blindaje playerId={ficha.playerId} gastado={ficha.blindaje} />
+        {etapa.subidas.map((subida, i) => (
+          <li key={i}>
+            Cláusula subida a <strong className="text-ink">{money(subida.a)}</strong> ·{" "}
+            <strong className="text-ink">{money(subida.gastado)}</strong> gastados el{" "}
+            {shortDate(new Date(subida.at).toISOString())}
+          </li>
+        ))}
+
+        {etapa.vendido && (
+          <li>
+            Vendido por <strong className="text-up">{money(etapa.vendido.amount)}</strong>
+            {etapa.vendido.contraparte ? ` a ${etapa.vendido.contraparte}` : ""} el{" "}
+            {shortDate(etapa.vendido.date)}
+          </li>
         )}
-      </div>
+
+        {!etapa.cerrado && (
+          <li className="text-faint">
+            Llevo {money(etapa.fichado.amount + etapa.blindaje)} metidos. El balance se cierra
+            cuando lo venda.
+          </li>
+        )}
+      </ul>
     </li>
   );
 }

@@ -4,9 +4,11 @@ import { getFf } from "@/lib/futbolfantasy";
 import { toList, toManager, playersOfTeam, type Position } from "@/lib/normalize";
 import { precioDe } from "@/lib/negociacion";
 import { leerPrecios } from "@/lib/precios-manuales";
+import { leerEstado } from "@/lib/bot-estado";
 import { pila, hayAlmacen } from "@/lib/db";
 import { Empty, PageHeader, Section } from "@/components/ui";
 import { PreciosVenta, type FilaPrecio } from "@/components/PreciosVenta";
+import { MandoBot } from "@/components/MandoBot";
 import { money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +43,8 @@ export default async function NegociacionesPage() {
     getFf(),
     leerPrecios(),
   ]);
+
+  const estadoBot = await leerEstado();
 
   /* ------------------------------------------------- lo que pido por cada uno */
 
@@ -100,6 +104,10 @@ export default async function NegociacionesPage() {
             : "Sin almacén configurado: lo que guardes aquí se pierde al reiniciar"
         }
       />
+
+      <Section title="El interruptor">
+        <MandoBot inicial={estadoBot} managers={managers} />
+      </Section>
 
       <Section title="Por cuánto vendo" count={filas.length}>
         <div className="p-3 sm:p-5">

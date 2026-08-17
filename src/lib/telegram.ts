@@ -18,6 +18,16 @@ import { money } from "./format";
  *     `https://api.telegram.org/bot<TOKEN>/getUpdates` para leer tu `chat.id`.
  *  3. Guardar los dos valores como variables de entorno en Netlify:
  *     `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
+ *
+ * ── Y un segundo bot para el negociador ───────────────────────────────────
+ *
+ * Los tratos que cierra el chat llegan por un bot aparte
+ * (`TELEGRAM_NEGOCIAR_BOT_TOKEN`), para no mezclar en la misma conversación el
+ * informe de la mañana con las ofertas que van llegando a cualquier hora.
+ *
+ * El `chat_id` es el mismo: en Telegram identifica a la persona, no al bot. Lo
+ * único imprescindible es haberle dado a Start al bot nuevo, porque un bot no
+ * puede escribir primero a nadie.
  */
 
 const API = "https://api.telegram.org";
@@ -28,9 +38,26 @@ export type TelegramResult = { ok: boolean; error: string | null };
  * Manda un mensaje. Nunca lanza: si Telegram falla, el informe de la web tiene
  * que seguir viéndose igual.
  */
-export async function sendTelegram(text: string): Promise<TelegramResult> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chat = process.env.TELEGRAM_CHAT_ID;
+export async function sendTelegram(
+  text: string,
+  /** "negociador" manda por el bot de las ofertas; por defecto, el de siempre. */
+  bot: "informe" | "negociador" = "informe",
+): Promise<TelegramResult> {
+  /**
+   * El bot del negociador cae en el de siempre si no está configurado.
+   *
+   * Es preferible que un trato cerrado llegue al chat equivocado a que no
+   * llegue: el aviso es el que te dice que alguien quiere comprarte a alguien.
+   */
+  const token =
+    bot === "negociador"
+      ? (process.env.TELEGRAM_NEGOCIAR_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN)
+      : process.env.TELEGRAM_BOT_TOKEN;
+
+  const chat =
+    bot === "negociador"
+      ? (process.env.TELEGRAM_NEGOCIAR_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID)
+      : process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chat) {
     return { ok: false, error: "Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID" };

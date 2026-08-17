@@ -1,3 +1,5 @@
+import { escribir, hayAlmacen, leer } from "./db";
+
 /**
  * Memoria de lo que ya se ha avisado.
  *
@@ -15,10 +17,14 @@
  *
  * ── Dónde se guarda ───────────────────────────────────────────────────────
  *
- * En el almacén de Netlify, que es gratis y no cuenta como ejecución. Si no
- * está disponible —en local, o si algún día la web se muda a otro sitio— se
- * cae a memoria: dentro de la misma ejecución no se repite nada, y entre
- * ejecuciones puede colarse algún duplicado. Preferible a caerse.
+ * Por orden: Upstash si está configurado, el almacén de Netlify si la web vive
+ * allí, y memoria como último recurso.
+ *
+ * Upstash va primero porque es el único que funciona en cualquier sitio. Con la
+ * mudanza a Vercel el almacén de Netlify deja de existir, y quedarse en memoria
+ * sería lo peor posible: cada disparo del reloj arranca una ejecución nueva con
+ * la memoria en blanco, así que el ledger no recordaría nada y llegaría el mismo
+ * aviso cada diez minutos hasta que el suceso ocurriera.
  */
 
 type Store = {
@@ -63,6 +69,21 @@ async function netlifyStore(): Promise<Store | null> {
   }
 }
 
+/**
+ * Upstash: el único que sobrevive a un cambio de casa.
+ *
+ * Se reutiliza el mismo almacén que guarda precios e historial, así que no hay
+ * nada nuevo que configurar más allá de las dos variables que ya lleva la web.
+ */
+function upstashStore(): Store | null {
+  if (!hayAlmacen()) return null;
+
+  return {
+    get: async () => (await leer<string[]>("alertas:enviadas")) ?? [],
+    set: async (keys) => escribir("alertas:enviadas", keys),
+  };
+}
+
 /** Marca de tiempo con la que cada clave sabe cuándo caduca. */
 const stamp = (key: string, at: number) => `${at}|${key}`;
 
@@ -76,7 +97,7 @@ export type Ledger = {
 };
 
 export async function openLedger(now = Date.now()): Promise<Ledger> {
-  const store = (await netlifyStore()) ?? memoryStore;
+  const store = upstashStore() ?? (await netlifyStore()) ?? memoryStore;
   const raw = await store.get().catch(() => []);
 
   const alive = new Map<string, number>();
