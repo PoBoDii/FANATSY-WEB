@@ -20,10 +20,13 @@ const BIENVENIDA =
   "Buenas. Soy quien lleva los fichajes de este equipo. Dime a quién quieres y " +
   "cuánto sueltas. Te aviso ya: de regalar, nada.";
 
-export function Chat({ managers }: { managers: string[] }) {
-  const [quien, setQuien] = useState("");
-  const [entrado, setEntrado] = useState(false);
-  const [lineas, setLineas] = useState<Linea[]>([]);
+export function Chat({ managers, fijo }: { managers: string[]; fijo?: string }) {
+  // Con enlace personal no hay nada que elegir: se entra directo.
+  const [quien, setQuien] = useState(fijo ?? "");
+  const [entrado, setEntrado] = useState(Boolean(fijo));
+  const [lineas, setLineas] = useState<Linea[]>(
+    fijo ? [{ de: "bot", texto: `Hombre, ${fijo}. ${BIENVENIDA}` }] : [],
+  );
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const [trato, setTrato] = useState<Trato | null>(null);
@@ -107,13 +110,13 @@ export function Chat({ managers }: { managers: string[] }) {
   }
 
   return (
-    <div className="mx-auto flex h-screen max-w-lg flex-col px-3 sm:px-4">
-      <header className="border-line flex items-center gap-2.5 border-b py-3">
-        <span className="bg-acid flex h-9 w-9 items-center justify-center rounded-full text-[1rem]">
+    <div className="mx-auto flex h-[100dvh] w-full max-w-3xl flex-col px-3 sm:px-6">
+      <header className="border-line flex items-center gap-3 border-b py-3.5">
+        <span className="bg-acid flex h-10 w-10 items-center justify-center rounded-full text-[1.1rem]">
           🤝
         </span>
         <div>
-          <div className="font-semibold">PoBoFantasy</div>
+          <div className="text-[1.05rem] font-semibold">PoBoFantasy</div>
           <div className="text-faint text-[0.72rem]">
             {trato?.playerName ? `Hablando de ${trato.playerName}` : "Dime qué jugador te interesa"}
           </div>
@@ -124,7 +127,7 @@ export function Chat({ managers }: { managers: string[] }) {
         {lineas.map((linea, i) => (
           <div key={i} className={`flex ${linea.de === "yo" ? "justify-end" : "justify-start"}`}>
             <p
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[0.92rem] leading-snug ${
+              className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[0.95rem] leading-snug sm:text-[1rem] ${
                 linea.de === "yo" ? "bg-acid text-white" : "bg-panel-2 text-ink"
               }`}
             >

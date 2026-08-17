@@ -41,6 +41,8 @@ export type Precio = {
   salida: number;
   /** Por qué vale eso, en una frase, para poder explicarlo. */
   razon: string;
+  /** Le queda mucho blindaje y sube: el precio va a sonar alto y hay que decirlo. */
+  mucha: boolean;
 };
 
 export type Fase = "saludo" | "regateo" | "acuerdo" | "roto";
@@ -74,6 +76,14 @@ export const tratoNuevo = (quien: string): Trato => ({
   at: Date.now(),
 });
 
+/**
+ * Redondea a medio millón.
+ *
+ * En el juego las ofertas se hacen así, en pasos de 0,5 M€, y un bot que pide
+ * "118,26 M€" se delata solo: nadie negocia con esos decimales.
+ */
+const redondea = (v: number) => Math.round(v / 500_000) * 500_000;
+
 /* --------------------------------------------------------------- precios */
 
 /**
@@ -85,45 +95,50 @@ export const tratoNuevo = (quien: string): Trato => ({
  * plus si es de los que no se sustituyen. Y por encima de todo eso está la
  * cláusula: vender por menos de lo que cualquiera puede pagar es tirar dinero.
  */
-export function precioDe(player: Player, odds: FfPlayer | null): Precio {
+export function precioDe(
+  player: Player,
+  odds: FfPlayer | null,
+  /** Lo que hayas fijado tú a mano para este jugador, si has fijado algo. */
+  aMano?: { salida?: number; minimo?: number },
+): Precio {
   const valor = player.marketValue;
   const clausula = player.buyoutClause ?? valor * 2;
 
   /**
-   * El suelo: valor más un diez por ciento.
+   * La prima: lo que se gana por encima del valor de mercado.
    *
-   * Es lo que paga la liga por él sin discutir, así que vender por debajo de
-   * eso es regalarlo — literalmente sale más a cuenta soltarlo al sistema. De
-   * aquí no se baja nunca, pase lo que pase en la conversación.
+   * Un cuarto del valor, con un mínimo de seis millones. Puesto en números
+   * reales: por uno de 85 M€ se piden unos 21 M€ de más, y por uno de 5 M€ se
+   * piden 6 M€ — que proporcionalmente es muchísimo más, y así debe ser,
+   * porque por un jugador barato nadie discute dos millones arriba o abajo.
    */
-  const sueloDuro = Math.round(valor * 1.1);
+  const prima = Math.max(6_000_000, valor * 0.25);
 
   /**
-   * Lo que va a valer cuando el otro pueda revenderlo.
+   * Nunca por debajo de la cláusula, y siempre un pelín por encima.
    *
-   * Quien lo ficha se lo queda blindado catorce días, y si el jugador sube
-   * 500 k€ diarios en ese tiempo se habrá revalorizado siete millones. Ese
-   * dinero es suyo si no se cobra ahora, así que se cobra ahora. Las bajadas
-   * no se cuentan: el que compra ya asume ese riesgo.
+   * Si alguien puede llevárselo pagándola, aceptar menos es perder dinero por
+   * gusto; y si viene a negociar es porque no quiere soltar todo eso de golpe.
    */
+  const sueloClausula = Math.round(clausula * 1.05);
+
   /**
-   * Ojo con extrapolar el día de hoy.
+   * El recargo por lo que dejo de ganar esperando.
    *
-   * Un jugador puede subir 1,3 M€ el día después de marcar y quedarse plano el
-   * resto de la semana; multiplicar ese pico por catorce daba precios
-   * disparatados. Se usa el ritmo suavizado —el mismo que calcula la sección de
-   * fichajes, que pesa la media semanal por encima del día suelto— y se le pone
-   * un tope: la revalorización no puede valer más que un cuarto del jugador.
+   * Si el jugador sube y le queda blindaje por delante, dentro de esos días
+   * valdrá más y entonces pediría más por él. Vender hoy es renunciar a eso, y
+   * se cobra — pero **como un recargo acotado**, no extrapolando la subida a
+   * catorce días, que era lo que disparaba el precio a cifras de risa.
    */
   const sube = Math.max(0, riseOf(odds).rise);
-  const revalorizacion = Math.min(sube * 14, valor * 0.25);
+  const dias = player.buyoutUnlockAt
+    ? Math.max(0, (new Date(player.buyoutUnlockAt).getTime() - Date.now()) / 86_400_000)
+    : 0;
+  const mucha = dias >= 7 && sube >= 200_000;
+  const recargo = mucha ? 1.08 : dias >= 4 && sube >= 200_000 ? 1.04 : 1;
 
-  /**
-   * Pluses por lo que hace caro a un jugador más allá de su ficha.
-   *
-   * Un titular de los grandes no se sustituye con otro cualquiera, y eso vale
-   * dinero aunque el mercado todavía no lo haya puesto en su valor.
-   */
+  /* --------------------------------------------------------------- pluses */
+
   const GRANDES = /barcelona|madrid|atl[ée]tico|athletic|betis|sociedad|villarreal|sevilla/i;
   const club = `${player.clubName} ${odds?.teamName ?? ""}`;
   const juega = odds?.probability != null ? odds.probability / 100 : 0.5;
@@ -131,56 +146,59 @@ export function precioDe(player: Player, odds: FfPlayer | null): Precio {
     player.averagePoints > 0 ? player.averagePoints : (player.lastSeasonPoints ?? 0) / 38;
 
   let plus = 1;
-  if (GRANDES.test(club)) plus += 0.06;
-  if (juega >= 0.8) plus += 0.06;
-  else if (juega >= 0.65) plus += 0.03;
-  if (media >= 6) plus += 0.06;
-  else if (media >= 4) plus += 0.03;
-
-  const objetivoBruto = Math.round((sueloDuro + revalorizacion) * plus);
+  if (GRANDES.test(club)) plus += 0.03;
+  if (juega >= 0.8) plus += 0.04;
+  if (media >= 6) plus += 0.04;
 
   /**
-   * Y por encima de todo: la cláusula.
-   *
-   * Si alguien puede llevárselo pagando la cláusula, venderlo por menos es
-   * perder dinero a cambio de nada. Así que el precio nunca baja de ahí…
-   * salvo cuando la cláusula está a punto de abrirse: en las últimas horas
-   * más vale cobrar algo que ver cómo se lo llevan por el mismo precio.
+   * En las últimas horas antes de que se abra la cláusula el que corre soy yo:
+   * más vale cobrar la prima que ver cómo se lo llevan pagando la cláusula.
    */
-  const horasParaAbrir = player.buyoutUnlockAt
-    ? (new Date(player.buyoutUnlockAt).getTime() - Date.now()) / 3_600_000
-    : 0;
-  const seAbrePronto = horasParaAbrir > 0 && horasParaAbrir < 12;
+  const ultimasHoras = dias > 0 && dias < 0.5;
+  const base = ultimasHoras
+    ? valor + prima
+    : Math.max(valor + prima, sueloClausula);
+
+  const objetivo = redondea(base * recargo * plus);
 
   /**
-   * La cláusula manda por los dos lados.
+   * Se abre sólo un poco por encima.
    *
-   * Por abajo, porque vender por menos de lo que cualquiera puede pagar es
-   * tirar dinero: el suelo se pega a ella. Y por arriba, porque pedir más no
-   * sirve de nada — si me paso, el otro deja de negociar y la paga y en paz.
-   *
-   * La excepción son las últimas horas antes de que se abra: ahí más vale
-   * cobrar algo que verla caer, y se admite bajar hasta el suelo de verdad.
+   * Pedir el doble de lo que se espera no es negociar duro, es que te tomen
+   * por loco y se acabe la conversación. Se abre un 6% arriba y se baja poco.
    */
-  const suelo = seAbrePronto ? sueloDuro : Math.max(sueloDuro, Math.round(clausula * 0.95));
-  const objetivo = Math.max(suelo, Math.round(Math.min(objetivoBruto, clausula)));
+  const salida = redondea(objetivo * 1.06);
 
-  // Se abre un poco por encima de la cláusula: si pica, mejor para nosotros.
-  const salida = Math.round(objetivo * 1.08);
-
-  const razon = GRANDES.test(club)
-    ? "juega en un grande"
+  const razon = mucha
+    ? "le queda cláusula por delante y sube cada día"
     : juega >= 0.8 && media >= 4
       ? "es titular y puntúa"
-      : juega >= 0.8
-        ? "es titular fijo"
-        : media >= 6
-          ? "puntúa de sobra"
+      : GRANDES.test(club)
+        ? "juega en un grande"
+        : juega >= 0.8
+          ? "es titular fijo"
           : sube >= 300_000
             ? "sube cada día"
-            : "va a valer más que hoy";
+            : "vale más de lo que parece";
 
-  return { valor, clausula, minimo: objetivo, salida, razon };
+  /**
+   * Lo que fijes tú manda sobre el cálculo.
+   *
+   * Si sólo pones uno de los dos, el otro se deduce: un mínimo a mano arrastra
+   * la salida por encima, y una salida a mano nunca puede quedar por debajo
+   * del mínimo, o el bot empezaría pidiendo menos de lo que acepta.
+   */
+  const minimoFinal = aMano?.minimo ?? objetivo;
+  const salidaFinal = Math.max(aMano?.salida ?? salida, minimoFinal);
+
+  return {
+    valor,
+    clausula,
+    minimo: minimoFinal,
+    salida: salidaFinal,
+    razon: aMano?.minimo ? "es de los que no quiero soltar" : razon,
+    mucha: aMano?.minimo ? false : mucha,
+  };
 }
 
 /* ---------------------------------------------------- leer lo que escriben */
@@ -206,7 +224,23 @@ export function leerCifra(texto: string): number | null {
   return n < 300 ? Math.round(n * 1_000_000) : Math.round(n);
 }
 
-/** ¿A qué jugador se refiere? Por nombre suelto o apellido. */
+/**
+ * Aplana un nombre para poder compararlo con lo que escribe la gente.
+ *
+ * Se le quitan los acentos, las haches y las letras repetidas, que es donde se
+ * cometen todas las erratas: así "rapinha", "raphina" y "Raphinha" acaban
+ * siendo la misma palabra.
+ */
+function raiz(palabra: string): string {
+  return palabra
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/h/g, "")
+    .replace(/(.)+/g, "$1");
+}
+
+/** ¿A qué jugador se refiere? Por nombre suelto, apellido o errata. */
 export function buscarJugador(texto: string, squad: Player[]): Player | null {
   const limpio = texto
     .toLowerCase()
@@ -224,9 +258,16 @@ export function buscarJugador(texto: string, squad: Player[]): Player | null {
       .replace(/[^a-z0-9 ]/g, " ");
 
     for (const parte of nombre.split(" ").filter((w) => w.length >= 4)) {
-      if (limpio.includes(parte)) {
+      // Primero tal cual, y si no, comparando raíces por si hay erratas.
+      const exacto = limpio.includes(parte);
+      const aproximado =
+        !exacto &&
+        parte.length >= 5 &&
+        limpio.split(" ").some((palabra) => palabra.length >= 4 && raiz(palabra) === raiz(parte));
+
+      if (exacto || aproximado) {
         // Gana la coincidencia más larga: "vicente" antes que "vice".
-        const puntos = parte.length;
+        const puntos = parte.length + (exacto ? 1 : 0);
         if (!mejor || puntos > mejor.puntos) mejor = { player, puntos };
       }
     }
@@ -264,15 +305,16 @@ const money = (v: number): string => {
 /**
  * Cuánto cede el bot en cada vuelta.
  *
- * Poco, y cada vez menos: de la diferencia que queda hasta el mínimo se suelta
- * un tercio la primera vez, un quinto la segunda y casi nada después. Así el
- * rival ve que subir le acerca, pero que hay un suelo.
+ * Converge hacia el objetivo en vez de picotear: se recorta más de la mitad de
+ * lo que separa la petición del objetivo en la primera vuelta y cada vez menos
+ * después. Bajar de millón en millón estando a cuarenta de distancia no es ser
+ * duro, es hacer perder el tiempo a los dos.
  */
-function cede(pide: number, minimo: number, ronda: number): number {
-  const margen = pide - minimo;
-  if (margen <= 0) return minimo;
-  const paso = ronda <= 1 ? 0.34 : ronda === 2 ? 0.2 : 0.1;
-  return Math.max(minimo, Math.round(pide - margen * paso));
+function cede(pide: number, objetivo: number, ronda: number): number {
+  const margen = pide - objetivo;
+  if (margen <= 0) return objetivo;
+  const paso = ronda <= 1 ? 0.55 : ronda === 2 ? 0.35 : 0.2;
+  return Math.max(objetivo, redondea(pide - margen * paso));
 }
 
 /**
@@ -281,17 +323,112 @@ function cede(pide: number, minimo: number, ronda: number): number {
  * Es una función pura: entra el estado y el mensaje, sale el estado nuevo y lo
  * que hay que contestar. Así se puede probar sin levantar nada.
  */
+/**
+ * Lo que dice cuando la oferta es un insulto en sí misma.
+ *
+ * Sólo salen aquí: si el otro está negociando de verdad, vacilarle es hacerle
+ * perder las ganas. La guasa se reserva para quien ofrece el valor de mercado o
+ * menos, que es pedir el jugador de regalo.
+ */
+const BORDES = [
+  "Estás fatal. Igual tienes el potasio bajo: cómete un plátano y me lo cuentas.",
+  "Con esos números lo que te falta no es dinero, es magnesio. Descansa un poco.",
+  "Payaso. Con todo el cariño del mundo, pero payaso.",
+  "Eso no es una oferta, es una falta de respeto con cifras.",
+  "¿Te has caído de la cuna o te empujaron?",
+  "Menuda cara tienes, macho. Deberías mirarte el hierro.",
+  "Anda, tómate un zumo de naranja y vuelve con la cabeza fría.",
+  "Ni con un chute de vitamina B12 se te ocurre algo peor.",
+  "Vete a que te miren los niveles de vitamina D, que estás flojo.",
+  "Esa oferta la ha escrito alguien con la tensión por los suelos.",
+];
+
+/** Cuando se acerca de verdad, se le anima en vez de vacilarle. */
+const CERCA = [
+  "Ya estamos hablando. {n} y lo cerramos ahora mismo.",
+  "Casi lo tienes. Ponme {n} y nos damos la mano.",
+  "Venga, {n} y dejo de darte la lata.",
+  "Estamos a nada. {n} y es tuyo.",
+  "Me lo estás poniendo difícil. {n} y trato hecho.",
+  "Un último empujón: {n} y firmamos.",
+];
+
+/** Cuando todavía está lejos, pero negociando en serio. */
+const LEJOS = [
+  "Por {o} no lo suelto: {r}. Mi precio es {n}.",
+  "{o} se queda corto. Ten en cuenta que {r}. Estoy en {n}.",
+  "Ahí no llegamos: {r}. Bajo hasta {n} y poco más puedo hacer.",
+  "Entiendo la jugada, pero {r}. Mi número es {n}.",
+  "Por {o} me lo quedo yo, que {r}. Hablamos si llegas a {n}.",
+];
+
+/** Cuando repiten la misma cifra o bajan la oferta. */
+const FIRME = [
+  "Ya me habías dicho {o}. Sigo en {n}, que no soy una máquina expendedora.",
+  "Puedes repetirlo las veces que quieras: {n}.",
+  "Insistir no me baja el precio. {n}.",
+  "Me acabas de ofrecer menos que antes. Así vamos para atrás: {n}.",
+  "Mi número no se mueve porque tú escribas más rápido: {n}.",
+];
+
+const elige = (frases: string[], semilla: number) => frases[Math.abs(semilla) % frases.length];
+
+const rellena = (frase: string, datos: { n?: string; o?: string; r?: string }) =>
+  frase
+    .replace("{n}", datos.n ?? "")
+    .replace("{o}", datos.o ?? "")
+    .replace("{r}", datos.r ?? "");
+
 export function responder(
   trato: Trato,
   mensaje: string,
   squad: Player[],
   precioPara: (player: Player) => Precio,
   duenoNombre: string,
+  ajenos?: (texto: string) => { nombre: string; dueno: string | null } | null,
 ): Respuesta {
   const ahora = { ...trato, at: Date.now() };
   const jugador = buscarJugador(mensaje, squad);
   const cifra = leerCifra(mensaje);
   const intencion = leerIntencion(mensaje);
+
+  // Con la conversación rota no se vuelve: el que faltó al respeto que empiece
+  // de cero en otro momento.
+  /**
+   * Después de una oferta insultante el bot corta, pero no para siempre.
+   *
+   * Si el otro recapacita y vuelve con una cifra que se sostiene, se retoma la
+   * conversación: el objetivo es vender caro, no quedarse con la última
+   * palabra.
+   */
+  if (ahora.fase === "roto") {
+    const sube = cifra !== null && ahora.precio !== null && cifra > ahora.precio.valor * 1.05;
+    if (!sube && !jugador) {
+      return {
+        trato: ahora,
+        avisoAlDueno: null,
+        texto: "Ya hemos terminado por hoy. Vuelve cuando traigas una oferta seria.",
+      };
+    }
+    ahora.fase = "regateo";
+  }
+
+  /* --------------------------------------------- ¿ese jugador es mío? */
+
+  if (!jugador) {
+    const otro = ajenos?.(mensaje);
+    if (otro) {
+      return {
+        trato: ahora,
+        avisoAlDueno: null,
+        texto: otro.dueno
+          ? `${otro.nombre} no es mío, lo tiene ${otro.dueno}. Ve a marearle a él, ` +
+            `que yo bastante tengo.`
+          : `${otro.nombre} no lo tiene nadie, está libre. Míralo en el mercado antes ` +
+            `de venir a preguntarme, hombre.`,
+      };
+    }
+  }
 
   /* ------------------------------------------------ ¿de quién hablamos? */
 
@@ -305,15 +442,18 @@ export function responder(
     ahora.rondas = 0;
     ahora.fase = "regateo";
 
-    // Si en el mismo mensaje ya viene una oferta, se contesta a la oferta.
     if (cifra === null) {
+      const aviso = precio.mucha
+        ? ` Le queda cláusula por delante y sube cada día, así que si lo suelto ahora ` +
+          `me tienes que compensar lo que voy a dejar de ganar.`
+        : "";
+
       return {
         trato: ahora,
         avisoAlDueno: null,
         texto:
           `${jugador.name}, buen ojo. Vale ${money(precio.valor)} y la cláusula está en ` +
-          `${money(precio.clausula)}, o sea que baratito no es. ${capitalizar(precio.razon)}, ` +
-          `así que empezamos en **${money(precio.salida)}**. Dispara.`,
+          `${money(precio.clausula)}.${aviso} Lo dejo en **${money(precio.salida)}**. Tú dirás.`,
       };
     }
   }
@@ -323,8 +463,8 @@ export function responder(
       trato: ahora,
       avisoAlDueno: null,
       texto:
-        "A ver, que no adivino. Dime el nombre del jugador y cuánto pones encima " +
-        "de la mesa. Por ejemplo: «quiero a Raphinha, te doy 90».",
+        "A ver, que no soy adivino. Dime el jugador y el número. " +
+        "Algo como «quiero a Raphinha, te doy 90».",
     };
   }
 
@@ -337,7 +477,7 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: `Tú mismo. Cuando te lo pienses mejor ya sabes dónde estoy.`,
+      texto: "Tú mismo. Ya sabes dónde estoy cuando te lo pienses mejor.",
     };
   }
 
@@ -347,9 +487,7 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
-      texto:
-        `Cerrado: ${ahora.playerName} por ${money(ahora.pide)}. Aviso a ${duenoNombre}, ` +
-        `y en cuanto dé el visto bueno **mandas tú la oferta** y él la acepta. No te arrepientas ahora.`,
+      texto: cierre(ahora.playerName!, ahora.pide, duenoNombre),
     };
   }
 
@@ -359,59 +497,111 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: `Por ${ahora.playerName} pido ${money(ahora.pide)}. ¿Tú qué pones?`,
+      texto: `Por ${ahora.playerName} estoy en ${money(ahora.pide)}. ¿Tú qué pones?`,
     };
   }
 
+  /**
+   * Sólo se cede cuando el otro sube.
+   *
+   * Repetir la misma cifra —o bajarla— no puede salirle gratis: si cada mensaje
+   * arrancara una rebaja, bastaría con insistir para llevarse al jugador al
+   * precio que le diera la gana.
+   */
+  const mejora = ahora.ofrece === 0 || cifra > ahora.ofrece;
+  const anterior = ahora.ofrece;
   ahora.ofrece = cifra;
-  ahora.rondas++;
+  if (mejora) ahora.rondas++;
 
-  // Se acepta lo que llegue al precio pedido o lo roce por muy poco.
-  if (cifra >= ahora.pide * 0.985) {
+  /**
+   * Ofrecer su valor de mercado o menos es pedirlo de regalo: el juego paga
+   * eso sin discutir. Ahí se acaba la conversación.
+   */
+  if (cifra <= precio.valor * 1.02) {
+    ahora.fase = "roto";
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto:
+        `¿${money(cifra)} por ${ahora.playerName}? Vale ${money(precio.valor)}: me estás ` +
+        `ofreciendo menos de lo que me da la liga por él. ` +
+        `${elige(BORDES, Math.round(cifra / 1_000_000) + mensaje.length)}`,
+    };
+  }
+
+  const objetivo = precio.minimo;
+
+  /**
+   * Nunca se acepta a la primera, aunque el número esté bien: quien abre
+   * fuerte casi siempre guarda otro escalón. Se pide un poco más una vez, y si
+   * repite o sube, se cierra.
+   */
+  if (cifra >= objetivo && ahora.rondas === 1) {
+    const rasca = redondea(Math.max(cifra * 1.04, cifra + 2_000_000));
+    ahora.pide = rasca;
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto:
+        `Buen número, no te voy a mentir. Redondéame a ${money(rasca)} y firmamos ahora, ` +
+        `que ${precio.razon}.`,
+    };
+  }
+
+  if (cifra >= objetivo) {
     ahora.fase = "acuerdo";
     return {
       trato: ahora,
       avisoAlDueno: aviso(ahora, duenoNombre),
-      texto:
-        `Trato. ${ahora.playerName} por ${money(cifra)}. Se lo paso a ${duenoNombre} y, ` +
-        `en cuanto diga que sí, **mandas tú la oferta** y él la acepta. Un placer hacer negocios.`,
+      texto: cierre(ahora.playerName!, cifra, duenoNombre),
     };
   }
 
-  // Una oferta ridícula no merece contraoferta: se planta.
-  if (cifra < precio.minimo * 0.6) {
+  const semilla = ahora.rondas + Math.round(cifra / 1_000_000) + mensaje.length;
+
+  if (!mejora) {
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto:
-        `¿${money(cifra)}? Anda ya. Su cláusula está en ${money(precio.clausula)}, ` +
-        `págala si tienes prisa. Yo sigo en ${money(ahora.pide)}.`,
+      texto: rellena(elige(FIRME, semilla), {
+        n: money(ahora.pide),
+        o: money(anterior),
+      }),
     };
   }
 
-  const nuevo = cede(ahora.pide, precio.minimo, ahora.rondas);
-
-  // Si ya no queda margen, el mínimo es el mínimo.
-  if (nuevo <= precio.minimo && ahora.pide <= precio.minimo) {
-    return {
-      trato: ahora,
-      avisoAlDueno: null,
-      texto:
-        `${money(precio.minimo)}. Y de ahí no me muevo, ${precio.razon}. ` +
-        `Si no te cuadra, paga la cláusula y te dejo de contar el rollo.`,
-    };
-  }
-
+  const nuevo = cede(ahora.pide, objetivo, ahora.rondas);
   ahora.pide = nuevo;
 
-  const cerca = (nuevo - cifra) / nuevo < 0.08;
+  const distancia = (nuevo - cifra) / nuevo;
+
   return {
     trato: ahora,
     avisoAlDueno: null,
-    texto: cerca
-      ? `Ya casi. ${money(nuevo)} y no te doy más la brasa.`
-      : `${money(cifra)}, ¿en serio? ${capitalizar(precio.razon)}. Te lo dejo en ${money(nuevo)} y voy siendo generoso.`,
+    texto:
+      distancia < 0.08
+        ? rellena(elige(CERCA, semilla), { n: money(nuevo) })
+        : rellena(elige(LEJOS, semilla), {
+            n: money(nuevo),
+            o: money(cifra),
+            r: precio.razon,
+          }),
   };
+}
+
+/**
+ * El cierre.
+ *
+ * Deja claro que el número no es una venta: el dueño tiene la última palabra y
+ * puede rechazarlo o pedir otra cosa. El bot negocia, no firma.
+ */
+function cierre(jugador: string, precio: number, dueno: string): string {
+  return (
+    `Trato: ${jugador} por **${money(precio)}**. Ojo, que esto no es una venta cerrada — ` +
+    `se lo paso a ${dueno} y él tiene la última palabra: puede aceptarlo, pedir más o ` +
+    `echarse atrás. En cuanto te confirme, **mandas tú la oferta** en el juego y él la acepta. ` +
+    `Cualquier lío, se lo cuentas a él directamente.`
+  );
 }
 
 function aviso(trato: Trato, dueno: string): string {

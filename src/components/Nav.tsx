@@ -17,8 +17,11 @@ const LINKS = [
   { href: "/alineaciones", label: "Alineaciones", num: "06" },
   { href: "/equipos", label: "Equipos", num: "07" },
   { href: "/actividad", label: "Actividad", num: "08" },
-  { href: "/informe", label: "Informe de hoy", num: "09" },
-  { href: "/debug", label: "Diagnóstico", num: "10" },
+  { href: "/historial", label: "Compraventa", num: "09" },
+  { href: "/informe", label: "Informe de hoy", num: "10" },
+  { href: "/negociaciones", label: "Negociaciones", num: "11" },
+  { href: "/enlaces", label: "Enlaces del bot", num: "12" },
+  { href: "/debug", label: "Diagnóstico", num: "13" },
 ];
 
 /**
@@ -152,7 +155,7 @@ export function Nav({ leagues, activeId }: { leagues: LeagueRef[]; activeId: str
       )}
 
       {/* Barra lateral de escritorio */}
-      <header className="border-line bg-panel sticky top-0 hidden h-screen border-r lg:block">
+      <header className="border-line bg-panel sticky top-0 hidden h-screen w-[248px] shrink-0 border-r lg:block">
         <div className="flex h-full flex-col px-3 py-7">
           <div className="px-3">{brand}</div>
           <div className="mt-10 flex-1">{links}</div>

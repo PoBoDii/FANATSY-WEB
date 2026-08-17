@@ -53,9 +53,12 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen">
-        <div className="lg:grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[248px_1fr]">
+        {/* Con `grid` de dos columnas fijas, las páginas sin menú —el chat del bot—
+            acababan metidas en la columna de 248 px y salían aplastadas contra el
+            borde. Con `flex`, si no hay menú, el contenido ocupa todo el ancho. */}
+        <div className="lg:flex">
           <Nav leagues={session.leagues} activeId={session.active?.id ?? null} />
-          <main className="min-h-screen">{children}</main>
+          <main className="min-h-screen lg:min-w-0 lg:flex-1">{children}</main>
         </div>
       </body>
     </html>

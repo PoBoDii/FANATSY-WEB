@@ -1,12 +1,26 @@
 import { fantasy, safe } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { getFf } from "@/lib/futbolfantasy";
-import { playersOfTeam, teamHeader } from "@/lib/normalize";
-import { precioDe, responder, tratoNuevo, type Trato } from "@/lib/negociacion";
+import { playersOfTeam, teamHeader, toList, toManager, type Player } from "@/lib/normalize";
+import { buscarJugador, precioDe, responder, tratoNuevo, type Trato } from "@/lib/negociacion";
 import { sendTelegram } from "@/lib/telegram";
 import { openLedger } from "@/lib/estado";
+import { leerPrecios } from "@/lib/precios-manuales";
+import { apilar } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Palabras que aparecen en todas estas frases y no son nombres de nadie.
+ *
+ * Sin esta lista, "quiero" o "interesa" se buscaban como si fueran jugadores y
+ * cualquier coincidencia parcial mandaba la conversación a paseo.
+ */
+const RELLENO = new Set([
+  "quiero", "interesa", "dame", "vendes", "vender", "cuanto", "pides", "ofrezco",
+  "doy", "pago", "tienes", "hola", "buenas", "oye", "para", "por", "que", "como",
+  "kilos", "millones", "euros", "seria", "seria", "mira", "venga", "vale",
+]);
 
 /**
  * El bot que negocia.
@@ -41,19 +55,87 @@ export async function POST(request: Request) {
   if (!league || !myTeamId) {
     return Response.json({ error: "El dueño no tiene liga activa" }, { status: 503 });
   }
-  const [{ data: teamRaw }, ff] = await Promise.all([
+  const [{ data: teamRaw }, { data: teamsRaw }, ff, aMano] = await Promise.all([
     safe(fantasy.team(league.id, myTeamId)),
+    safe(fantasy.leagueTeams(league.id)),
     getFf(),
+    leerPrecios(),
   ]);
 
   const squad = playersOfTeam(teamRaw ?? {});
   // El nombre sale de la sesión: la ficha del equipo no siempre lo trae.
   const dueno = session.managerName ?? teamHeader(teamRaw ?? {}).managerName ?? "su dueño";
 
+  /**
+   * Los jugadores que NO son míos, con su dueño.
+   *
+   * Sirve para lo más frecuente que pasa en estos chats: preguntar por alguien
+   * que no tengo. En vez de un "no te entiendo", el bot dice de quién es y
+   * manda a paseo a quien pregunta.
+   */
+  const ajenos: { player: Player; dueno: string }[] = [];
+  toList(teamsRaw).forEach((raw, i) => {
+    const manager = toManager(raw, i, myTeamId);
+    if (manager.isMe) return;
+    for (const player of playersOfTeam(raw)) ajenos.push({ player, dueno: manager.name });
+  });
+
+  const buscarAjeno = (texto: string) => {
+    const suyo = buscarJugador(
+      texto,
+      ajenos.map((a) => a.player),
+    );
+    if (suyo) {
+      const dueno = ajenos.find((a) => a.player.id === suyo.id)?.dueno ?? null;
+      return { nombre: suyo.name, dueno };
+    }
+
+    /**
+     * Y si tampoco es de nadie, se busca en los seiscientos de LaLiga.
+     *
+     * Hay que ir palabra por palabra: `byName` espera un nombre, no una frase
+     * entera, y "me interesa lamine yamal te doy 90M" no casa con nada.
+     */
+    const palabras = texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z ]/g, " ")
+      .split(/\s+/)
+      // Fuera las palabras de relleno: "quiero", "interesa", "dame"…
+      .filter((w) => w.length >= 4 && !RELLENO.has(w));
+
+    for (let i = 0; i < palabras.length; i++) {
+      // Se prueban parejas primero ("lamine yamal") y luego palabras sueltas.
+      for (const clave of [palabras.slice(i, i + 2).join(" "), palabras[i]]) {
+        const libre = ff.byName(clave);
+        if (libre) return { nombre: libre.displayName ?? libre.name, dueno: null };
+      }
+    }
+
+    /**
+     * Último recurso: buscar la palabra dentro del nombre completo de los
+     * seiscientos de la liga. Es como se les llama de verdad — "lamine" y no
+     * "Lamine Yamal", "vini" y no "Vinícius".
+     */
+    for (const palabra of palabras) {
+      const hit = ff.all.find((row) => row.name.split(" ").some((t) => t.startsWith(palabra)));
+      if (hit) return { nombre: hit.displayName ?? hit.name, dueno: null };
+    }
+    return null;
+  };
+
   const trato: Trato = body.trato ?? tratoNuevo(quien);
   trato.quien = quien;
 
-  const salida = responder(trato, mensaje, squad, (player) => precioDe(player, ff.get(player)), dueno);
+  const salida = responder(
+    trato,
+    mensaje,
+    squad,
+    (player) => precioDe(player, ff.get(player), aMano[player.id]),
+    dueno,
+    buscarAjeno,
+  );
 
   /**
    * El aviso al dueño se manda una sola vez por acuerdo.
@@ -70,6 +152,25 @@ export async function POST(request: Request) {
       await sendTelegram(salida.avisoAlDueno);
     }
   }
+
+  /**
+   * Cada intercambio se guarda.
+   *
+   * Sirve para ver cómo negocia cada uno —quién tira a la baja, quién cede
+   * rápido, quién insiste— y para ajustar los precios con esa información. Se
+   * guarda el par entero, no sólo lo que dicen ellos, para poder releerlo como
+   * la conversación que fue.
+   */
+  await apilar(`chat:${quien}`, {
+    at: Date.now(),
+    quien,
+    jugador: salida.trato.playerName,
+    dice: mensaje,
+    responde: salida.texto,
+    fase: salida.trato.fase,
+    ofrece: salida.trato.ofrece,
+    pide: salida.trato.pide,
+  });
 
   return Response.json({ texto: salida.texto, trato: salida.trato });
 }
