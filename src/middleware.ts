@@ -15,8 +15,15 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * De paso ahorra dinero: los rastreadores que husmean la web se llevan un 401
  * de una línea en vez de disparar una página entera con sus veinte peticiones.
+ *
+ * ── Y las rutas que llama GitHub Actions ──────────────────────────────────
+ *
+ * El informe y los avisos los pide un robot, y un robot no tiene cookie. No
+ * quedan abiertos: cada uno comprueba su `INFORME_TOKEN` nada más entrar, que
+ * es la llave que le toca a quien llama desde fuera. Dejarlos detrás de la
+ * cookie sólo conseguía un 401 antes de que la ruta llegara a mirar el token.
  */
-const ABIERTO = ["/negociar", "/api/negociar"];
+const ABIERTO = ["/negociar", "/api/negociar", "/api/informe", "/api/alertas"];
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;

@@ -277,7 +277,14 @@ export function buscarJugador(texto: string, squad: Player[]): Player | null {
 }
 
 const SI = /\b(s[ií]|vale|ok|okay|hecho|trato|acepto|venga|dale|perfecto|de acuerdo)\b/i;
-const NO = /\b(no|paso|nada|olvida|d[ée]jalo|imposible|ni de co|ni loco)\b/i;
+/**
+ * Sólo un portazo de verdad rompe la conversación.
+ *
+ * Antes bastaba con que apareciera un "no" suelto en cualquier sitio, y frases
+ * como "no llego a tanto" —que es negociar, no marcharse— daban la charla por
+ * terminada. Ahora hay que decirlo con todas las letras.
+ */
+const NO = /\b(paso|olv[ií]dalo|d[ée]jalo|ni de co|ni loco|no gracias|no me interesa|lo dejo)\b/i;
 
 export type Intencion = "acepta" | "rechaza" | "otra";
 
@@ -353,13 +360,38 @@ const CERCA = [
   "Un último empujón: {n} y firmamos.",
 ];
 
-/** Cuando todavía está lejos, pero negociando en serio. */
+/**
+ * La primera respuesta a una oferta baja.
+ *
+ * No es una rebaja: es decir el precio por primera vez. Decir "bajo hasta" en
+ * el primer mensaje era regalar la idea de que ya se está cediendo, cuando
+ * todavía no se ha movido nada.
+ */
+const PRIMERA = [
+  "¿{o} por {x}? Ni de broma. {r}: mi precio es {n}.",
+  "{o} para empezar está bien... para ti. {r}. Mi número es {n}.",
+  "Vamos a ahorrarnos el paseo. {r}, así que el precio es {n}. Desde ahí hablamos.",
+  "Guárdate esos {o} para el fantasy de tu primo. {r}. Son {n}.",
+  "Empezamos mal, ¿eh? {r}, así que el precio es {n}.",
+  "Bonito intento. {r}. Estoy en {n} y de ahí todavía no me he movido.",
+  "{o}. Muy gracioso. {r}: {n}.",
+  "Por {x} se pagan {n}, que {r}. Tus {o} me los quedo de propina.",
+];
+
+/** Cuando ya se está regateando en serio y toca ceder un poco. */
 const LEJOS = [
-  "Por {o} no lo suelto: {r}. Mi precio es {n}.",
-  "{o} se queda corto. Ten en cuenta que {r}. Estoy en {n}.",
-  "Ahí no llegamos: {r}. Bajo hasta {n} y poco más puedo hacer.",
+  "Por {o} no lo suelto: {r}. Bajo a {n} y ya me duele.",
+  "{o} se queda corto. {r}. Te lo dejo en {n}.",
+  "Ahí no llegamos: {r}. Hasta {n} llego, más abajo no.",
   "Entiendo la jugada, pero {r}. Mi número es {n}.",
   "Por {o} me lo quedo yo, que {r}. Hablamos si llegas a {n}.",
+  "Vas subiendo, algo es algo. {r}: {n} y seguimos.",
+  "{o}... {r}. Te hago un esfuerzo: {n}.",
+  "Me estás haciendo trabajar. {r}. {n}, y porque hoy estoy generoso.",
+  "No me llega con {o}. {r}. {n} es lo que hay.",
+  "Sube, hombre, sube. {r}. Yo bajo a {n}.",
+  "Con {o} no me compras ni la camiseta. {r}. {n}.",
+  "Casi me convences. Casi. {r}. {n}.",
 ];
 
 /** Cuando repiten la misma cifra o bajan la oferta. */
@@ -369,15 +401,106 @@ const FIRME = [
   "Insistir no me baja el precio. {n}.",
   "Me acabas de ofrecer menos que antes. Así vamos para atrás: {n}.",
   "Mi número no se mueve porque tú escribas más rápido: {n}.",
+  "{o} otra vez no. {n}, y van tres.",
+  "Que no, pesado. {n}.",
+  "Copiar y pegar no es negociar. {n}.",
+];
+
+/**
+ * Cuando sueltan algo que no es ni un jugador ni una cifra.
+ *
+ * Aquí caen los insultos, las preguntas raras y el que viene a dar palique. Se
+ * responde con borderío y se vuelve al precio, que es a lo que se ha venido:
+ * `{p}` es la frase con lo que se pide ahora mismo.
+ */
+const BRUSCO = [
+  "Eres un payaso. Si quieres fichar, paga; si quieres charla, búscate un grupo. {p}",
+  "Menos hablar y más ofrecer. {p}",
+  "Yo de terapia no entiendo, de precios sí. {p}",
+  "A ver si te lavas esa cara de payaso y me pones un número. {p}",
+  "Se te nota que no desayunas. Magnesio y una oferta, por ese orden. {p}",
+  "Eso no es una cifra. Vuelve cuando sepas contar. {p}",
+  "Me da igual tu opinión, macho. {p}",
+  "¿Has venido a fichar o a que te haga compañía? {p}",
+  "Escribe un número o vete a molestar a otro. {p}",
+  "Te falta hierro y te sobra morro. {p}",
+  "Esto no es un confesionario. {p}",
+  "Cuéntaselo a tu almohada. {p}",
+  "Con esa boca comes, y encima mal. Vitamina B12 y a ofertar. {p}",
+  "Mucho teclado y poco dinero, lo de siempre. {p}",
+];
+
+/** Cuando ni siquiera han dicho de quién hablan. */
+const SIN_JUGADOR = [
+  "A ver, que no soy adivino. Dime el jugador y el número. Algo como «quiero a Raphinha, te doy 90».",
+  "No me has dicho ni a quién quieres. Nombre y cifra, que no es tan difícil.",
+  "Empieza por decirme un nombre, campeón. Y una cifra detrás.",
+  "¿Y yo qué hago con eso? Dime a quién quieres y cuánto pones.",
+  "Menos rollo: nombre del jugador y número. Lo demás me sobra.",
+  "Aquí se viene con los deberes hechos: un nombre y un número.",
+];
+
+/**
+ * Chistes.
+ *
+ * Van escritos aquí y no salen de internet porque el bot no navega: no lleva
+ * un modelo detrás, así que lo que no esté en esta lista no lo sabe contar. A
+ * cambio no se inventa nada y no cuesta un céntimo.
+ */
+const CHISTES = [
+  "Chiste: el médico me dio seis meses de vida. Como no le pagué, me dio seis más.",
+  "Va uno: mi abuelo murió tranquilo, mientras dormía. No como los pasajeros de su autobús.",
+  "Chiste del día: —Doctor, ¿me va a doler? —A mí no.",
+  "Un clásico: mi mujer y yo fuimos felices veinte años. Luego nos conocimos.",
+  "Toma chiste: —Papá, ¿por qué me llamo Rosa? —Porque te cayó una rosa en la cabeza. —Gracias, papá. —De nada, Ladrillo.",
+  "Mi psicólogo dice que tengo problemas con la venganza. Ya veremos quién ríe el último.",
+  "Dicen que el dinero no da la felicidad, pero llorando en un yate se llora mejor.",
+  "Chiste: ¿qué hace un cadáver en un cementerio? Nada, está muerto.",
+  "Me dijeron que bebiendo se me olvidarían los problemas. Mentira: ahora tengo uno más.",
+  "El otro día me robaron el calendario. Le van a caer doce meses.",
+  "De pequeño mi padre me llevaba al parque. Luego aprendí a salir del saco yo solo.",
+  "Mi tío se cayó de una escalera de veinte metros. Menos mal que iba por el primer escalón.",
 ];
 
 const elige = (frases: string[], semilla: number) => frases[Math.abs(semilla) % frases.length];
 
-const rellena = (frase: string, datos: { n?: string; o?: string; r?: string }) =>
-  frase
-    .replace("{n}", datos.n ?? "")
-    .replace("{o}", datos.o ?? "")
-    .replace("{r}", datos.r ?? "");
+/**
+ * Mayúscula después de punto.
+ *
+ * Las frases se montan por trozos y la razón del precio ("le queda cláusula por
+ * delante") está escrita en minúscula porque a veces va a mitad de frase.
+ * Cuando le toca ir después de un punto hay que levantarla, o se lee como si lo
+ * hubiera escrito un robot con prisa.
+ */
+const puntuar = (texto: string) =>
+  texto.replace(/(^|[.!?]\s+)([a-záéíóúüñ])/g, (_, antes: string, letra: string) =>
+    antes + letra.toUpperCase(),
+  );
+
+const rellena = (
+  frase: string,
+  datos: { n?: string; o?: string; r?: string; x?: string; p?: string },
+) =>
+  puntuar(
+    frase
+      .replace("{n}", datos.n ?? "")
+      .replace("{o}", datos.o ?? "")
+      .replace("{r}", datos.r ?? "")
+      .replace("{x}", datos.x ?? "")
+      .replace("{p}", datos.p ?? ""),
+  );
+
+/**
+ * Un chiste de vez en cuando, no siempre.
+ *
+ * Uno de cada cuatro mensajes de los bordes. Contarlo cada vez lo convertiría
+ * en una muletilla y dejaría de tener gracia a los tres mensajes.
+ */
+const conChiste = (texto: string, semilla: number) =>
+  Math.abs(semilla) % 4 === 0 ? `${texto} ${elige(CHISTES, semilla + 5)}` : texto;
+
+/** ¿Está preguntando el precio, o sólo dando palique? */
+const PREGUNTA_PRECIO = /(cu[aá]nt|precio|pides|vale|cuesta|cifra|c[oó]mo va)/i;
 
 export function responder(
   trato: Trato,
@@ -458,13 +581,20 @@ export function responder(
     }
   }
 
+  /**
+   * Una semilla que cambia con cada mensaje.
+   *
+   * Lleva la hora dentro a propósito: así el que escribe dos veces lo mismo no
+   * se lleva dos veces la misma contestación, que era justo lo que delataba al
+   * bot como bot.
+   */
+  const chispa = mensaje.length * 13 + Math.floor(ahora.at / 997);
+
   if (!ahora.playerId || !ahora.precio) {
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto:
-        "A ver, que no soy adivino. Dime el jugador y el número. " +
-        "Algo como «quiero a Raphinha, te doy 90».",
+      texto: conChiste(elige(SIN_JUGADOR, chispa), chispa),
     };
   }
 
@@ -481,7 +611,14 @@ export function responder(
     };
   }
 
-  if (intencion === "acepta" && cifra === null && ahora.pide > 0) {
+  /**
+   * "¿Cuánto vale?" no es un sí.
+   *
+   * La palabra "vale" significa las dos cosas en castellano y el bot cerraba el
+   * trato a quien sólo estaba preguntando el precio. Si hay pregunta, no hay
+   * acuerdo.
+   */
+  if (intencion === "acepta" && cifra === null && ahora.pide > 0 && !PREGUNTA_PRECIO.test(mensaje)) {
     ahora.fase = "acuerdo";
     ahora.ofrece = ahora.pide;
     return {
@@ -493,11 +630,29 @@ export function responder(
 
   /* -------------------------------------------------------- el regateo */
 
+  /**
+   * Ha escrito algo que no es una oferta.
+   *
+   * Si pregunta por el precio se le contesta; si viene a insultar o a dar
+   * conversación, se le contesta igual de mal y se vuelve al número, que es a
+   * lo que se ha venido. Repetir "¿tú qué pones?" a todo era lo peor de las dos
+   * cosas: ni respondía ni picaba.
+   */
   if (cifra === null) {
+    const linea = `Por ${ahora.playerName} estoy en ${money(ahora.pide)}.`;
+
+    if (PREGUNTA_PRECIO.test(mensaje)) {
+      return {
+        trato: ahora,
+        avisoAlDueno: null,
+        texto: `${linea} ¿Tú qué pones?`,
+      };
+    }
+
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: `Por ${ahora.playerName} estoy en ${money(ahora.pide)}. ¿Tú qué pones?`,
+      texto: conChiste(rellena(elige(BRUSCO, chispa), { p: linea }), chispa),
     };
   }
 
@@ -563,9 +718,30 @@ export function responder(
     return {
       trato: ahora,
       avisoAlDueno: null,
-      texto: rellena(elige(FIRME, semilla), {
-        n: money(ahora.pide),
-        o: money(anterior),
+      texto: conChiste(
+        rellena(elige(FIRME, semilla), { n: money(ahora.pide), o: money(anterior) }),
+        chispa,
+      ),
+    };
+  }
+
+  /**
+   * A la primera oferta no se cede: se dice el precio.
+   *
+   * Antes la primera respuesta ya recortaba y encima lo anunciaba —"bajo hasta
+   * tanto"—, así que el otro empezaba la conversación viendo que el bot se
+   * movía sin haber puesto nada encima de la mesa.
+   */
+  if (ahora.rondas === 1) {
+    ahora.pide = precio.salida;
+    return {
+      trato: ahora,
+      avisoAlDueno: null,
+      texto: rellena(elige(PRIMERA, semilla), {
+        n: money(precio.salida),
+        o: money(cifra),
+        r: precio.razon,
+        x: ahora.playerName ?? "ese",
       }),
     };
   }

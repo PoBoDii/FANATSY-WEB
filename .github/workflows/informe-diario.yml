@@ -19,6 +19,19 @@
 #   TELEGRAM_BOT_TOKEN    el que da @BotFather
 #   TELEGRAM_CHAT_ID      tu id de chat
 
+# ── Por qué manda una cookie ─────────────────────────────────────────────────
+#
+# La web entera está detrás de una contraseña (`APP_PASSWORD`) que viaja en una
+# cookie llamada `access`. Un robot no tiene navegador ni cookies, así que el
+# cerrojo le devolvía un 401 antes de que la ruta llegara a comprobar su
+# `INFORME_TOKEN`. Aquí se le manda a mano y pasa.
+#
+# Hace falta un tercer secreto en el repositorio: APP_PASSWORD, con el mismo
+# valor que tiene en Netlify.
+#
+# Cuando se despliegue la versión del middleware que deja pasar estas dos rutas
+# por su token, la cookie sobrará — pero no molesta, se ignora.
+
 name: Informe diario
 
 on:
@@ -37,6 +50,7 @@ jobs:
         run: |
           respuesta=$(curl --silent --show-error --max-time 120 \
             --write-out "\n%{http_code}" \
+            --cookie "access=${{ secrets.APP_PASSWORD }}" \
             "${{ secrets.SITE_URL }}/api/informe?token=${{ secrets.INFORME_TOKEN }}&enviar=1")
 
           codigo=$(echo "$respuesta" | tail -n1)
