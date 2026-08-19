@@ -1,6 +1,8 @@
 import { getSession } from "@/lib/session";
 import { buildReport } from "@/lib/informe";
 import { reportToText, sendTelegram } from "@/lib/telegram";
+import { diaEspanol } from "@/lib/alertas";
+import { openLedger } from "@/lib/estado";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +63,27 @@ export async function GET(request: Request) {
     return Response.json(report);
   }
 
+  /**
+   * Uno al día y no más.
+   *
+   * El reloj de GitHub va en UTC, así que para que el informe llegue a las
+   * nueve de España tanto en verano como en invierno hay que programar las dos
+   * horas posibles. Eso significa que **siempre** hay un segundo disparo una
+   * hora después, y es aquí donde se descarta.
+   */
+  const ledger = await openLedger();
+  const clave = `informe-${diaEspanol(Date.now())}`;
+
+  if (ledger.has(clave)) {
+    return Response.json({ enviado: false, motivo: "el informe de hoy ya se mandó" });
+  }
+
   const sent = await sendTelegram(reportToText(report, base));
+
+  if (sent.ok) {
+    ledger.add(clave);
+    await ledger.flush();
+  }
 
   return Response.json(
     { enviado: sent.ok, error: sent.error, titulares: report.headlines },

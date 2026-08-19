@@ -36,9 +36,12 @@ name: Informe diario
 
 on:
   schedule:
-    # 08:15 en España (07:15 UTC en invierno, 06:15 en verano). GitHub usa UTC
-    # siempre, así que se programan las dos y la web ignora la repetida.
-    - cron: "15 6 * * *"
+    # Las 09:00 de España. GitHub va siempre en UTC, así que hay que programar
+    # las dos horas que corresponden: 07:00 UTC en verano y 08:00 en invierno.
+    # Sólo una de las dos cae a las nueve; la otra llega a las diez y el propio
+    # informe la descarta, porque ya lo mandó ese día.
+    - cron: "0 7 * * *"
+    - cron: "0 8 * * *"
   # Y un botón para lanzarlo a mano desde la pestaña Actions.
   workflow_dispatch:
 

@@ -32,7 +32,7 @@ import { openLedger } from "./estado";
 export type Alerta = {
   /** Identifica el suceso: es lo que se recuerda para no repetirlo. */
   key: string;
-  kind: "clausula-rival" | "clausula-mia" | "lesion" | "caida" | "mercado" | "jornada";
+  kind: "clausula-rival" | "clausula-mia" | "caida" | "mercado" | "jornada";
   /** Cuanto más alto, más arriba en el mensaje. */
   priority: number;
   text: string;
@@ -54,6 +54,38 @@ const EARLY_RIVAL = 40 * MIN;
 const LAST_CALL = 8 * MIN;
 /** El de mis cláusulas se adelanta más: blindar lleva su tiempo. */
 const EARLY_MINE = 70 * MIN;
+
+/**
+ * El cierre del mercado: salta en cuanto quedan 25 minutos o menos.
+ *
+ * Antes dependía de que un disparo de GitHub cayera clavado a las 21:55, y eso
+ * falla de dos maneras a la vez: si el disparo se retrasa —lo hace, y bastante—
+ * el aviso no llega, y si se programan dos horas para cubrir el cambio de hora,
+ * llega dos veces, una de ellas a deshora.
+ *
+ * Con una ventana ancha basta con que **cualquiera** de las pasadas de la media
+ * hora anterior llegue a tiempo, y la memoria de lo enviado impide el
+ * duplicado. Llegar a las 21:37 no molesta; no llegar, sí.
+ */
+const EARLY_MARKET = 25;
+
+/** Minutos que faltan para las 22:00 en España, se mire desde donde se mire. */
+function untilMarketClose(now: number): number {
+  const partes = new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(now));
+
+  const hora = Number(partes.find((p) => p.type === "hour")?.value ?? 0);
+  const minuto = Number(partes.find((p) => p.type === "minute")?.value ?? 0);
+  return 22 * 60 - (hora * 60 + minuto);
+}
+
+/** El día en España, para que la clave del aviso no se repita. */
+export const diaEspanol = (now: number) =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date(now));
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -172,113 +204,6 @@ export async function checkAlerts(
     }
   }
 
-  /* ------------------------------------------------------ partes médicos */
-
-  /**
-   * Un aviso nuevo de futbolfantasy sobre alguien que importa: mío, de un
-   * rival o del mercado. De los otros seiscientos jugadores de la liga no se
-   * avisa, porque no se puede hacer nada con esa información.
-   */
-  const watched = new Map<string, { player: Player; who: string }>();
-  for (const player of mine) watched.set(player.id, { player, who: "TUYO" });
-  for (const r of rivals) {
-    if (!watched.has(r.player.id)) watched.set(r.player.id, { player: r.player, who: r.owner.name });
-  }
-  for (const raw of toList(marketRaw)) {
-    const item = toMarketItem(raw, myTeamId);
-    if (item.player.id && !watched.has(item.player.id) && !item.sellerTeamId) {
-      watched.set(item.player.id, { player: item.player, who: "en el mercado" });
-    }
-  }
-
-  /**
-   * El parte médico va entero, no sólo lo nuevo.
-   *
-   * Antes llegaba un aviso por cada lesionado nuevo y nada más, así que para
-   * saber cómo estaba la enfermería había que ir rebuscando mensajes viejos.
-   * Ahora basta con que aparezca **uno** nuevo para que llegue la lista
-   * completa de bajas de la liga, con el motivo y hasta cuándo. Lo nuevo va
-   * marcado, que es lo que se mira primero.
-   */
-  const enfermeria: { key: string; texto: string; mio: boolean; nuevo: boolean }[] = [];
-
-  for (const { player, who } of watched.values()) {
-    // Del mercado no se informa aquí: son jugadores de nadie y la enfermería
-    // es para saber quién tiene un roto en su plantilla.
-    if (who === "en el mercado") continue;
-
-    const odds = oddsOf(player);
-    const baja = odds?.slug ? ff.bajas.get(odds.slug) : null;
-
-    /**
-     * Sólo partes médicos y bajas confirmadas.
-     *
-     * futbolfantasy marca como aviso muchas cosas que no son una lesión —un
-     * rumor de fichaje, una entrevista— y avisar de todas convertiría el canal
-     * en ruido. Se pide o estar en la enfermería del club, o un parte médico
-     * explícito, o que el propio juego lo dé por lesionado o sancionado.
-     */
-    const medical = odds?.alerts.find(
-      (a) => a.kind === "injury" && /m[ée]dico|lesi|sanci/i.test(a.label),
-    );
-    const benched = player.status === "injured" || player.status === "suspended";
-    if (!baja && !medical && !benched) continue;
-
-    const que =
-      baja?.motivo ??
-      (medical
-        ? `${medical.label}${medical.tags.length ? ` (${medical.tags.join(", ")})` : ""}`
-        : player.status === "injured"
-          ? "lesionado"
-          : "sancionado");
-
-    // Lo que más falta hacía: cuándo vuelve. Si futbolfantasy no lo dice, al
-    // menos se cuenta desde cuándo lleva fuera.
-    const cuando = baja?.hasta
-      ? ` · ${esc(baja.hasta.replace(/^Baja /, ""))}`
-      : baja?.dias
-        ? ` · ${baja.dias} días fuera`
-        : "";
-
-    const key = `parte-${player.id}-${que}`;
-    enfermeria.push({
-      key,
-      mio: who === "TUYO",
-      nuevo: !ledger.has(key),
-      texto:
-        `<b>${esc(player.name)}</b> · ${esc(que)}${cuando} · ` +
-        `${who === "TUYO" ? "<b>es tuyo</b>" : esc(who)}`,
-    });
-  }
-
-  const nuevasBajas = enfermeria.filter((b) => b.nuevo);
-
-  /**
-   * Sin ninguna baja nueva no se manda nada.
-   *
-   * La lista completa es útil cuando algo ha cambiado; recibirla cada diez
-   * minutos sin novedades sería exactamente el ruido que se quiere evitar.
-   */
-  const parteMedico =
-    nuevasBajas.length === 0
-      ? null
-      : [
-          `<b>🚑 Parte médico</b> · ${nuevasBajas.length} nuevo${
-            nuevasBajas.length === 1 ? "" : "s"
-          } de ${enfermeria.length} bajas`,
-          "",
-          ...enfermeria
-            // Lo mío primero, lo nuevo por delante dentro de cada grupo.
-            .sort(
-              (a, b) =>
-                Number(b.mio) - Number(a.mio) ||
-                Number(b.nuevo) - Number(a.nuevo) ||
-                a.texto.localeCompare(b.texto),
-            )
-            .slice(0, 30)
-            .map((b) => `${b.nuevo ? "🆕" : "•"} ${b.texto}`),
-        ].join("\n");
-
   /* ---------------------------------------------------- caídas de golpe */
 
   for (const player of mine) {
@@ -330,20 +255,45 @@ export async function checkAlerts(
     }
   }
 
+  /* ------------------------------------------------- cierre del mercado */
+
+  const paraCierre = untilMarketClose(now);
+  if (paraCierre > 0 && paraCierre <= EARLY_MARKET) {
+    const lineas = await marketPicks(leagueId, myTeamId);
+    const dia = diaEspanol(now);
+
+    if (lineas.length === 0) {
+      alerts.push({
+        key: `mercado-${dia}`,
+        kind: "mercado",
+        priority: 400,
+        text: "Hoy no hay nada que merezca una puja.",
+      });
+    } else {
+      lineas.forEach((linea, i) => {
+        alerts.push({
+          key: `mercado-${dia}-${i}`,
+          kind: "mercado",
+          priority: 400 - i,
+          text: linea,
+        });
+      });
+    }
+  }
+
   /* ------------------------------------------------------- a enviar */
 
   const fresh = alerts.filter((a) => !ledger.has(a.key));
 
   if (!soloMirar) {
-    for (const b of nuevasBajas) ledger.add(b.key);
     for (const a of fresh) ledger.add(a.key);
     await ledger.flush();
   }
 
   return {
     checkedAt: new Date(now).toISOString(),
-    messages: groupMessages(fresh, parteMedico),
-    count: fresh.length + nuevasBajas.length,
+    messages: groupMessages(fresh),
+    count: fresh.length,
   };
 }
 
@@ -352,16 +302,14 @@ export async function checkAlerts(
 const HEADS: Record<Alerta["kind"], string> = {
   "clausula-mia": "🔒 Se abren TUS cláusulas",
   jornada: "🏁 Empieza la jornada",
-  lesion: "🚑 Parte médico",
   "clausula-rival": "⏰ Cláusulas a punto de abrirse",
   caida: "📉 Se está desplomando",
-  mercado: "🛒 Cierra el mercado",
+  mercado: "🛒 El mercado cierra a las 22:00",
 };
 
 const ORDER: Alerta["kind"][] = [
   "clausula-mia",
   "jornada",
-  "lesion",
   "clausula-rival",
   "caida",
   "mercado",
@@ -373,17 +321,10 @@ const ORDER: Alerta["kind"][] = [
  * Cuando se abren quince cláusulas a la vez llega un solo aviso con las quince,
  * ordenadas por interés, en vez de quince notificaciones seguidas.
  */
-function groupMessages(alerts: Alerta[], parteMedico: string | null): string[] {
+function groupMessages(alerts: Alerta[]): string[] {
   const messages: string[] = [];
 
   for (const kind of ORDER) {
-    // El parte médico llega montado de fuera: es el único que enseña también lo
-    // que ya se había avisado, así que no puede salir del reparto normal.
-    if (kind === "lesion") {
-      if (parteMedico) messages.push(parteMedico);
-      continue;
-    }
-
     const group = alerts.filter((a) => a.kind === kind).sort((a, b) => b.priority - a.priority);
     if (group.length === 0) continue;
 
@@ -422,14 +363,14 @@ function kickoff(text: string, now: number): number | null {
  * de diez minutos: lo dispara un cron propio a esa hora exacta. Así no puede
  * llegar tarde por mucho que GitHub retrase los demás.
  */
-export async function marketClosing(
-  leagueId: string,
-  myTeamId: string | null,
-): Promise<string | null> {
-  const [{ data: marketRaw }, ff] = await Promise.all([
-    safe(fantasy.market(leagueId)),
-    getFf(),
-  ]);
+/**
+ * Lo que merece una puja antes de que cierre el mercado.
+ *
+ * Devuelve las líneas ya montadas, para que las use tanto el ciclo de avisos
+ * como la ruta manual `?tipo=mercado`.
+ */
+export async function marketPicks(leagueId: string, myTeamId: string | null): Promise<string[]> {
+  const [{ data: marketRaw }, ff] = await Promise.all([safe(fantasy.market(leagueId)), getFf()]);
 
   const picks = toList(marketRaw)
     .map((raw) => toMarketItem(raw, myTeamId))
@@ -445,7 +386,11 @@ export async function marketClosing(
       const perMillion = item.price > 0 ? average / (item.price / 1_000_000) : 0;
       const score =
         item.player.status === "ok" && p !== 0
-          ? Math.round(plays * (0.5 + 0.3 * Math.min(1, average / 7) + 0.2 * Math.min(1, perMillion / 0.8)) * 100) / 10
+          ? Math.round(
+              plays *
+                (0.5 + 0.3 * Math.min(1, average / 7) + 0.2 * Math.min(1, perMillion / 0.8)) *
+                100,
+            ) / 10
           : 0;
       return { item, odds, score };
     })
@@ -453,25 +398,30 @@ export async function marketClosing(
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  if (picks.length === 0) {
-    return "<b>🛒 El mercado cierra en 5 minutos</b>\n\nHoy no hay nada que merezca una puja.";
-  }
+  return picks.map(
+    ({ item, odds, score }) =>
+      `<b>${esc(item.player.name)}</b> · ${cash(item.price)}` +
+      `${odds?.probability != null ? ` · ${odds.probability}%` : ""}` +
+      ` · nota ${score.toFixed(1)}` +
+      `${
+        item.myBid
+          ? ` · <i>ya pujaste ${cash(item.myBid)}</i>`
+          : item.bids
+            ? ` · ${item.bids} pujas`
+            : " · sin pujas"
+      }`,
+  );
+}
 
-  const lines = [
-    "<b>🛒 El mercado cierra en 5 minutos</b>",
-    "",
-    "Lo que merece una puja hoy:",
-    "",
-  ];
+/** El mensaje suelto, para poder pedirlo a mano en cualquier momento. */
+export async function marketClosing(
+  leagueId: string,
+  myTeamId: string | null,
+): Promise<string | null> {
+  const lineas = await marketPicks(leagueId, myTeamId);
+  const cabecera = "<b>🛒 El mercado cierra a las 22:00</b>";
 
-  for (const { item, odds, score } of picks) {
-    lines.push(
-      `• <b>${esc(item.player.name)}</b> · ${cash(item.price)}` +
-        `${odds?.probability != null ? ` · ${odds.probability}%` : ""}` +
-        ` · nota ${score.toFixed(1)}` +
-        `${item.myBid ? ` · <i>ya pujaste ${cash(item.myBid)}</i>` : item.bids ? ` · ${item.bids} pujas` : " · sin pujas"}`,
-    );
-  }
-
-  return lines.join("\n");
+  return lineas.length === 0
+    ? `${cabecera}\n\nHoy no hay nada que merezca una puja.`
+    : [cabecera, "", "Lo que merece una puja hoy:", "", ...lineas.map((l) => `• ${l}`)].join("\n");
 }

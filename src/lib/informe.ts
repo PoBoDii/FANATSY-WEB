@@ -776,6 +776,64 @@ export async function buildReport(
     });
   }
 
+  /* ------------------------------------------------------- la enfermería */
+
+  /**
+   * Las bajas, al final del todo.
+   *
+   * Antes esto era un aviso aparte que llegaba a cualquier hora; molestaba más
+   * de lo que servía, porque una lesión no exige hacer nada en ese momento —lo
+   * que exige es tenerla presente al montar el once—. Aquí, leída con el café,
+   * está en su sitio.
+   *
+   * Sólo las que importan: las de alguien de la liga y las de los libres del
+   * mercado, que son la trampa más cara que hay.
+   */
+  const enMercado = new Set(market.map((item) => ff.get(item.player)?.slug).filter(Boolean));
+
+  const duenoDe = new Map<string, string>();
+  for (const player of mine) {
+    const slug = ff.get(player)?.slug;
+    if (slug) duenoDe.set(slug, "TUYO");
+  }
+  for (const r of rivals) {
+    const slug = ff.get(r.player)?.slug;
+    if (slug && !duenoDe.has(slug)) duenoDe.set(slug, r.owner.name);
+  }
+
+  const bajas = [...ff.bajas.values()]
+    .filter((baja) => duenoDe.has(baja.slug) || enMercado.has(baja.slug))
+    .map((baja) => {
+      const dueno = duenoDe.get(baja.slug) ?? "libre en el mercado";
+      const hasta = baja.hasta ? ` · ${baja.hasta.replace(/^Baja /, "")}` : "";
+      return {
+        mio: dueno === "TUYO",
+        // Las largas primero: son las que obligan a buscar recambio.
+        dias: baja.dias ?? 0,
+        texto: `${baja.name} · ${baja.motivo ?? "sin detalles"}${hasta} · ${
+          dueno === "TUYO" ? "es tuyo" : dueno
+        }`,
+      };
+    })
+    .sort((a, b) => Number(b.mio) - Number(a.mio) || b.dias - a.dias);
+
+  if (bajas.length > 0) {
+    const mias = bajas.filter((b) => b.mio).length;
+
+    sections.push({
+      key: "bajas",
+      title: "Lesionados y sancionados",
+      lead:
+        mias > 0
+          ? `Tienes ${mias} tocado${mias === 1 ? "" : "s"}. Mira el once antes de que empiece.`
+          : "Ninguno tuyo está tocado. Los de los demás, por si te interesa alguno.",
+      tone: mias > 0 ? "aviso" : "neutral",
+      compact: true,
+      players: [],
+      notes: bajas.slice(0, 20).map((b) => b.texto),
+    });
+  }
+
   if (headlines.length === 0) headlines.push("Día tranquilo: nada que exija moverse hoy");
 
   return {
